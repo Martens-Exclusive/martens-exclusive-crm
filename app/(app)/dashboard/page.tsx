@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 
 import { prisma } from "@/lib/prisma";
 
@@ -36,7 +37,11 @@ export default async function DashboardPage() {
     })
   ]);
 
-  const cards = [
+  const cards: Array<{
+    label: string;
+    value: number;
+    href: Route;
+  }> = [
     { label: "Nieuwe leads", value: newLeads, href: "/leads" },
     { label: "Te late opvolging", value: overdueLeads, href: "/leads" },
     { label: "Open taken", value: todayTasks, href: "/tasks" },
@@ -45,7 +50,6 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex flex-col gap-6">
-      {/* HEADER */}
       <section className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/45">
           Dashboard
@@ -59,7 +63,6 @@ export default async function DashboardPage() {
         </p>
       </section>
 
-      {/* CARDS */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <Link
