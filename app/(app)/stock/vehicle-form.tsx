@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import type { Route } from "next";
+import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -27,7 +28,7 @@ type VehicleFormProps = {
     costsExclVatCents: number | null;
     status: string;
   } | null;
-  backHref?: string;
+  backHref?: Route;
 };
 
 const initialState: SaveVehicleState = {};
@@ -51,19 +52,12 @@ function centsToInputValue(value: number | null) {
   return (value / 100).toFixed(2);
 }
 
-export function VehicleForm({ vehicle, backHref = "/stock" }: VehicleFormProps) {
+export function VehicleForm({
+  vehicle,
+  backHref = "/stock"
+}: VehicleFormProps) {
   const [state, formAction, isPending] = useActionState(saveVehicle, initialState);
   const isEditing = Boolean(vehicle);
-  const [purchaseVatType, setPurchaseVatType] = useState(
-    vehicle?.purchaseVatType ?? "BTW_WAGEN"
-  );
-  const [saleVatType, setSaleVatType] = useState(vehicle?.saleVatType ?? "BTW_WAGEN");
-  const [purchaseVatRate, setPurchaseVatRate] = useState(
-    vehicle?.purchaseVatType === "MARGE_WAGEN" ? "" : String(vehicle?.purchaseVatRate ?? 21)
-  );
-  const [saleVatRate, setSaleVatRate] = useState(
-    vehicle?.saleVatType === "MARGE_WAGEN" ? "" : String(vehicle?.saleVatRate ?? 21)
-  );
 
   return (
     <form
@@ -96,152 +90,132 @@ export function VehicleForm({ vehicle, backHref = "/stock" }: VehicleFormProps) 
         ) : null}
       </div>
 
-      <div className="mt-8 flex flex-col gap-5">
-        <Field label="Referentienummer">
-          <Input name="stockNumber" required defaultValue={vehicle?.stockNumber ?? ""} />
-        </Field>
+      <div className="mt-8 grid gap-8 xl:grid-cols-2">
+        <section className="flex flex-col gap-5">
+          <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-white/40">
+            Basisgegevens
+          </h3>
 
-        <Field label="Aankoopdatum">
-          <Input
-            name="purchaseDate"
-            type="date"
-            required
-            defaultValue={vehicle?.purchaseDate ?? ""}
-          />
-        </Field>
+          <Field label="Referentienummer">
+            <Input name="stockNumber" required defaultValue={vehicle?.stockNumber ?? ""} />
+          </Field>
 
-        <Field label="Merk">
-          <Input name="brand" required defaultValue={vehicle?.brand ?? ""} />
-        </Field>
+          <Field label="Aankoopdatum">
+            <Input
+              name="purchaseDate"
+              type="date"
+              required
+              defaultValue={vehicle?.purchaseDate ?? ""}
+            />
+          </Field>
 
-        <Field label="Model">
-          <Input name="model" required defaultValue={vehicle?.model ?? ""} />
-        </Field>
+          <Field label="Merk">
+            <Input name="brand" required defaultValue={vehicle?.brand ?? ""} />
+          </Field>
 
-        <Field label="Chassisnummer">
-          <Input name="vin" required defaultValue={vehicle?.vin ?? ""} />
-        </Field>
+          <Field label="Model">
+            <Input name="model" required defaultValue={vehicle?.model ?? ""} />
+          </Field>
 
-        <Field label="Kilometerstand">
-          <Input
-            name="mileageKm"
-            type="number"
-            min="0"
-            required
-            defaultValue={vehicle?.mileageKm ?? ""}
-          />
-        </Field>
+          <Field label="Chassisnummer">
+            <Input name="vin" required defaultValue={vehicle?.vin ?? ""} />
+          </Field>
 
-        <Field label="Aankoop btw-type">
-          <Select
-            name="purchaseVatType"
-            value={purchaseVatType}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              setPurchaseVatType(nextValue);
+          <Field label="Kilometerstand">
+            <Input
+              name="mileageKm"
+              type="number"
+              min="0"
+              required
+              defaultValue={vehicle?.mileageKm ?? ""}
+            />
+          </Field>
+        </section>
 
-              if (nextValue === "MARGE_WAGEN") {
-                setPurchaseVatRate("");
-              } else if (purchaseVatRate === "") {
-                setPurchaseVatRate("21");
-              }
-            }}
-          >
-            {vatTypeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <section className="flex flex-col gap-5">
+          <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-white/40">
+            Financieel
+          </h3>
 
-        <Field label="Aankoop btw-percentage">
-          <Input
-            name="purchaseVatRate"
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            required={purchaseVatType === "BTW_WAGEN"}
-            value={purchaseVatRate}
-            onChange={(event) => setPurchaseVatRate(event.target.value)}
-            placeholder={purchaseVatType === "MARGE_WAGEN" ? "Leeg laten voor margewagen" : "21"}
-          />
-        </Field>
+          <Field label="Aankoop btw-type">
+            <Select name="purchaseVatType" defaultValue={vehicle?.purchaseVatType ?? "BTW_WAGEN"}>
+              {vatTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
-        <Field label="Verkoop btw-type">
-          <Select
-            name="saleVatType"
-            value={saleVatType}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              setSaleVatType(nextValue);
+          <Field label="Aankoop btw-percentage">
+            <Input
+              name="purchaseVatRate"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              defaultValue={vehicle?.purchaseVatRate ?? ""}
+            />
+          </Field>
 
-              if (nextValue === "MARGE_WAGEN") {
-                setSaleVatRate("");
-              } else if (saleVatRate === "") {
-                setSaleVatRate("21");
-              }
-            }}
-          >
-            {vatTypeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+          <Field label="Verkoop btw-type">
+            <Select name="saleVatType" defaultValue={vehicle?.saleVatType ?? "BTW_WAGEN"}>
+              {vatTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
-        <Field label="Verkoop btw-percentage">
-          <Input
-            name="saleVatRate"
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            required={saleVatType === "BTW_WAGEN"}
-            value={saleVatRate}
-            onChange={(event) => setSaleVatRate(event.target.value)}
-            placeholder={saleVatType === "MARGE_WAGEN" ? "Leeg laten voor margewagen" : "21"}
-          />
-        </Field>
+          <Field label="Verkoop btw-percentage">
+            <Input
+              name="saleVatRate"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              defaultValue={vehicle?.saleVatRate ?? ""}
+            />
+          </Field>
 
-        <Field label="Aankoopprijs excl. btw">
-          <Input
-            name="purchasePriceExclVat"
-            inputMode="decimal"
-            required
-            defaultValue={centsToInputValue(vehicle?.purchasePriceExclVatCents ?? null)}
-          />
-        </Field>
+          <Field label="Aankoopprijs excl. btw">
+            <Input
+              name="purchasePriceExclVat"
+              inputMode="decimal"
+              required
+              defaultValue={centsToInputValue(vehicle?.purchasePriceExclVatCents ?? null)}
+            />
+          </Field>
 
-        <Field label="Verkoopprijs excl. btw">
-          <Input
-            name="salePriceExclVat"
-            inputMode="decimal"
-            required
-            defaultValue={centsToInputValue(vehicle?.salePriceExclVatCents ?? null)}
-          />
-        </Field>
+          <Field label="Verkoopprijs excl. btw">
+            <Input
+              name="salePriceExclVat"
+              inputMode="decimal"
+              required
+              defaultValue={centsToInputValue(vehicle?.salePriceExclVatCents ?? null)}
+            />
+          </Field>
 
-        <Field label="Kosten excl. btw">
-          <Input
-            name="costsExclVat"
-            inputMode="decimal"
-            required
-            defaultValue={centsToInputValue(vehicle?.costsExclVatCents ?? 0)}
-          />
-        </Field>
+          <Field label="Kosten excl. btw">
+            <Input
+              name="costsExclVat"
+              inputMode="decimal"
+              required
+              defaultValue={centsToInputValue(vehicle?.costsExclVatCents ?? 0)}
+            />
+          </Field>
 
-        <Field label="Status">
-          <Select name="status" defaultValue={vehicle?.status ?? "AVAILABLE"}>
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+          <Field label="Status">
+            <Select name="status" defaultValue={vehicle?.status ?? "AVAILABLE"}>
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </section>
       </div>
 
       {state.message ? (
