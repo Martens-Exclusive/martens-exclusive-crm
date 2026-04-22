@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String                  @id @default(cuid())
+  firstName        String
+  lastName         String
+  email            String                  @unique
+  passwordHash     String?
+  role             String                  @default("SALES")
+  isActive         Boolean                 @default(true)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  accounts         Account[]
+  sessions         Session[]
+  assignedLeads    Lead[]                  @relation("AssignedLeads")
+  createdTasks     Task[]                  @relation("TaskCreator")
+  ownedTasks       Task[]                  @relation("TaskAssignee")
+  activities       Activity[]
+  appointments     Appointment[]
+  statusChanges    LeadStatusHistory[]
+  assignmentEvents LeadAssignmentHistory[] @relation("AssignmentChangedBy")
+  assignmentFrom   LeadAssignmentHistory[] @relation("AssignmentFrom")
+  assignmentTo     LeadAssignmentHistory[] @relation("AssignmentTo")
+}
+
+model LeadSource {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  leads     Lead[]
+}
+
+model Vehicle {
+  id                        String   @id @default(cuid())
+  stockNumber               String   @unique
+  vin                       String?  @unique
+  purchaseDate              DateTime?
+  brand                     String
+  model                     String
+  variant                   String?
+  year                      Int?
+  mileageKm                 Int?
+  fuelType                  String?
+  transmission              String?
+  color                     String?
+  purchaseVatType           String?
+  saleVatType               String?
+  purchaseVatRate           Float?
+  saleVatRate               Float?
+  purchasePriceExclVatCents Int?
+  salePriceExclVatCents     Int?
+  costsExclVatCents         Int?     @default(0)
+  netProfitCents            Int?
+  priceCents                Int?
+  currency                  String   @default("EUR")
+  status                    String   @default("AVAILABLE")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  interestedLeads Lead[]
+}
+
+model Lead {
+  id                     String                  @id @default(cuid())
+  firstName              String
+  lastName               String
+  phone                  String?
+  email                  String?
+  preferredContactMethod String?
+  status                 String                  @default("NEW")
+  priority               String                  @default("NORMAL")
+  sourceId               String
+  assignedUserId         String?
+  primaryVehicleId       String?
+  tradeInInterest        Boolean                 @default(false)
+  financeInterest        Boolean                 @default(false)
+  budgetNotes            String?
+  customerMessage        String?
+  internalNotes          String?
+  nextFollowUpAt         DateTime?
+  lastContactedAt        DateTime?
+  lostReasonId           String?
+  lostNotes              String?
+  wonAt                  DateTime?
+  lostAt                 DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  source                 LeadSource              @relation(fields: [sourceId], references: [id])
+  assignedUser           User?                   @relation("AssignedLeads", fields: [assignedUserId], references: [id])
+  primaryVehicle         Vehicle?                @relation(fields: [primaryVehicleId], references: [id])
+  lostReason             LostReason?             @relation(fields: [lostReasonId], references: [id])
+  tasks                  Task[]
+  activities             Activity[]
+  appointments           Appointment[]
+  statusHistory          LeadStatusHistory[]
+  assignmentHistory      LeadAssignmentHistory[]
+
+  @@index([status])
+  @@index([assignedUserId, status])
+  @@index([nextFollowUpAt])
+  @@index([sourceId])
+  @@index([primaryVehicleId])
+  @@index([createdAt])
+}
+
+model Task {
+  id              String   @id @default(cuid())
+  leadId          String
+  assignedUserId  String
+  taskType        String
+  title           String
+  notes           String?
+  dueAt           DateTime
+  completedAt     DateTime?
+  status          String   @default("OPEN")
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lead            Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedUser    User     @relation("TaskAssignee", fields: [assignedUserId], references: [id])
+  createdByUser   User?    @relation("TaskCreator", fields: [createdByUserId], references: [id])
+
+  @@index([assignedUserId, status, dueAt])
+  @@index([leadId])
+}
+
+model Activity {
+  id         String   @id @default(cuid())
+  leadId     String
+  userId     String?
+  type       String
+  summary    String
+  details    String?
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([leadId, occurredAt])
+}
+
+model Appointment {
+  id             String   @id @default(cuid())
+  leadId         String
+  assignedUserId String
+  type           String
+  scheduledAt    DateTime
+  status         String   @default("SCHEDULED")
+  outcome        String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedUser   User     @relation(fields: [assignedUserId], references: [id])
+
+  @@index([assignedUserId, scheduledAt])
+  @@index([leadId])
+}
+
+model LostReason {
+  id        String   @id @default(cuid())
+  label     String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  leads     Lead[]
+}
+
+model LeadStatusHistory {
+  id              String   @id @default(cuid())
+  leadId          String
+  fromStatus      String?
+  toStatus        String
+  changedByUserId String?
+  changedAt       DateTime @default(now())
+  lead            Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  changedByUser   User?    @relation(fields: [changedByUserId], references: [id])
+
+  @@index([leadId, changedAt])
+}
+
+model LeadAssignmentHistory {
+  id              String   @id @default(cuid())
+  leadId          String
+  fromUserId      String?
+  toUserId        String?
+  changedByUserId String?
+  changedAt       DateTime @default(now())
+  lead            Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromUser        User?    @relation("AssignmentFrom", fields: [fromUserId], references: [id])
+  toUser          User?    @relation("AssignmentTo", fields: [toUserId], references: [id])
+  changedByUser   User?    @relation("AssignmentChangedBy", fields: [changedByUserId], references: [id])
+
+  @@index([leadId, changedAt])
+}
+
+model Account {
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  refresh_token_expires_in Int?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
