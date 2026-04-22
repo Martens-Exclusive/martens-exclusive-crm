@@ -7,9 +7,10 @@ import { mainNavigation } from "@/lib/navigation";
 
 type AppShellProps = {
   children: React.ReactNode;
+  userName?: string;
 };
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, userName }: AppShellProps) {
   return (
     <div className="min-h-screen bg-[#05070d] text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col lg:flex-row">
@@ -24,6 +25,15 @@ export function AppShell({ children }: AppShellProps) {
                 Leads, afspraken, taken en stock in één overzichtelijke omgeving.
               </p>
             </div>
+
+            {userName ? (
+              <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/35">
+                  Aangemeld als
+                </p>
+                <p className="mt-2 text-sm font-semibold text-white">{userName}</p>
+              </div>
+            ) : null}
 
             <nav className="mt-10 flex flex-col gap-2">
               {mainNavigation.map((item) => (
