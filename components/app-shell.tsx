@@ -1,68 +1,59 @@
-import Image from "next/image";
+"use client";
+
 import Link from "next/link";
-import { signOut } from "@/auth";
+import { signOut } from "next-auth/react";
+
 import { mainNavigation } from "@/lib/navigation";
 
-export function AppShell({
-  children,
-  userName
-}: {
+type AppShellProps = {
   children: React.ReactNode;
-  userName: string;
-}) {
+};
+
+export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto flex min-h-screen max-w-7xl gap-6 p-4 md:p-6">
-        <aside className="hidden w-72 flex-col rounded-[28px] border border-white/10 bg-[#0f0f10] p-6 md:flex">
-          {/* LOGO */}
-          <div className="border-b border-white/10 pb-6">
-            <div className="flex items-center gap-3">
-              <Image src="/logo.svg" alt="Martens Exclusive" width={42} height={42} />
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-white/45">
-                  Martens Exclusive
-                </p>
-                <h2 className="mt-1 text-2xl font-bold text-white">CRM</h2>
-              </div>
+    <div className="min-h-screen bg-[#05070d] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1600px] flex-col lg:flex-row">
+        <aside className="border-b border-white/10 bg-[#0b0d12] lg:w-[280px] lg:border-b-0 lg:border-r">
+          <div className="flex h-full flex-col px-6 py-8">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/35">
+                Martens Exclusive
+              </p>
+              <h1 className="mt-3 text-2xl font-bold text-white">CRM</h1>
+              <p className="mt-2 text-sm leading-6 text-white/60">
+                Leads, afspraken, taken en stock in één overzichtelijke omgeving.
+              </p>
             </div>
-          </div>
 
-          {/* NAV */}
-          <nav className="mt-10 flex flex-1 flex-col gap-2">
-            {mainNavigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-2xl px-4 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/5 hover:text-white"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+            <nav className="mt-10 flex flex-col gap-2">
+              {mainNavigation.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="rounded-2xl px-4 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/5 hover:text-white"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
 
-          {/* USER */}
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-            className="mt-8"
-          >
-            <div className="rounded-[24px] border border-white/10 bg-[#141414] p-4">
-              <p className="text-sm font-semibold text-white">{userName}</p>
-              <p className="mt-1 text-xs text-white/45">Aangemeld</p>
-
+            <div className="mt-auto pt-8">
               <button
-                type="submit"
-                className="mt-4 w-full rounded-2xl border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-[#d8d8d8]"
+                type="button"
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/75 transition hover:bg-white/5 hover:text-white"
               >
-                Uitloggen
+                Afmelden
               </button>
             </div>
-          </form>
+          </div>
         </aside>
 
-        <div className="flex-1">{children}</div>
+        <div className="flex-1">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+            {children}
+          </div>
+        </div>
       </div>
     </div>
   );
