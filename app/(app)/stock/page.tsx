@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 
 import { prisma } from "@/lib/prisma";
 import { formatCurrencyFromCents } from "@/lib/utils";
@@ -53,23 +54,24 @@ export default async function StockPage({
             </p>
             <h1 className="mt-3 text-2xl font-bold text-white">Stockoverzicht</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
-              Beheer actieve stock en archief in een rustige overzichtspagina, en open aparte pagina’s voor toevoegen of bewerken.
+              Beheer actieve stock en archief in een rustige overzichtspagina, en open
+              aparte pagina’s voor toevoegen of bewerken.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/stock/new"
+              href={"/stock/new" as Route}
               className="rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#d8d8d8]"
             >
               Nieuwe stockwagen toevoegen
             </Link>
             <TabLink
-              href="/stock?tab=active"
+              href={"/stock?tab=active" as Route}
               label="Actieve stock"
               active={currentTab === "active"}
             />
             <TabLink
-              href="/stock?tab=archive"
+              href={"/stock?tab=archive" as Route}
               label="Archief"
               active={currentTab === "archive"}
             />
@@ -163,7 +165,7 @@ function VehicleCardList({
                       {getStatusLabel(vehicle.status)}
                     </div>
                     <Link
-                      href={`/stock/${vehicle.id}/edit`}
+                      href={`/stock/${vehicle.id}/edit` as Route}
                       className="rounded-2xl border border-white/15 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white"
                     >
                       Bewerken
@@ -187,7 +189,10 @@ function VehicleCardList({
                         strong
                         tone={getDaysInStockTone(vehicle.purchaseDate)}
                       />
-                      <DetailItem label="Kilometerstand" value={formatInteger(vehicle.mileageKm)} />
+                      <DetailItem
+                        label="Kilometerstand"
+                        value={formatInteger(vehicle.mileageKm)}
+                      />
                       <DetailItem label="Chassisnummer" value={vehicle.vin || "-"} />
                     </div>
                     <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
@@ -250,7 +255,7 @@ function TabLink({
   label,
   active
 }: {
-  href: string;
+  href: Route;
   label: string;
   active: boolean;
 }) {
