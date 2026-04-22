@@ -1,61 +1,48 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
-import { z } from "zod";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
 
-const signInSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8)
-});
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt"
-  },
-  pages: {
-    signIn: "/login"
   },
   providers: [
     Credentials({
       name: "Credentials",
       credentials: {
-        email: { label: "E-mailadres", type: "email" },
+        email: { label: "E-mail", type: "email" },
         password: { label: "Wachtwoord", type: "password" }
       },
       async authorize(credentials) {
-        const parsedCredentials = signInSchema.safeParse(credentials);
+        const email = String(credentials?.email ?? "")
+          .trim()
+          .toLowerCase();
+        const password = String(credentials?.password ?? "");
 
-        if (!parsedCredentials.success) {
+        if (!email || !password) {
           return null;
         }
 
         const user = await prisma.user.findUnique({
-          where: {
-            email: parsedCredentials.data.email.toLowerCase()
-          }
+          where: { email }
         });
 
-        if (!user?.passwordHash || !user.isActive) {
+        if (!user || !user.passwordHash || !user.isActive) {
           return null;
         }
 
-        const passwordMatches = await compare(
-          parsedCredentials.data.password,
-          user.passwordHash
-        );
+        const isValid = await bcrypt.compare(password, user.passwordHash);
 
-        if (!passwordMatches) {
+        if (!isValid) {
           return null;
         }
 
         return {
           id: user.id,
           email: user.email,
-          name: `${user.firstName} ${user.lastName}`,
+          name: `${user.firstName} ${user.lastName}`.trim(),
           role: user.role
         };
       }
@@ -65,7 +52,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+
+        if ("role" in user && typeof user.role === "string") {
+          token.role = user.role;
+        }
       }
 
       return token;
@@ -78,5 +68,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       return session;
     }
+  },
+  pages: {
+    signIn: "/login"
   }
 });
