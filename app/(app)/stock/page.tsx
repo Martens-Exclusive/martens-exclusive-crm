@@ -46,30 +46,33 @@ export default async function StockPage({
         />
       </section>
 
-      <section className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
+      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/45">
+            <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
               Stock
             </p>
-            <h1 className="mt-3 text-2xl font-bold text-white">Stockoverzicht</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+            <h1 className="mt-3 text-2xl font-bold text-black">Stockoverzicht</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-black/70">
               Beheer actieve stock en archief in een rustige overzichtspagina, en open
               aparte pagina’s voor toevoegen of bewerken.
             </p>
           </div>
+
           <div className="flex flex-wrap gap-3">
             <Link
               href={"/stock/new" as Route}
-              className="rounded-2xl border border-white/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#d8d8d8]"
+              className="rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#ececec]"
             >
               Nieuwe stockwagen toevoegen
             </Link>
+
             <TabLink
               href={"/stock?tab=active" as Route}
               label="Actieve stock"
               active={currentTab === "active"}
             />
+
             <TabLink
               href={"/stock?tab=archive" as Route}
               label="Archief"
@@ -126,50 +129,52 @@ function VehicleCardList({
   emptyText: string;
 }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
+    <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
       <div>
-        <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/45">
+        <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Stocklijst
         </p>
-        <h2 className="mt-3 text-2xl font-bold text-white">{title}</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">{description}</p>
+        <h2 className="mt-3 text-2xl font-bold text-black">{title}</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-black/70">{description}</p>
       </div>
 
       <div className="mt-6 flex flex-col gap-4">
         {vehicles.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-white/12 bg-[#101010] p-5 text-sm text-white/50">
+          <div className="rounded-[22px] border border-dashed border-black/12 bg-[#ececec] p-5 text-sm text-black/55">
             {emptyText}
           </div>
         ) : (
           vehicles.map((vehicle) => (
             <article
               key={vehicle.id}
-              className="rounded-[24px] border border-white/10 bg-[#131313] p-6"
+              className="rounded-[24px] border border-black/10 bg-[#efefef] p-6 shadow-[0_12px_32px_rgba(0,0,0,0.05)]"
             >
               <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex flex-col gap-4 border-b border-black/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
-                    <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+                    <p className="text-xs uppercase tracking-[0.2em] text-black/45">
                       Referentie
                     </p>
                     <div className="mt-2 flex flex-col gap-1">
-                      <h3 className="text-xl font-bold text-white">{vehicle.stockNumber}</h3>
-                      <p className="text-sm text-white/65">
+                      <h3 className="text-xl font-bold text-black">{vehicle.stockNumber}</h3>
+                      <p className="text-sm text-black/70">
                         {vehicle.brand} {vehicle.model}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
-                    <div className="rounded-2xl border border-white/12 bg-white/5 px-4 py-2 text-sm font-semibold text-white">
+                    <div className="rounded-2xl border border-black/12 bg-[#fafafa] px-4 py-2 text-sm font-semibold text-black">
                       {getStatusLabel(vehicle.status)}
                     </div>
+
                     <Link
                       href={`/stock/${vehicle.id}/edit` as Route}
-                      className="rounded-2xl border border-white/15 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white"
+                      className="rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-2 text-sm font-semibold text-black/80 transition hover:bg-[#e7e7e7] hover:text-black"
                     >
                       Bewerken
                     </Link>
+
                     {vehicle.status === "SOLD" ? (
                       <DeleteVehicleButton vehicleId={vehicle.id} />
                     ) : null}
@@ -177,10 +182,11 @@ function VehicleCardList({
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
-                  <section className="rounded-[20px] border border-white/10 bg-[#101010] p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-white/40">
+                  <section className="rounded-[20px] border border-black/10 bg-[#f7f7f7] p-5">
+                    <p className="text-xs uppercase tracking-[0.18em] text-black/45">
                       Wageninformatie
                     </p>
+
                     <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
                       <DetailItem label="Aankoopdatum" value={formatDate(vehicle.purchaseDate)} />
                       <DetailItem
@@ -195,6 +201,7 @@ function VehicleCardList({
                       />
                       <DetailItem label="Chassisnummer" value={vehicle.vin || "-"} />
                     </div>
+
                     <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
                       <DetailItem
                         label="Aankoop btw-type"
@@ -215,10 +222,11 @@ function VehicleCardList({
                     </div>
                   </section>
 
-                  <section className="rounded-[20px] border border-white/10 bg-[#101010] p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-white/40">
+                  <section className="rounded-[20px] border border-black/10 bg-[#f7f7f7] p-5">
+                    <p className="text-xs uppercase tracking-[0.18em] text-black/45">
                       Financieel
                     </p>
+
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                       <FinanceItem
                         label="Aankoop excl. btw"
@@ -264,8 +272,8 @@ function TabLink({
       href={href}
       className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
         active
-          ? "border-white/15 bg-white text-black"
-          : "border-white/12 bg-[#131313] text-white/75 hover:bg-white/5 hover:text-white"
+          ? "border-black/15 bg-[#fafafa] text-black"
+          : "border-black/10 bg-[#ececec] text-black/70 hover:bg-[#e2e2e2] hover:text-black"
       }`}
     >
       {label}
@@ -286,7 +294,7 @@ function DetailItem({
 }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-[0.16em] text-white/40">{label}</p>
+      <p className="text-xs uppercase tracking-[0.16em] text-black/45">{label}</p>
       <p
         className={`mt-2 text-sm ${
           strong ? "font-bold" : "font-medium"
@@ -310,8 +318,8 @@ function FinanceItem({
   tone?: "default" | "positive" | "warning" | "negative";
 }) {
   return (
-    <div className="rounded-[18px] border border-white/10 bg-[#131313] p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-white/40">{label}</p>
+    <div className="rounded-[18px] border border-black/10 bg-[#fafafa] p-4">
+      <p className="text-xs uppercase tracking-[0.16em] text-black/45">{label}</p>
       <p
         className={`mt-2 text-base ${
           highlight ? "font-bold" : "font-semibold"
@@ -325,9 +333,9 @@ function FinanceItem({
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[24px] border border-white/10 bg-[#0f0f10] p-6">
-      <p className="text-sm font-semibold text-white/55">{label}</p>
-      <p className="mt-4 text-3xl font-bold text-white">{value}</p>
+    <div className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
+      <p className="text-sm font-semibold text-black/55">{label}</p>
+      <p className="mt-4 text-3xl font-bold text-black">{value}</p>
     </div>
   );
 }
@@ -449,18 +457,18 @@ function getToneClassName(
   emphasized: boolean
 ) {
   if (tone === "positive") {
-    return emphasized ? "text-green-400" : "text-green-300";
+    return emphasized ? "text-green-600" : "text-green-700";
   }
 
   if (tone === "warning") {
-    return emphasized ? "text-amber-400" : "text-amber-300";
+    return emphasized ? "text-amber-600" : "text-amber-700";
   }
 
   if (tone === "negative") {
-    return emphasized ? "text-red-400" : "text-red-300";
+    return emphasized ? "text-red-600" : "text-red-700";
   }
 
-  return emphasized ? "text-white" : "text-white/88";
+  return emphasized ? "text-black" : "text-black/88";
 }
 
 function getStatusLabel(status: string) {
