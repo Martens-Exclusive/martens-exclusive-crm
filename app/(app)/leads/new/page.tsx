@@ -28,7 +28,7 @@ export default async function NewLeadPage() {
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[32px] border border-white/10 bg-white p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
+      <section className="rounded-[32px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/60">
           Nieuwe lead
         </p>
