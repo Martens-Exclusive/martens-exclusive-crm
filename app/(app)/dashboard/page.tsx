@@ -50,15 +50,15 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
-        <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/45">
+      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Dashboard
         </p>
-        <h1 className="mt-4 text-3xl font-bold tracking-tight text-white">
+        <h1 className="mt-4 text-3xl font-bold tracking-tight text-black">
           Dagelijks overzicht van leads en opvolging.
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
-          Dit eerste dashboard houdt de focus op wat vandaag telt: nieuwe leads,
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-black/70">
+          Dit dashboard houdt de focus op wat vandaag telt: nieuwe leads,
           open opvolging en afspraken.
         </p>
       </section>
@@ -68,10 +68,10 @@ export default async function DashboardPage() {
           <Link
             key={card.label}
             href={card.href}
-            className="rounded-[24px] border border-white/10 bg-[#111111] p-6 transition hover:border-white/20 hover:bg-[#151515]"
+            className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition hover:bg-[#ececec]"
           >
-            <p className="text-sm font-semibold text-white/55">{card.label}</p>
-            <p className="mt-4 text-4xl font-bold text-white">
+            <p className="text-sm font-semibold text-black/55">{card.label}</p>
+            <p className="mt-4 text-4xl font-bold text-black">
               {numberFormatter.format(card.value)}
             </p>
           </Link>
