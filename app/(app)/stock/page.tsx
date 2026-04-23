@@ -1,488 +1,348 @@
-import Link from "next/link";
-import type { Route } from "next";
+"use server";
 
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
+
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatCurrencyFromCents } from "@/lib/utils";
-import { DeleteVehicleButton } from "./delete-vehicle-button";
 
-export default async function StockPage({
-  searchParams
-}: {
-  searchParams: Promise<{ tab?: string }>;
-}) {
-  const { tab } = await searchParams;
-  const currentTab = tab === "archive" ? "archive" : "active";
+const vehicleStatuses = ["AVAILABLE", "RESERVED", "SOLD"] as const;
+const vatTypes = ["BTW_WAGEN", "MARGE_WAGEN"] as const;
+const inventoryTypes = ["STOCK", "CONSIGNMENT", "ON_ORDER"] as const;
 
-  const [activeVehicles, archivedVehicles] = await Promise.all([
-    prisma.vehicle.findMany({
-      where: {
-        status: {
-          not: "SOLD"
-        }
+const vatRateField = z
+  .string()
+  .trim()
+  .refine((value) => value === "" || (Number.isFinite(Number(value)) && Number(value) >= 0), {
+    message: "Geef een geldig btw-percentage."
+  })
+  .transform((value) => (value === "" ? null : Number(value)));
+
+const vehicleSchema = z
+  .object({
+    vehicleId: z.string().trim().optional(),
+    stockNumber: z.string().trim().min(1, "Referentienummer is verplicht."),
+    purchaseDate: z.string().trim().optional(),
+    brand: z.string().trim().min(1, "Merk is verplicht."),
+    model: z.string().trim().min(1, "Model is verplicht."),
+    vin: z.string().trim().optional(),
+    mileageKm: z.coerce.number().int().min(0, "Kilometerstand is verplicht."),
+    inventoryType: z.enum(inventoryTypes),
+
+    commissionRate: z.string().trim().optional(),
+    commissionMinimum: z.string().trim().optional(),
+
+    purchaseVatType: z.enum(vatTypes),
+    saleVatType: z.enum(vatTypes),
+    purchaseVatRate: vatRateField,
+    saleVatRate: vatRateField,
+
+    purchasePriceExclVat: z.string().trim().optional(),
+    salePriceExclVat: z.string().trim().min(1, "Verkoopprijs is verplicht."),
+    costsExclVat: z.string().trim().optional(),
+
+    status: z.enum(vehicleStatuses)
+  })
+  .superRefine((data, ctx) => {
+    if (data.inventoryType !== "ON_ORDER" && !data.vin) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["vin"],
+        message: "Chassisnummer is verplicht."
+      });
+    }
+
+    if (data.inventoryType === "STOCK" && !data.purchasePriceExclVat) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["purchasePriceExclVat"],
+        message: "Aankoopprijs is verplicht."
+      });
+    }
+
+    if (data.inventoryType === "CONSIGNMENT") {
+      if (!data.commissionRate || Number(data.commissionRate) <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["commissionRate"],
+          message: "Commissiepercentage is verplicht."
+        });
+      }
+
+      if (!data.commissionMinimum) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["commissionMinimum"],
+          message: "Minimum commissie is verplicht."
+        });
+      }
+    }
+
+    if (data.purchaseVatType === "BTW_WAGEN" && data.purchaseVatRate === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["purchaseVatRate"],
+        message: "Aankoop btw-percentage is verplicht."
+      });
+    }
+
+    if (data.saleVatType === "BTW_WAGEN" && data.saleVatRate === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["saleVatRate"],
+        message: "Verkoop btw-percentage is verplicht."
+      });
+    }
+
+    if (data.purchaseVatType === "MARGE_WAGEN" && data.purchaseVatRate !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["purchaseVatRate"],
+        message: "Laat het aankoop btw-percentage leeg voor margewagens."
+      });
+    }
+
+    if (data.saleVatType === "MARGE_WAGEN" && data.saleVatRate !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["saleVatRate"],
+        message: "Laat het verkoop btw-percentage leeg voor margewagens."
+      });
+    }
+  });
+
+export type SaveVehicleState = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+  success?: boolean;
+};
+
+export type DeleteVehicleState = {
+  message?: string;
+  success?: boolean;
+};
+
+function parseMoneyToCents(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedValue = value.replace(/\s/g, "").replace(",", ".");
+  const amount = Number(normalizedValue);
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return null;
+  }
+
+  return Math.round(amount * 100);
+}
+
+export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
+  await requireUser();
+
+  const parsedVehicle = vehicleSchema.safeParse({
+    vehicleId: formData.get("vehicleId"),
+    stockNumber: formData.get("stockNumber"),
+    purchaseDate: formData.get("purchaseDate"),
+    brand: formData.get("brand"),
+    model: formData.get("model"),
+    vin: formData.get("vin"),
+    mileageKm: formData.get("mileageKm"),
+    inventoryType: formData.get("inventoryType"),
+    commissionRate: formData.get("commissionRate"),
+    commissionMinimum: formData.get("commissionMinimum"),
+    purchaseVatType: formData.get("purchaseVatType"),
+    saleVatType: formData.get("saleVatType"),
+    purchaseVatRate: formData.get("purchaseVatRate"),
+    saleVatRate: formData.get("saleVatRate"),
+    purchasePriceExclVat: formData.get("purchasePriceExclVat"),
+    salePriceExclVat: formData.get("salePriceExclVat"),
+    costsExclVat: formData.get("costsExclVat"),
+    status: formData.get("status")
+  });
+
+  if (!parsedVehicle.success) {
+    return {
+      errors: parsedVehicle.error.flatten().fieldErrors,
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  const purchaseDate = parsedVehicle.data.purchaseDate
+    ? new Date(parsedVehicle.data.purchaseDate)
+    : null;
+
+  if (parsedVehicle.data.purchaseDate && purchaseDate && Number.isNaN(purchaseDate.getTime())) {
+    return {
+      errors: {
+        purchaseDate: ["Geef een geldige datum in."]
       },
-      orderBy: [{ status: "asc" }, { purchaseDate: "desc" }, { createdAt: "desc" }]
-    }),
-    prisma.vehicle.findMany({
-      where: { status: "SOLD" },
-      orderBy: [{ updatedAt: "desc" }, { purchaseDate: "desc" }]
-    })
-  ]);
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
 
-  const visibleVehicles = currentTab === "archive" ? archivedVehicles : activeVehicles;
-
-  return (
-    <main className="flex flex-col gap-6">
-      <section className="grid gap-4 md:grid-cols-3">
-        <SummaryCard label="Actieve stock" value={String(activeVehicles.length)} />
-        <SummaryCard label="Archief" value={String(archivedVehicles.length)} />
-        <SummaryCard
-          label="Totale actieve marge"
-          value={formatCurrencyFromCents(
-            activeVehicles.reduce(
-              (total, vehicle) => total + (vehicle.netProfitCents ?? 0),
-              0
-            )
-          )}
-        />
-      </section>
-
-      <section className="rounded-[28px] border border-black/10 bg-[#f2f2f2] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
-              Stock
-            </p>
-            <h1 className="mt-3 text-2xl font-bold text-black">Stockoverzicht</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-black/70">
-              Beheer actieve stock en archief in een rustige overzichtspagina, en open
-              aparte pagina’s voor toevoegen of bewerken.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={"/stock/new" as Route}
-              className="rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#e7e7e7]"
-            >
-              Nieuwe stockwagen toevoegen
-            </Link>
-
-            <TabLink
-              href={"/stock?tab=active" as Route}
-              label="Actieve stock"
-              active={currentTab === "active"}
-            />
-
-            <TabLink
-              href={"/stock?tab=archive" as Route}
-              label="Archief"
-              active={currentTab === "archive"}
-            />
-          </div>
-        </div>
-      </section>
-
-      <VehicleCardList
-        title={currentTab === "archive" ? "Archief" : "Actieve stock"}
-        description={
-          currentTab === "archive"
-            ? "Verkochte wagens blijven hier raadpleegbaar met aankoop-, verkoop-, kosten- en margegegevens."
-            : "Beschikbare en gereserveerde wagens voor dagelijkse opvolging, zonder brede horizontale tabellen."
-        }
-        vehicles={visibleVehicles}
-        emptyText={
-          currentTab === "archive"
-            ? "Nog geen verkochte wagens in archief."
-            : "Nog geen actieve stockwagens."
-        }
-      />
-    </main>
+  const purchasePriceExclVatCents = parseMoneyToCents(
+    parsedVehicle.data.purchasePriceExclVat
   );
+  const salePriceExclVatCents = parseMoneyToCents(parsedVehicle.data.salePriceExclVat);
+  const costsExclVatCents = parseMoneyToCents(parsedVehicle.data.costsExclVat) ?? 0;
+
+  if (salePriceExclVatCents === null) {
+    return {
+      message: "Controleer de verkoopprijs.",
+      success: false
+    };
+  }
+
+  if (
+    parsedVehicle.data.inventoryType === "STOCK" &&
+    purchasePriceExclVatCents === null
+  ) {
+    return {
+      message: "Controleer de aankoopprijs.",
+      success: false
+    };
+  }
+
+  const commissionRate =
+    parsedVehicle.data.inventoryType === "CONSIGNMENT"
+      ? Number(parsedVehicle.data.commissionRate || "6")
+      : null;
+
+  const commissionMinimumExclVatCents =
+    parsedVehicle.data.inventoryType === "CONSIGNMENT"
+      ? parseMoneyToCents(parsedVehicle.data.commissionMinimum) ?? 250000
+      : null;
+
+  let netProfitCents: number | null = null;
+
+  if (parsedVehicle.data.inventoryType === "CONSIGNMENT") {
+    const percentageCommission = Math.round(
+      salePriceExclVatCents * ((commissionRate ?? 0) / 100)
+    );
+
+    netProfitCents = Math.max(
+      percentageCommission,
+      commissionMinimumExclVatCents ?? 250000
+    );
+  } else {
+    netProfitCents =
+      salePriceExclVatCents - (purchasePriceExclVatCents ?? 0) - costsExclVatCents;
+  }
+
+  const vehicleData = {
+    stockNumber: parsedVehicle.data.stockNumber,
+    purchaseDate,
+    brand: parsedVehicle.data.brand,
+    model: parsedVehicle.data.model,
+    vin: parsedVehicle.data.vin || null,
+    mileageKm: parsedVehicle.data.mileageKm,
+    inventoryType: parsedVehicle.data.inventoryType,
+    commissionRate,
+    commissionMinimumExclVatCents,
+    purchaseVatType: parsedVehicle.data.purchaseVatType,
+    saleVatType: parsedVehicle.data.saleVatType,
+    purchaseVatRate: parsedVehicle.data.purchaseVatRate,
+    saleVatRate: parsedVehicle.data.saleVatRate,
+    purchasePriceExclVatCents:
+      parsedVehicle.data.inventoryType === "CONSIGNMENT"
+        ? null
+        : purchasePriceExclVatCents,
+    salePriceExclVatCents,
+    costsExclVatCents,
+    netProfitCents,
+    priceCents: salePriceExclVatCents,
+    currency: "EUR",
+    status: parsedVehicle.data.status
+  };
+
+  try {
+    if (parsedVehicle.data.vehicleId) {
+      await prisma.vehicle.update({
+        where: { id: parsedVehicle.data.vehicleId },
+        data: vehicleData
+      });
+    } else {
+      await prisma.vehicle.create({
+        data: vehicleData
+      });
+    }
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return {
+          message: "Deze referentie of dit chassisnummer bestaat al.",
+          success: false
+        };
+      }
+    }
+
+    return {
+      message: "Er ging iets mis bij het opslaan van de wagen.",
+      success: false
+    };
+  }
+
+  revalidatePath("/stock");
+  revalidatePath("/stock/new");
+  revalidatePath("/leads/new");
+
+  if (parsedVehicle.data.vehicleId) {
+    revalidatePath(`/stock/${parsedVehicle.data.vehicleId}/edit`);
+  }
+
+  return {
+    message: "Wagen opgeslagen.",
+    success: true
+  };
 }
 
-function VehicleCardList({
-  title,
-  description,
-  vehicles,
-  emptyText
-}: {
-  title: string;
-  description: string;
-  vehicles: Array<{
-    id: string;
-    stockNumber: string;
-    purchaseDate: Date | null;
-    brand: string;
-    model: string;
-    vin: string | null;
-    mileageKm: number | null;
-    purchaseVatType: string | null;
-    saleVatType: string | null;
-    purchaseVatRate: number | null;
-    saleVatRate: number | null;
-    purchasePriceExclVatCents: number | null;
-    salePriceExclVatCents: number | null;
-    costsExclVatCents: number | null;
-    netProfitCents: number | null;
-    status: string;
-  }>;
-  emptyText: string;
-}) {
-  return (
-    <section className="rounded-[28px] border border-black/10 bg-[#f2f2f2] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-      <div>
-        <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
-          Stocklijst
-        </p>
-        <h2 className="mt-3 text-2xl font-bold text-black">{title}</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-black/70">{description}</p>
-      </div>
+export async function deleteVehicle(_: DeleteVehicleState, formData: FormData) {
+  await requireUser();
 
-      <div className="mt-6 flex flex-col gap-4">
-        {vehicles.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-black/12 bg-[#e9e9e9] p-5 text-sm text-black/55">
-            {emptyText}
-          </div>
-        ) : (
-          vehicles.map((vehicle) => (
-            <article
-              key={vehicle.id}
-              className="rounded-[24px] border border-black/10 bg-[#ececec] p-6 shadow-[0_12px_32px_rgba(0,0,0,0.05)]"
-            >
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4 border-b border-black/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-xs uppercase tracking-[0.2em] text-black/50">
-                      Referentie
-                    </p>
-                    <div className="mt-2 flex flex-col gap-1">
-                      <h3 className="text-xl font-bold text-black">{vehicle.stockNumber}</h3>
-                      <p className="text-sm font-medium text-black/75">
-                        {vehicle.brand} {vehicle.model}
-                      </p>
-                    </div>
-                  </div>
+  const vehicleId = formData.get("vehicleId");
 
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="rounded-2xl border border-black/12 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black">
-                      {getStatusLabel(vehicle.status)}
-                    </div>
-
-                    <Link
-                      href={`/stock/${vehicle.id}/edit` as Route}
-                      className="rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-[#e2e2e2] hover:text-black"
-                    >
-                      Bewerken
-                    </Link>
-
-                    {vehicle.status === "SOLD" ? (
-                      <DeleteVehicleButton vehicleId={vehicle.id} />
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
-                  <section className="rounded-[20px] border border-black/10 bg-[#f7f7f7] p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-black/50">
-                      Wageninformatie
-                    </p>
-
-                    <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                      <DetailItem label="Aankoopdatum" value={formatDate(vehicle.purchaseDate)} />
-                      <DetailItem
-                        label="Dagen in stock"
-                        value={formatDaysInStock(vehicle.purchaseDate)}
-                        strong
-                        tone={getDaysInStockTone(vehicle.purchaseDate)}
-                      />
-                      <DetailItem
-                        label="Kilometerstand"
-                        value={formatInteger(vehicle.mileageKm)}
-                      />
-                      <DetailItem label="Chassisnummer" value={vehicle.vin || "-"} />
-                    </div>
-
-                    <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                      <DetailItem
-                        label="Aankoop btw-type"
-                        value={formatVatType(vehicle.purchaseVatType)}
-                      />
-                      <DetailItem
-                        label="Verkoop btw-type"
-                        value={formatVatType(vehicle.saleVatType)}
-                      />
-                      <DetailItem
-                        label="Aankoop btw-percentage"
-                        value={formatVatRate(vehicle.purchaseVatRate)}
-                      />
-                      <DetailItem
-                        label="Verkoop btw-percentage"
-                        value={formatVatRate(vehicle.saleVatRate)}
-                      />
-                    </div>
-                  </section>
-
-                  <section className="rounded-[20px] border border-black/10 bg-[#f7f7f7] p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-black/50">
-                      Financieel
-                    </p>
-
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <FinanceItem
-                        label="Aankoop excl. btw"
-                        value={formatMoney(vehicle.purchasePriceExclVatCents)}
-                      />
-                      <FinanceItem
-                        label="Verkoop excl. btw"
-                        value={formatMoney(vehicle.salePriceExclVatCents)}
-                      />
-                      <FinanceItem
-                        label="Kosten excl. btw"
-                        value={formatMoney(vehicle.costsExclVatCents)}
-                      />
-                      <FinanceItem
-                        label="Netto winst"
-                        value={formatMoney(vehicle.netProfitCents)}
-                        highlight
-                        tone={getNetProfitTone(vehicle.netProfitCents)}
-                      />
-                    </div>
-                  </section>
-                </div>
-              </div>
-            </article>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-
-function TabLink({
-  href,
-  label,
-  active
-}: {
-  href: Route;
-  label: string;
-  active: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-        active
-          ? "border-black/15 bg-[#fafafa] text-black"
-          : "border-black/10 bg-[#e9e9e9] text-black/70 hover:bg-[#dfdfdf] hover:text-black"
-      }`}
-    >
-      {label}
-    </Link>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-  strong = false,
-  tone = "default"
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-  tone?: "default" | "positive" | "warning" | "negative";
-}) {
-  return (
-    <div>
-      <p className="text-xs uppercase tracking-[0.16em] text-black/55">{label}</p>
-      <p
-        className={`mt-2 text-sm ${
-          strong ? "font-bold" : "font-semibold"
-        } ${getToneClassName(tone, strong)}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function FinanceItem({
-  label,
-  value,
-  highlight = false,
-  tone = "default"
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-  tone?: "default" | "positive" | "warning" | "negative";
-}) {
-  return (
-    <div className="rounded-[18px] border border-black/10 bg-[#f9f9f9] p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-black/55">{label}</p>
-      <p
-        className={`mt-2 text-base ${
-          highlight ? "font-bold" : "font-semibold"
-        } ${getToneClassName(tone, highlight)}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[24px] border border-black/10 bg-[#f2f2f2] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
-      <p className="text-sm font-semibold text-black/55">{label}</p>
-      <p className="mt-4 text-3xl font-bold text-black">{value}</p>
-    </div>
-  );
-}
-
-function formatDate(value: Date | null) {
-  if (!value) {
-    return "-";
+  if (typeof vehicleId !== "string" || vehicleId.length === 0) {
+    return {
+      message: "Wagen niet gevonden.",
+      success: false
+    };
   }
 
-  return new Intl.DateTimeFormat("nl-BE", {
-    dateStyle: "medium"
-  }).format(value);
-}
+  try {
+    await prisma.vehicle.delete({
+      where: { id: vehicleId }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2003") {
+        return {
+          message:
+            "Deze wagen kan niet verwijderd worden omdat ze nog gekoppeld is aan andere gegevens.",
+          success: false
+        };
+      }
 
-function formatInteger(value: number | null) {
-  if (value === null) {
-    return "-";
+      if (error.code === "P2025") {
+        return {
+          message: "Wagen niet gevonden.",
+          success: false
+        };
+      }
+    }
+
+    return {
+      message: "Er ging iets mis bij het verwijderen van de wagen.",
+      success: false
+    };
   }
 
-  return new Intl.NumberFormat("nl-BE").format(value);
-}
-
-function formatMoney(value: number | null) {
-  if (value === null) {
-    return "-";
-  }
-
-  return formatCurrencyFromCents(value);
-}
-
-function formatVatRate(value: number | null) {
-  if (value === null) {
-    return "-";
-  }
-
-  return `${new Intl.NumberFormat("nl-BE", {
-    maximumFractionDigits: 2
-  }).format(value)}%`;
-}
-
-function formatVatType(value: string | null) {
-  if (value === "BTW_WAGEN") {
-    return "Btw wagen";
-  }
-
-  if (value === "MARGE_WAGEN") {
-    return "Marge wagen";
-  }
-
-  return value || "-";
-}
-
-function formatDaysInStock(value: Date | null) {
-  if (!value) {
-    return "-";
-  }
-
-  const today = new Date();
-  const startOfToday = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  );
-  const purchaseDate = new Date(
-    value.getFullYear(),
-    value.getMonth(),
-    value.getDate()
-  );
-  const differenceInMs = startOfToday.getTime() - purchaseDate.getTime();
-  const differenceInDays = Math.max(0, Math.floor(differenceInMs / 86_400_000));
-
-  return `${differenceInDays} dagen`;
-}
-
-function getDaysInStockTone(value: Date | null) {
-  if (!value) {
-    return "default" as const;
-  }
-
-  const today = new Date();
-  const startOfToday = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  );
-  const purchaseDate = new Date(
-    value.getFullYear(),
-    value.getMonth(),
-    value.getDate()
-  );
-  const differenceInMs = startOfToday.getTime() - purchaseDate.getTime();
-  const differenceInDays = Math.max(0, Math.floor(differenceInMs / 86_400_000));
-
-  if (differenceInDays <= 30) {
-    return "positive" as const;
-  }
-
-  if (differenceInDays <= 60) {
-    return "warning" as const;
-  }
-
-  return "negative" as const;
-}
-
-function getNetProfitTone(value: number | null) {
-  if (value === null || value === 0) {
-    return "default" as const;
-  }
-
-  if (value > 0) {
-    return "positive" as const;
-  }
-
-  return "negative" as const;
-}
-
-function getToneClassName(
-  tone: "default" | "positive" | "warning" | "negative",
-  emphasized: boolean
-) {
-  if (tone === "positive") {
-    return emphasized ? "text-green-600" : "text-green-700";
-  }
-
-  if (tone === "warning") {
-    return emphasized ? "text-amber-600" : "text-amber-700";
-  }
-
-  if (tone === "negative") {
-    return emphasized ? "text-red-600" : "text-red-700";
-  }
-
-  return emphasized ? "text-black" : "text-black/80";
-}
-
-function getStatusLabel(status: string) {
-  if (status === "AVAILABLE") {
-    return "Beschikbaar";
-  }
-
-  if (status === "RESERVED") {
-    return "Gereserveerd";
-  }
-
-  if (status === "SOLD") {
-    return "Verkocht";
-  }
-
-  return status;
+  revalidatePath("/stock");
+  revalidatePath("/stock/new");
+  revalidatePath("/leads/new");
+  redirect("/stock?tab=archive");
 }

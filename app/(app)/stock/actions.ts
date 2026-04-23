@@ -10,6 +10,8 @@ import { prisma } from "@/lib/prisma";
 
 const vehicleStatuses = ["AVAILABLE", "RESERVED", "SOLD"] as const;
 const vatTypes = ["BTW_WAGEN", "MARGE_WAGEN"] as const;
+const inventoryTypes = ["STOCK", "CONSIGNMENT", "ON_ORDER"] as const;
+
 const vatRateField = z
   .string()
   .trim()
@@ -21,51 +23,57 @@ const vatRateField = z
 const vehicleSchema = z
   .object({
     vehicleId: z.string().trim().optional(),
-    stockNumber: z.string().trim().min(1, "Referentienummer is verplicht."),
-    purchaseDate: z.string().trim().min(1, "Aankoopdatum is verplicht."),
-    brand: z.string().trim().min(1, "Merk is verplicht."),
-    model: z.string().trim().min(1, "Model is verplicht."),
-    vin: z.string().trim().min(1, "Chassisnummer is verplicht."),
-    mileageKm: z.coerce.number().int().min(0, "Kilometerstand is verplicht."),
+    stockNumber: z.string().trim().min(1),
+    purchaseDate: z.string().trim().optional(),
+    brand: z.string().trim().min(1),
+    model: z.string().trim().min(1),
+
+    vin: z.string().trim().optional(),
+
+    mileageKm: z.coerce.number().int().min(0),
+
+    inventoryType: z.enum(inventoryTypes),
+
+    commissionRate: z.string().optional(),
+    commissionMinimum: z.string().optional(),
+
     purchaseVatType: z.enum(vatTypes),
     saleVatType: z.enum(vatTypes),
     purchaseVatRate: vatRateField,
     saleVatRate: vatRateField,
-    purchasePriceExclVat: z.string().trim().min(1, "Aankoopprijs is verplicht."),
-    salePriceExclVat: z.string().trim().min(1, "Verkoopprijs is verplicht."),
-    costsExclVat: z.string().trim().min(1, "Kosten zijn verplicht."),
+
+    purchasePriceExclVat: z.string().optional(),
+    salePriceExclVat: z.string().optional(),
+    costsExclVat: z.string().optional(),
+
     status: z.enum(vehicleStatuses)
   })
   .superRefine((data, ctx) => {
-    if (data.purchaseVatType === "BTW_WAGEN" && data.purchaseVatRate === null) {
+    // 🚗 VIN verplicht behalve bij bestelling
+    if (data.inventoryType !== "ON_ORDER" && !data.vin) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["purchaseVatRate"],
-        message: "Aankoop btw-percentage is verplicht."
+        path: ["vin"],
+        message: "Chassisnummer is verplicht."
       });
     }
 
-    if (data.saleVatType === "BTW_WAGEN" && data.saleVatRate === null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["saleVatRate"],
-        message: "Verkoop btw-percentage is verplicht."
-      });
+    // 💰 prijzen verplicht behalve consignatie
+    if (data.inventoryType === "STOCK") {
+      if (!data.purchasePriceExclVat) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["purchasePriceExclVat"],
+          message: "Aankoopprijs is verplicht."
+        });
+      }
     }
 
-    if (data.purchaseVatType === "MARGE_WAGEN" && data.purchaseVatRate !== null) {
+    if (!data.salePriceExclVat) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["purchaseVatRate"],
-        message: "Laat het aankoop btw-percentage leeg voor margewagens."
-      });
-    }
-
-    if (data.saleVatType === "MARGE_WAGEN" && data.saleVatRate !== null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["saleVatRate"],
-        message: "Laat het verkoop btw-percentage leeg voor margewagens."
+        path: ["salePriceExclVat"],
+        message: "Verkoopprijs is verplicht."
       });
     }
   });
@@ -76,26 +84,18 @@ export type SaveVehicleState = {
   success?: boolean;
 };
 
-export type DeleteVehicleState = {
-  message?: string;
-  success?: boolean;
-};
-
-function parseMoneyToCents(value: string) {
-  const normalizedValue = value.replace(/\s/g, "").replace(",", ".");
-  const amount = Number(normalizedValue);
-
-  if (!Number.isFinite(amount) || amount < 0) {
-    return null;
-  }
-
+function parseMoneyToCents(value?: string) {
+  if (!value) return null;
+  const normalized = value.replace(",", ".");
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount)) return null;
   return Math.round(amount * 100);
 }
 
 export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
   await requireUser();
 
-  const parsedVehicle = vehicleSchema.safeParse({
+  const parsed = vehicleSchema.safeParse({
     vehicleId: formData.get("vehicleId"),
     stockNumber: formData.get("stockNumber"),
     purchaseDate: formData.get("purchaseDate"),
@@ -103,156 +103,99 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     model: formData.get("model"),
     vin: formData.get("vin"),
     mileageKm: formData.get("mileageKm"),
+
+    inventoryType: formData.get("inventoryType"),
+
+    commissionRate: formData.get("commissionRate"),
+    commissionMinimum: formData.get("commissionMinimum"),
+
     purchaseVatType: formData.get("purchaseVatType"),
     saleVatType: formData.get("saleVatType"),
     purchaseVatRate: formData.get("purchaseVatRate"),
     saleVatRate: formData.get("saleVatRate"),
+
     purchasePriceExclVat: formData.get("purchasePriceExclVat"),
     salePriceExclVat: formData.get("salePriceExclVat"),
     costsExclVat: formData.get("costsExclVat"),
+
     status: formData.get("status")
   });
 
-  if (!parsedVehicle.success) {
+  if (!parsed.success) {
     return {
-      errors: parsedVehicle.error.flatten().fieldErrors,
-      message: "Controleer de ingevulde gegevens.",
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Controleer de gegevens.",
       success: false
     };
   }
 
-  const purchaseDate = new Date(parsedVehicle.data.purchaseDate);
+  const data = parsed.data;
 
-  if (Number.isNaN(purchaseDate.getTime())) {
-    return {
-      errors: {
-        purchaseDate: ["Aankoopdatum is verplicht."]
-      },
-      message: "Controleer de ingevulde gegevens.",
-      success: false
-    };
+  const purchasePrice = parseMoneyToCents(data.purchasePriceExclVat);
+  const salePrice = parseMoneyToCents(data.salePriceExclVat);
+  const costs = parseMoneyToCents(data.costsExclVat) ?? 0;
+
+  let netProfitCents = 0;
+
+  // 🔥 LOGICA
+  if (data.inventoryType === "CONSIGNMENT") {
+    const rate = Number(data.commissionRate || 6);
+    const minimum = parseMoneyToCents(data.commissionMinimum) ?? 250000;
+
+    const calculated = Math.round((salePrice || 0) * (rate / 100));
+
+    netProfitCents = Math.max(calculated, minimum);
+  } else {
+    netProfitCents =
+      (salePrice || 0) - (purchasePrice || 0) - costs;
   }
-
-  const purchasePriceExclVatCents = parseMoneyToCents(parsedVehicle.data.purchasePriceExclVat);
-  const salePriceExclVatCents = parseMoneyToCents(parsedVehicle.data.salePriceExclVat);
-  const costsExclVatCents = parseMoneyToCents(parsedVehicle.data.costsExclVat);
-
-  if (
-    purchasePriceExclVatCents === null ||
-    salePriceExclVatCents === null ||
-    costsExclVatCents === null
-  ) {
-    return {
-      message: "Controleer de ingevulde bedragen.",
-      success: false
-    };
-  }
-
-  const netProfitCents =
-    salePriceExclVatCents - purchasePriceExclVatCents - costsExclVatCents;
 
   const vehicleData = {
-    stockNumber: parsedVehicle.data.stockNumber,
-    purchaseDate,
-    brand: parsedVehicle.data.brand,
-    model: parsedVehicle.data.model,
-    vin: parsedVehicle.data.vin,
-    mileageKm: parsedVehicle.data.mileageKm,
-    purchaseVatType: parsedVehicle.data.purchaseVatType,
-    saleVatType: parsedVehicle.data.saleVatType,
-    purchaseVatRate: parsedVehicle.data.purchaseVatRate,
-    saleVatRate: parsedVehicle.data.saleVatRate,
-    purchasePriceExclVatCents,
-    salePriceExclVatCents,
-    costsExclVatCents,
+    stockNumber: data.stockNumber,
+    purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
+    brand: data.brand,
+    model: data.model,
+    vin: data.vin || null,
+    mileageKm: data.mileageKm,
+
+    inventoryType: data.inventoryType,
+
+    commissionRate: data.inventoryType === "CONSIGNMENT" ? Number(data.commissionRate || 6) : null,
+    commissionMinimumExclVatCents:
+      data.inventoryType === "CONSIGNMENT"
+        ? parseMoneyToCents(data.commissionMinimum) ?? 250000
+        : null,
+
+    purchaseVatType: data.purchaseVatType,
+    saleVatType: data.saleVatType,
+    purchaseVatRate: data.purchaseVatRate,
+    saleVatRate: data.saleVatRate,
+
+    purchasePriceExclVatCents: purchasePrice,
+    salePriceExclVatCents: salePrice,
+    costsExclVatCents: costs,
+
     netProfitCents,
-    priceCents: salePriceExclVatCents,
+    priceCents: salePrice,
     currency: "EUR",
-    status: parsedVehicle.data.status
+    status: data.status
   };
 
-  try {
-    if (parsedVehicle.data.vehicleId) {
-      await prisma.vehicle.update({
-        where: { id: parsedVehicle.data.vehicleId },
-        data: vehicleData
-      });
-    } else {
-      await prisma.vehicle.create({
-        data: vehicleData
-      });
-    }
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2002") {
-        return {
-          message: "Deze referentie of dit chassisnummer bestaat al.",
-          success: false
-        };
-      }
-    }
-
-    return {
-      message: "Er ging iets mis bij het opslaan van de wagen.",
-      success: false
-    };
+  if (data.vehicleId) {
+    await prisma.vehicle.update({
+      where: { id: data.vehicleId },
+      data: vehicleData
+    });
+  } else {
+    await prisma.vehicle.create({
+      data: vehicleData
+    });
   }
 
   revalidatePath("/stock");
-  revalidatePath("/stock/new");
-  revalidatePath("/leads/new");
-  if (parsedVehicle.data.vehicleId) {
-    revalidatePath(`/stock/${parsedVehicle.data.vehicleId}/edit`);
-  }
 
   return {
     message: "Wagen opgeslagen.",
     success: true
   };
-}
-
-export async function deleteVehicle(_: DeleteVehicleState, formData: FormData) {
-  await requireUser();
-
-  const vehicleId = formData.get("vehicleId");
-
-  if (typeof vehicleId !== "string" || vehicleId.length === 0) {
-    return {
-      message: "Wagen niet gevonden.",
-      success: false
-    };
-  }
-
-  try {
-    await prisma.vehicle.delete({
-      where: { id: vehicleId }
-    });
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2003") {
-        return {
-          message:
-            "Deze wagen kan niet verwijderd worden omdat ze nog gekoppeld is aan andere gegevens.",
-          success: false
-        };
-      }
-
-      if (error.code === "P2025") {
-        return {
-          message: "Wagen niet gevonden.",
-          success: false
-        };
-      }
-    }
-
-    return {
-      message: "Er ging iets mis bij het verwijderen van de wagen.",
-      success: false
-    };
-  }
-
-  revalidatePath("/stock");
-  revalidatePath("/stock/new");
-  revalidatePath("/leads/new");
-  redirect("/stock?tab=archive");
 }

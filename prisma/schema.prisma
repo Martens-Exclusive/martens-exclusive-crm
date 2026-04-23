@@ -7,27 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id               String                  @id @default(cuid())
-  firstName        String
-  lastName         String
-  email            String                  @unique
-  passwordHash     String?
-  role             String                  @default("SALES")
-  isActive         Boolean                 @default(true)
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  accounts         Account[]
-  sessions         Session[]
-  assignedLeads    Lead[]                  @relation("AssignedLeads")
-  createdTasks     Task[]                  @relation("TaskCreator")
-  ownedTasks       Task[]                  @relation("TaskAssignee")
-  activities       Activity[]
-  appointments     Appointment[]
-  statusChanges    LeadStatusHistory[]
-  assignmentEvents LeadAssignmentHistory[] @relation("AssignmentChangedBy")
-  assignmentFrom   LeadAssignmentHistory[] @relation("AssignmentFrom")
-  assignmentTo     LeadAssignmentHistory[] @relation("AssignmentTo")
+model Vehicle {
+  id                             String   @id @default(cuid())
+  stockNumber                    String   @unique
+  vin                            String?  @unique
+  purchaseDate                   DateTime?
+  brand                          String
+  model                          String
+  variant                        String?
+  year                           Int?
+  mileageKm                      Int?
+  fuelType                       String?
+  transmission                   String?
+  color                          String?
+  inventoryType                  String   @default("STOCK")
+  commissionRate                 Float?
+  commissionMinimumExclVatCents  Int?
+  purchaseVatType                String?
+  saleVatType                    String?
+  purchaseVatRate                Float?
+  saleVatRate                    Float?
+  purchasePriceExclVatCents      Int?
+  salePriceExclVatCents          Int?
+  costsExclVatCents              Int?     @default(0)
+  netProfitCents                 Int?
+  priceCents                     Int?
+  currency                       String   @default("EUR")
+  status                         String   @default("AVAILABLE")
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+  interestedLeads                Lead[]
 }
 
 model LeadSource {

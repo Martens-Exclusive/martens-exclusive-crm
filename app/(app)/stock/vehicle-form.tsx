@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -14,11 +14,14 @@ type VehicleFormProps = {
   vehicle?: {
     id: string;
     stockNumber: string;
-    purchaseDate: string;
+    purchaseDate: string | null;
     brand: string;
     model: string;
-    vin: string;
+    vin: string | null;
     mileageKm: number | null;
+    inventoryType?: string | null;
+    commissionRate?: number | null;
+    commissionMinimumExclVatCents?: number | null;
     purchaseVatType: string | null;
     saleVatType: string | null;
     purchaseVatRate: number | null;
@@ -44,8 +47,14 @@ const statusOptions = [
   { value: "SOLD", label: "Verkocht" }
 ] as const;
 
-function centsToInputValue(value: number | null) {
-  if (value === null) {
+const inventoryTypeOptions = [
+  { value: "STOCK", label: "Stock" },
+  { value: "CONSIGNMENT", label: "Consignatie" },
+  { value: "ON_ORDER", label: "In bestelling" }
+] as const;
+
+function centsToInputValue(value: number | null | undefined) {
+  if (value === null || value === undefined) {
     return "";
   }
 
@@ -58,6 +67,13 @@ export function VehicleForm({
 }: VehicleFormProps) {
   const [state, formAction, isPending] = useActionState(saveVehicle, initialState);
   const isEditing = Boolean(vehicle);
+
+  const [inventoryType, setInventoryType] = useState(
+    vehicle?.inventoryType ?? "STOCK"
+  );
+
+  const isConsignment = inventoryType === "CONSIGNMENT";
+  const isOnOrder = inventoryType === "ON_ORDER";
 
   return (
     <form
@@ -75,8 +91,7 @@ export function VehicleForm({
             {isEditing ? "Wagen bewerken" : "Nieuwe wagen toevoegen"}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-black/70">
-            Beheer je stock rechtstreeks in het CRM, inclusief aankoop, verkoop,
-            kosten en automatische nettowinst.
+            Beheer je stock, consignatie en bestellingen rechtstreeks in het CRM.
           </p>
         </div>
 
@@ -96,15 +111,42 @@ export function VehicleForm({
             Basisgegevens
           </h3>
 
+          <Field label="Type dossier">
+            <Select
+              name="inventoryType"
+              defaultValue={vehicle?.inventoryType ?? "STOCK"}
+              onChange={(event) => setInventoryType(event.target.value)}
+            >
+              {inventoryTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          {isOnOrder ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Deze wagen staat <strong>in bestelling</strong> en is nog niet fysiek in
+              stock. Het chassisnummer is daarom niet verplicht.
+            </div>
+          ) : null}
+
+          {isConsignment ? (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+              Deze wagen wordt in <strong>consignatie</strong> verkocht. De commissie
+              wordt berekend op basis van het verkoopbedrag.
+            </div>
+          ) : null}
+
           <Field label="Referentienummer">
             <Input name="stockNumber" required defaultValue={vehicle?.stockNumber ?? ""} />
           </Field>
 
-          <Field label="Aankoopdatum">
+          <Field label="Aankoopdatum / besteldatum">
             <Input
               name="purchaseDate"
               type="date"
-              required
               defaultValue={vehicle?.purchaseDate ?? ""}
             />
           </Field>
@@ -117,8 +159,11 @@ export function VehicleForm({
             <Input name="model" required defaultValue={vehicle?.model ?? ""} />
           </Field>
 
-          <Field label="Chassisnummer">
-            <Input name="vin" required defaultValue={vehicle?.vin ?? ""} />
+          <Field
+            label="Chassisnummer"
+            hint={isOnOrder ? "Niet verplicht voor wagens in bestelling." : undefined}
+          >
+            <Input name="vin" defaultValue={vehicle?.vin ?? ""} required={!isOnOrder} />
           </Field>
 
           <Field label="Kilometerstand">
@@ -179,32 +224,74 @@ export function VehicleForm({
             />
           </Field>
 
-          <Field label="Aankoopprijs excl. btw">
-            <Input
-              name="purchasePriceExclVat"
-              inputMode="decimal"
-              required
-              defaultValue={centsToInputValue(vehicle?.purchasePriceExclVatCents ?? null)}
-            />
-          </Field>
+          {isConsignment ? (
+            <>
+              <Field label="Commissie % excl. btw">
+                <Input
+                  name="commissionRate"
+                  inputMode="decimal"
+                  defaultValue={vehicle?.commissionRate ?? "6"}
+                />
+              </Field>
 
-          <Field label="Verkoopprijs excl. btw">
-            <Input
-              name="salePriceExclVat"
-              inputMode="decimal"
-              required
-              defaultValue={centsToInputValue(vehicle?.salePriceExclVatCents ?? null)}
-            />
-          </Field>
+              <Field label="Minimum commissie excl. btw">
+                <Input
+                  name="commissionMinimum"
+                  inputMode="decimal"
+                  defaultValue={centsToInputValue(
+                    vehicle?.commissionMinimumExclVatCents ?? 250000
+                  )}
+                />
+              </Field>
 
-          <Field label="Kosten excl. btw">
-            <Input
-              name="costsExclVat"
-              inputMode="decimal"
-              required
-              defaultValue={centsToInputValue(vehicle?.costsExclVatCents ?? 0)}
-            />
-          </Field>
+              <Field label="Verkoopprijs excl. btw">
+                <Input
+                  name="salePriceExclVat"
+                  inputMode="decimal"
+                  required
+                  defaultValue={centsToInputValue(vehicle?.salePriceExclVatCents ?? null)}
+                />
+              </Field>
+
+              <Field label="Kosten excl. btw">
+                <Input
+                  name="costsExclVat"
+                  inputMode="decimal"
+                  defaultValue={centsToInputValue(vehicle?.costsExclVatCents ?? 0)}
+                />
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field label="Aankoopprijs excl. btw">
+                <Input
+                  name="purchasePriceExclVat"
+                  inputMode="decimal"
+                  required={!isConsignment}
+                  defaultValue={centsToInputValue(
+                    vehicle?.purchasePriceExclVatCents ?? null
+                  )}
+                />
+              </Field>
+
+              <Field label="Verkoopprijs excl. btw">
+                <Input
+                  name="salePriceExclVat"
+                  inputMode="decimal"
+                  required
+                  defaultValue={centsToInputValue(vehicle?.salePriceExclVatCents ?? null)}
+                />
+              </Field>
+
+              <Field label="Kosten excl. btw">
+                <Input
+                  name="costsExclVat"
+                  inputMode="decimal"
+                  defaultValue={centsToInputValue(vehicle?.costsExclVatCents ?? 0)}
+                />
+              </Field>
+            </>
+          )}
 
           <Field label="Status">
             <Select name="status" defaultValue={vehicle?.status ?? "AVAILABLE"}>
