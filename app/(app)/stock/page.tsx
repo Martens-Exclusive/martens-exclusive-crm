@@ -152,12 +152,12 @@ function VehicleCardList({
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-4 border-b border-black/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
-                    <p className="text-xs uppercase tracking-[0.2em] text-black/45">
+                    <p className="text-xs uppercase tracking-[0.2em] text-black/50">
                       Referentie
                     </p>
                     <div className="mt-2 flex flex-col gap-1">
                       <h3 className="text-xl font-bold text-black">{vehicle.stockNumber}</h3>
-                      <p className="text-sm text-black/70">
+                      <p className="text-sm font-medium text-black/75">
                         {vehicle.brand} {vehicle.model}
                       </p>
                     </div>
@@ -183,7 +183,7 @@ function VehicleCardList({
 
                 <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
                   <section className="rounded-[20px] border border-black/10 bg-[#f7f7f7] p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-black/45">
+                    <p className="text-xs uppercase tracking-[0.18em] text-black/50">
                       Wageninformatie
                     </p>
 
@@ -223,7 +223,7 @@ function VehicleCardList({
                   </section>
 
                   <section className="rounded-[20px] border border-black/10 bg-[#f7f7f7] p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-black/45">
+                    <p className="text-xs uppercase tracking-[0.18em] text-black/50">
                       Financieel
                     </p>
 
@@ -294,10 +294,10 @@ function DetailItem({
 }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-[0.16em] text-black/45">{label}</p>
+      <p className="text-xs uppercase tracking-[0.16em] text-black/55">{label}</p>
       <p
         className={`mt-2 text-sm ${
-          strong ? "font-bold" : "font-medium"
+          strong ? "font-bold" : "font-semibold"
         } ${getToneClassName(tone, strong)}`}
       >
         {value}
@@ -319,7 +319,7 @@ function FinanceItem({
 }) {
   return (
     <div className="rounded-[18px] border border-black/10 bg-[#f9f9f9] p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-black/45">{label}</p>
+      <p className="text-xs uppercase tracking-[0.16em] text-black/55">{label}</p>
       <p
         className={`mt-2 text-base ${
           highlight ? "font-bold" : "font-semibold"
@@ -468,7 +468,7 @@ function getToneClassName(
     return emphasized ? "text-red-600" : "text-red-700";
   }
 
-  return emphasized ? "text-black" : "text-black/88";
+  return emphasized ? "text-black" : "text-black/80";
 }
 
 function getStatusLabel(status: string) {
