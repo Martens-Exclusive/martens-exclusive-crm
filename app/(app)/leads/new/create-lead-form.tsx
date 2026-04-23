@@ -42,8 +42,9 @@ export function CreateLeadForm({
 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
-      <section className="rounded-[32px] border border-brand-sand/70 bg-white/85 p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
-        <h2 className="text-lg font-semibold text-brand-graphite">Klantgegevens</h2>
+      <section className="rounded-[32px] border border-white/10 bg-white p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
+        <h2 className="text-lg font-semibold text-black">Klantgegevens</h2>
+
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <Field label="Voornaam">
             <Input name="firstName" required />
@@ -69,8 +70,9 @@ export function CreateLeadForm({
         </div>
       </section>
 
-      <section className="rounded-[32px] border border-brand-sand/70 bg-white/85 p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
-        <h2 className="text-lg font-semibold text-brand-graphite">Leadinformatie</h2>
+      <section className="rounded-[32px] border border-white/10 bg-white p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
+        <h2 className="text-lg font-semibold text-black">Leadinformatie</h2>
+
         <div className="mt-6 flex flex-col gap-5">
           <Field label="Bron">
             <Select name="sourceId" required defaultValue="">
@@ -134,12 +136,12 @@ export function CreateLeadForm({
             <Input name="nextFollowUpAt" type="datetime-local" required />
           </Field>
 
-          <label className="flex items-center gap-3 rounded-2xl border border-brand-sand bg-brand-cream/50 px-4 py-3 text-sm text-brand-graphite">
+          <label className="flex items-center gap-3 rounded-2xl border border-black/10 bg-black/5 px-4 py-3 text-sm text-black">
             <input name="financeInterest" type="checkbox" className="h-4 w-4" />
             Interesse in financiering
           </label>
 
-          <label className="flex items-center gap-3 rounded-2xl border border-brand-sand bg-brand-cream/50 px-4 py-3 text-sm text-brand-graphite">
+          <label className="flex items-center gap-3 rounded-2xl border border-black/10 bg-black/5 px-4 py-3 text-sm text-black">
             <input name="tradeInInterest" type="checkbox" className="h-4 w-4" />
             Overname voertuig
           </label>

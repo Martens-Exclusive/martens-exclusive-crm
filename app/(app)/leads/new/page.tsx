@@ -28,14 +28,14 @@ export default async function NewLeadPage() {
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[32px] border border-brand-sand/70 bg-white/80 p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)] backdrop-blur">
-        <p className="text-sm font-medium uppercase tracking-[0.3em] text-brand-bronze">
+      <section className="rounded-[32px] border border-white/10 bg-white p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
+        <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/60">
           Nieuwe lead
         </p>
-        <h1 className="mt-4 text-3xl font-semibold text-brand-graphite">
+        <h1 className="mt-4 text-3xl font-bold text-black">
           Voeg snel een nieuwe lead toe.
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-brand-graphite/70">
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-black/70">
           We houden dit formulier bewust compact: alleen de informatie die het team
           nodig heeft voor een snelle eerste opvolging.
         </p>

@@ -1,16 +1,19 @@
+import { SelectHTMLAttributes } from "react";
 import clsx from "clsx";
-import type { PropsWithChildren, SelectHTMLAttributes } from "react";
 
-type SelectProps = PropsWithChildren<SelectHTMLAttributes<HTMLSelectElement>>;
-
-export function Select({ children, className, ...props }: SelectProps) {
+export function Select({
+  className,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
+      {...props}
       className={clsx(
-        "w-full appearance-none rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#1a1a1a] outline-none transition focus:border-black focus:ring-2 focus:ring-black/10",
+        "w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-black outline-none",
+        "focus:border-black focus:ring-1 focus:ring-black/20",
         className
       )}
-      {...props}
     >
       {children}
     </select>

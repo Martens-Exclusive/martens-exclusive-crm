@@ -1,16 +1,25 @@
-import type { PropsWithChildren } from "react";
+import { ReactNode } from "react";
 
-type FieldProps = PropsWithChildren<{
+type FieldProps = {
   label: string;
   hint?: string;
-}>;
+  children: ReactNode;
+};
 
-export function Field({ children, hint, label }: FieldProps) {
+export function Field({ label, hint, children }: FieldProps) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-brand-graphite">{label}</span>
+      <span className="text-sm font-medium text-black">
+        {label}
+      </span>
+
       {children}
-      {hint ? <span className="text-xs text-brand-graphite/55">{hint}</span> : null}
+
+      {hint ? (
+        <span className="text-xs text-black/50">
+          {hint}
+        </span>
+      ) : null}
     </label>
   );
 }
