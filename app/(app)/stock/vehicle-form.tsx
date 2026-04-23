@@ -62,19 +62,19 @@ export function VehicleForm({
   return (
     <form
       action={formAction}
-      className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8"
+      className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
     >
       <input type="hidden" name="vehicleId" value={vehicle?.id ?? ""} />
 
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/45">
+          <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
             Stockformulier
           </p>
-          <h2 className="mt-3 text-2xl font-bold text-white">
+          <h2 className="mt-3 text-2xl font-bold text-black">
             {isEditing ? "Wagen bewerken" : "Nieuwe wagen toevoegen"}
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-black/70">
             Beheer je stock rechtstreeks in het CRM, inclusief aankoop, verkoop,
             kosten en automatische nettowinst.
           </p>
@@ -83,7 +83,7 @@ export function VehicleForm({
         {isEditing ? (
           <Link
             href={backHref}
-            className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white"
+            className="rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-3 text-sm font-semibold text-black/80 transition hover:bg-[#e7e7e7] hover:text-black"
           >
             Terug naar stock
           </Link>
@@ -92,7 +92,7 @@ export function VehicleForm({
 
       <div className="mt-8 grid gap-8 xl:grid-cols-2">
         <section className="flex flex-col gap-5">
-          <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-white/40">
+          <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-black/45">
             Basisgegevens
           </h3>
 
@@ -133,7 +133,7 @@ export function VehicleForm({
         </section>
 
         <section className="flex flex-col gap-5">
-          <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-white/40">
+          <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-black/45">
             Financieel
           </h3>
 
@@ -220,10 +220,10 @@ export function VehicleForm({
 
       {state.message ? (
         <div
-          className={`mt-6 rounded-2xl px-4 py-3 text-sm ${
+          className={`mt-6 rounded-2xl border px-4 py-3 text-sm ${
             state.success
-              ? "border border-white/15 bg-white/10 text-white"
-              : "border border-white/12 bg-white/5 text-white/80"
+              ? "border-green-200 bg-green-50 text-green-700"
+              : "border-red-200 bg-red-50 text-red-700"
           }`}
         >
           {state.message}
