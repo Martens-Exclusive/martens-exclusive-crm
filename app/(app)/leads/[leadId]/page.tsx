@@ -9,6 +9,8 @@ import {
 } from "@/lib/lead-status";
 import { formatCurrencyFromCents } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
+import { AssignVehicleForm } from "./assign-vehicle-form";
+import { CreateActivityForm } from "./create-activity-form";
 import { CreateAppointmentForm } from "./create-appointment-form";
 import { CreateTaskForm } from "./create-task-form";
 import { DeleteLeadButton } from "./delete-lead-button";
@@ -34,7 +36,7 @@ export default async function LeadDetailPage({
       },
       activities: {
         orderBy: { occurredAt: "desc" },
-        take: 10
+        take: 20
       },
       appointments: {
         orderBy: { scheduledAt: "asc" },
@@ -52,11 +54,28 @@ export default async function LeadDetailPage({
     label: leadStatusLabels[value]
   }));
 
-  const users = await prisma.user.findMany({
-    where: { isActive: true },
-    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-    select: { id: true, firstName: true, lastName: true }
-  });
+  const [users, vehicles] = await Promise.all([
+    prisma.user.findMany({
+      where: { isActive: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: { id: true, firstName: true, lastName: true }
+    }),
+    prisma.vehicle.findMany({
+      where: {
+        status: {
+          not: "SOLD"
+        }
+      },
+      orderBy: [{ brand: "asc" }, { model: "asc" }, { stockNumber: "asc" }],
+      select: {
+        id: true,
+        brand: true,
+        model: true,
+        variant: true,
+        stockNumber: true
+      }
+    })
+  ]);
 
   return (
     <main className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -104,10 +123,29 @@ export default async function LeadDetailPage({
               }
             />
             <InfoCard
+              label="Laatste contact"
+              value={
+                lead.lastContactedAt
+                  ? new Intl.DateTimeFormat("nl-BE", {
+                      dateStyle: "medium",
+                      timeStyle: "short"
+                    }).format(lead.lastContactedAt)
+                  : "Nog geen contact geregistreerd"
+              }
+            />
+            <InfoCard
               label="Financiering"
               value={lead.financeInterest ? "Ja" : "Nee"}
             />
             <InfoCard label="Overname" value={lead.tradeInInterest ? "Ja" : "Nee"} />
+            <InfoCard
+              label="Gekoppelde wagen"
+              value={
+                lead.primaryVehicle
+                  ? `${lead.primaryVehicle.brand} ${lead.primaryVehicle.model}`
+                  : "Nog geen wagen gekoppeld"
+              }
+            />
           </div>
 
           {lead.customerMessage ? (
@@ -169,6 +207,14 @@ export default async function LeadDetailPage({
           currentNextFollowUpAt={toDateTimeLocalValue(lead.nextFollowUpAt)}
           currentInternalNotes={lead.internalNotes || ""}
           statuses={statuses}
+        />
+
+        <CreateActivityForm leadId={lead.id} />
+
+        <AssignVehicleForm
+          leadId={lead.id}
+          currentVehicleId={lead.primaryVehicleId}
+          vehicles={vehicles}
         />
 
         {lead.status === "LOST" ? <DeleteLeadButton leadId={lead.id} /> : null}

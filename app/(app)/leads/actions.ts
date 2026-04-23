@@ -30,6 +30,47 @@ const createLeadSchema = z.object({
   internalNotes: z.string().trim().optional()
 });
 
+const updateLeadSchema = z.object({
+  leadId: z.string().trim().min(1),
+  status: z.enum(leadStatuses),
+  nextFollowUpAt: z.string().trim().min(1, "Volgende opvolging is verplicht."),
+  internalNotes: z.string().trim().optional()
+});
+
+const createAppointmentSchema = z.object({
+  leadId: z.string().trim().min(1),
+  type: z.enum(["SHOWROOM_VISIT", "TEST_DRIVE", "PHONE_CALL"]),
+  scheduledAt: z.string().trim().min(1, "Datum en tijd zijn verplicht."),
+  notes: z.string().trim().optional()
+});
+
+const createTaskSchema = z.object({
+  leadId: z.string().trim().min(1),
+  title: z.string().trim().min(1, "Titel is verplicht."),
+  dueAt: z.string().trim().min(1, "Vervaldatum is verplicht."),
+  notes: z.string().trim().optional(),
+  assignedUserId: z.string().trim().min(1, "Verkoper is verplicht.")
+});
+
+const createActivitySchema = z.object({
+  leadId: z.string().trim().min(1),
+  occurredAt: z.string().trim().min(1, "Datum en uur zijn verplicht."),
+  type: z.enum([
+    "PHONE_CALL",
+    "EMAIL",
+    "SMS",
+    "WHATSAPP",
+    "SHOWROOM_VISIT",
+    "INTERNAL_NOTE"
+  ]),
+  details: z.string().trim().min(1, "Interne notitie is verplicht.")
+});
+
+const assignVehicleSchema = z.object({
+  leadId: z.string().trim().min(1),
+  vehicleId: z.string().trim().optional()
+});
+
 export type CreateLeadState = {
   errors?: Record<string, string[] | undefined>;
   message?: string;
@@ -54,6 +95,18 @@ export type CreateTaskState = {
 };
 
 export type DeleteLeadState = {
+  message?: string;
+  success?: boolean;
+};
+
+export type CreateActivityState = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+  success?: boolean;
+};
+
+export type AssignVehicleState = {
+  errors?: Record<string, string[] | undefined>;
   message?: string;
   success?: boolean;
 };
@@ -142,13 +195,6 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
   revalidatePath("/leads");
   redirect(`/leads/${lead.id}`);
 }
-
-const updateLeadSchema = z.object({
-  leadId: z.string().trim().min(1),
-  status: z.enum(leadStatuses),
-  nextFollowUpAt: z.string().trim().min(1, "Volgende opvolging is verplicht."),
-  internalNotes: z.string().trim().optional()
-});
 
 export async function updateLead(_: UpdateLeadState, formData: FormData) {
   const currentUser = await requireUser();
@@ -267,13 +313,6 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
   };
 }
 
-const createAppointmentSchema = z.object({
-  leadId: z.string().trim().min(1),
-  type: z.enum(["SHOWROOM_VISIT", "TEST_DRIVE", "PHONE_CALL"]),
-  scheduledAt: z.string().trim().min(1, "Datum en tijd zijn verplicht."),
-  notes: z.string().trim().optional()
-});
-
 export async function createAppointment(
   _: CreateAppointmentState,
   formData: FormData
@@ -350,14 +389,6 @@ export async function createAppointment(
   };
 }
 
-const createTaskSchema = z.object({
-  leadId: z.string().trim().min(1),
-  title: z.string().trim().min(1, "Titel is verplicht."),
-  dueAt: z.string().trim().min(1, "Vervaldatum is verplicht."),
-  notes: z.string().trim().optional(),
-  assignedUserId: z.string().trim().min(1, "Verkoper is verplicht.")
-});
-
 export async function createTask(_: CreateTaskState, formData: FormData) {
   const currentUser = await requireUser();
 
@@ -430,6 +461,179 @@ export async function createTask(_: CreateTaskState, formData: FormData) {
 
   return {
     message: "Taak opgeslagen.",
+    success: true
+  };
+}
+
+function getActivitySummary(type: string) {
+  if (type === "PHONE_CALL") return "Contact gehad via telefoon";
+  if (type === "EMAIL") return "Contact gehad via mail";
+  if (type === "SMS") return "Contact gehad via sms";
+  if (type === "WHATSAPP") return "Contact gehad via WhatsApp";
+  if (type === "SHOWROOM_VISIT") return "Showroombezoek";
+  return "Interne update";
+}
+
+export async function createActivity(
+  _: CreateActivityState,
+  formData: FormData
+) {
+  const currentUser = await requireUser();
+
+  const parsed = createActivitySchema.safeParse({
+    leadId: formData.get("leadId"),
+    occurredAt: formData.get("occurredAt"),
+    type: formData.get("type"),
+    details: formData.get("details")
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Controleer de velden.",
+      success: false
+    };
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: parsed.data.leadId },
+    select: { id: true }
+  });
+
+  if (!existingLead) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  const occurredAt = new Date(parsed.data.occurredAt);
+
+  if (Number.isNaN(occurredAt.getTime())) {
+    return {
+      errors: {
+        occurredAt: ["Datum en uur zijn verplicht."]
+      },
+      message: "Controleer de velden.",
+      success: false
+    };
+  }
+
+  await prisma.lead.update({
+    where: { id: existingLead.id },
+    data: {
+      lastContactedAt:
+        parsed.data.type === "INTERNAL_NOTE" ? undefined : occurredAt
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: existingLead.id,
+      userId: currentUser.id,
+      type: parsed.data.type,
+      summary: getActivitySummary(parsed.data.type),
+      details: parsed.data.details,
+      occurredAt
+    }
+  });
+
+  revalidatePath(`/leads/${existingLead.id}`);
+
+  return {
+    message: "Activiteit opgeslagen.",
+    success: true
+  };
+}
+
+export async function assignVehicle(
+  _: AssignVehicleState,
+  formData: FormData
+) {
+  const currentUser = await requireUser();
+
+  const parsed = assignVehicleSchema.safeParse({
+    leadId: formData.get("leadId"),
+    vehicleId: formData.get("vehicleId")
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Fout bij koppelen.",
+      success: false
+    };
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: parsed.data.leadId },
+    select: { id: true }
+  });
+
+  if (!existingLead) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  const vehicleId = parsed.data.vehicleId || null;
+
+  let vehicleDetails:
+    | {
+        brand: string;
+        model: string;
+        variant: string | null;
+        stockNumber: string;
+      }
+    | null = null;
+
+  if (vehicleId) {
+    vehicleDetails = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: {
+        brand: true,
+        model: true,
+        variant: true,
+        stockNumber: true
+      }
+    });
+
+    if (!vehicleDetails) {
+      return {
+        message: "Wagen niet gevonden.",
+        success: false
+      };
+    }
+  }
+
+  await prisma.lead.update({
+    where: { id: existingLead.id },
+    data: {
+      primaryVehicleId: vehicleId
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: existingLead.id,
+      userId: currentUser.id,
+      type: vehicleId ? "VEHICLE_LINKED" : "VEHICLE_UNLINKED",
+      summary: vehicleId ? "Wagen gekoppeld" : "Wagen ontkoppeld",
+      details: vehicleId
+        ? `${vehicleDetails?.brand} ${vehicleDetails?.model}${
+            vehicleDetails?.variant ? ` ${vehicleDetails.variant}` : ""
+          } (${vehicleDetails?.stockNumber}) gekoppeld aan lead.`
+        : "Wagenkoppeling verwijderd.",
+      occurredAt: new Date()
+    }
+  });
+
+  revalidatePath(`/leads/${existingLead.id}`);
+  revalidatePath("/leads");
+
+  return {
+    message: vehicleId ? "Wagen gekoppeld." : "Wagen ontkoppeld.",
     success: true
   };
 }
