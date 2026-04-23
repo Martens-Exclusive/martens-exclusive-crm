@@ -14,23 +14,23 @@ export default async function AppointmentsPage() {
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
-        <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/45">
+      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Afspraken
         </p>
-        <h1 className="mt-4 text-3xl font-bold text-white">
+        <h1 className="mt-4 text-3xl font-bold text-black">
           Alle geplande afspraken.
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-black/70">
           Dit overzicht toont echte afspraken die handmatig aan een lead zijn gekoppeld.
         </p>
       </section>
 
-      <section className="overflow-hidden rounded-[28px] border border-white/10 bg-[#0f0f10]">
+      <section className="overflow-hidden rounded-[28px] border border-black/10 bg-[#f5f5f5] shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse">
             <thead>
-              <tr className="border-b border-white/10 bg-[#111111] text-left text-xs uppercase tracking-[0.2em] text-white/38">
+              <tr className="border-b border-black/10 bg-[#ececec] text-left text-xs uppercase tracking-[0.2em] text-black/45">
                 <th className="px-6 py-4">Lead</th>
                 <th className="px-6 py-4">Type afspraak</th>
                 <th className="px-6 py-4">Datum en tijd</th>
@@ -44,7 +44,7 @@ export default async function AppointmentsPage() {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-6 py-12 text-center text-sm text-white/50"
+                    className="px-6 py-12 text-center text-sm text-black/55"
                   >
                     Nog geen afspraken ingepland.
                   </td>
@@ -53,10 +53,13 @@ export default async function AppointmentsPage() {
                 appointments.map((appointment) => (
                   <tr
                     key={appointment.id}
-                    className="border-b border-white/10 text-sm text-white transition hover:bg-white/5"
+                    className="border-b border-black/10 text-sm text-black transition hover:bg-[#ececec]"
                   >
                     <td className="px-6 py-5">
-                      <Link href={`/leads/${appointment.leadId}`} className="font-semibold text-white">
+                      <Link
+                        href={`/leads/${appointment.leadId}`}
+                        className="font-semibold text-black"
+                      >
                         {appointment.lead.firstName} {appointment.lead.lastName}
                       </Link>
                     </td>
@@ -81,7 +84,7 @@ export default async function AppointmentsPage() {
                       {getAppointmentStatusLabel(appointment.status)}
                     </td>
 
-                    <td className="px-6 py-5 text-white/70">
+                    <td className="px-6 py-5 text-black/70">
                       {appointment.notes || "-"}
                     </td>
                   </tr>
