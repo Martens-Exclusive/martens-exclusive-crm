@@ -19,10 +19,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const email = String(credentials?.email ?? "").trim().toLowerCase();
         const password = String(credentials?.password ?? "");
 
-        console.log("AUTH email:", email);
-
         if (!email || !password) {
-          console.log("AUTH result: missing email or password");
           return null;
         }
 
@@ -30,41 +27,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { email }
         });
 
-        console.log(
-          "AUTH user:",
-          user
-            ? {
-                email: user.email,
-                isActive: user.isActive,
-                hasPasswordHash: Boolean(user.passwordHash)
-              }
-            : null
-        );
-
-        if (!user) {
-          console.log("AUTH result: user not found");
-          return null;
-        }
-
-        if (!user.passwordHash) {
-          console.log("AUTH result: no password hash");
-          return null;
-        }
-
-        if (!user.isActive) {
-          console.log("AUTH result: user inactive");
+        if (!user || !user.passwordHash || !user.isActive) {
           return null;
         }
 
         const isValid = await bcrypt.compare(password, user.passwordHash);
-        console.log("AUTH password match:", isValid);
 
         if (!isValid) {
-          console.log("AUTH result: invalid password");
           return null;
         }
-
-        console.log("AUTH result: success");
 
         return {
           id: user.id,
@@ -79,12 +50,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
       }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = typeof token.id === "string" ? token.id : "";
       }
+
       return session;
     }
   },

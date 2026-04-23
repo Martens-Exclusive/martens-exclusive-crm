@@ -1,10 +1,5 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-
-export function middleware(_request: NextRequest) {
-  return NextResponse.next();
-}
+export { auth as middleware } from "@/auth";
 
 export const config = {
-  matcher: []
+  matcher: ["/dashboard/:path*", "/leads/:path*", "/stock/:path*", "/tasks/:path*", "/appointments/:path*"]
 };

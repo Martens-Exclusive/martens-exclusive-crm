@@ -12,10 +12,12 @@ export async function authenticate(_: string | undefined, formData: FormData) {
       redirectTo: "/dashboard"
     });
   } catch (error) {
-    console.error("LOGIN ACTION DEBUG:", error);
-
     if (error instanceof AuthError) {
-      return `Login fout: ${error.type}`;
+      if (error.type === "CredentialsSignin") {
+        return "Ongeldige inloggegevens.";
+      }
+
+      return "Er ging iets mis bij het aanmelden.";
     }
 
     throw error;
