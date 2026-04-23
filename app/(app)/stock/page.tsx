@@ -46,7 +46,7 @@ export default async function StockPage({
         />
       </section>
 
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-[#f2f2f2] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
@@ -62,7 +62,7 @@ export default async function StockPage({
           <div className="flex flex-wrap gap-3">
             <Link
               href={"/stock/new" as Route}
-              className="rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#ececec]"
+              className="rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#e7e7e7]"
             >
               Nieuwe stockwagen toevoegen
             </Link>
@@ -129,7 +129,7 @@ function VehicleCardList({
   emptyText: string;
 }) {
   return (
-    <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+    <section className="rounded-[28px] border border-black/10 bg-[#f2f2f2] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
       <div>
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Stocklijst
@@ -140,14 +140,14 @@ function VehicleCardList({
 
       <div className="mt-6 flex flex-col gap-4">
         {vehicles.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-black/12 bg-[#ececec] p-5 text-sm text-black/55">
+          <div className="rounded-[22px] border border-dashed border-black/12 bg-[#e9e9e9] p-5 text-sm text-black/55">
             {emptyText}
           </div>
         ) : (
           vehicles.map((vehicle) => (
             <article
               key={vehicle.id}
-              className="rounded-[24px] border border-black/10 bg-[#efefef] p-6 shadow-[0_12px_32px_rgba(0,0,0,0.05)]"
+              className="rounded-[24px] border border-black/10 bg-[#ececec] p-6 shadow-[0_12px_32px_rgba(0,0,0,0.05)]"
             >
               <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-4 border-b border-black/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
@@ -164,13 +164,13 @@ function VehicleCardList({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
-                    <div className="rounded-2xl border border-black/12 bg-[#fafafa] px-4 py-2 text-sm font-semibold text-black">
+                    <div className="rounded-2xl border border-black/12 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black">
                       {getStatusLabel(vehicle.status)}
                     </div>
 
                     <Link
                       href={`/stock/${vehicle.id}/edit` as Route}
-                      className="rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-2 text-sm font-semibold text-black/80 transition hover:bg-[#e7e7e7] hover:text-black"
+                      className="rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-[#e2e2e2] hover:text-black"
                     >
                       Bewerken
                     </Link>
@@ -273,7 +273,7 @@ function TabLink({
       className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
         active
           ? "border-black/15 bg-[#fafafa] text-black"
-          : "border-black/10 bg-[#ececec] text-black/70 hover:bg-[#e2e2e2] hover:text-black"
+          : "border-black/10 bg-[#e9e9e9] text-black/70 hover:bg-[#dfdfdf] hover:text-black"
       }`}
     >
       {label}
@@ -318,7 +318,7 @@ function FinanceItem({
   tone?: "default" | "positive" | "warning" | "negative";
 }) {
   return (
-    <div className="rounded-[18px] border border-black/10 bg-[#fafafa] p-4">
+    <div className="rounded-[18px] border border-black/10 bg-[#f9f9f9] p-4">
       <p className="text-xs uppercase tracking-[0.16em] text-black/45">{label}</p>
       <p
         className={`mt-2 text-base ${
@@ -333,7 +333,7 @@ function FinanceItem({
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
+    <div className="rounded-[24px] border border-black/10 bg-[#f2f2f2] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
       <p className="text-sm font-semibold text-black/55">{label}</p>
       <p className="mt-4 text-3xl font-bold text-black">{value}</p>
     </div>
