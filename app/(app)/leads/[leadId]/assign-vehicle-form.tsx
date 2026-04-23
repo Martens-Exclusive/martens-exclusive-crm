@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { assignLeadVehicle, type AssignVehicleState } from "../actions";
+import { assignVehicle, type AssignVehicleState } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
@@ -26,7 +26,7 @@ export function AssignVehicleForm({
   currentVehicleId,
   vehicles
 }: AssignVehicleFormProps) {
-  const [state, formAction, isPending] = useActionState(assignLeadVehicle, initialState);
+  const [state, formAction, isPending] = useActionState(assignVehicle, initialState);
 
   return (
     <form
@@ -42,7 +42,7 @@ export function AssignVehicleForm({
 
       <div className="mt-6 flex flex-col gap-5">
         <Field label="Wagen uit stock">
-          <Select name="primaryVehicleId" defaultValue={currentVehicleId || ""}>
+          <Select name="vehicleId" defaultValue={currentVehicleId || ""}>
             <option value="">Geen wagen gekoppeld</option>
             {vehicles.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
