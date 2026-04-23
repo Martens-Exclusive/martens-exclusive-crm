@@ -32,12 +32,12 @@ export function EditLeadForm({
   return (
     <form
       action={formAction}
-      className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8"
+      className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
     >
       <input type="hidden" name="leadId" value={leadId} />
 
-      <h2 className="text-xl font-bold text-white">Lead bewerken</h2>
-      <p className="mt-2 text-sm leading-6 text-white/65">
+      <h2 className="text-xl font-bold text-black">Lead bewerken</h2>
+      <p className="mt-2 text-sm leading-6 text-black/70">
         Werk de status, opvolging en interne notities meteen bij na contact met de klant.
       </p>
 
@@ -68,10 +68,10 @@ export function EditLeadForm({
 
       {state.message ? (
         <div
-          className={`mt-6 rounded-2xl px-4 py-3 text-sm ${
+          className={`mt-6 rounded-2xl border px-4 py-3 text-sm ${
             state.success
-              ? "border border-white/15 bg-white/10 text-white"
-              : "border border-white/12 bg-white/5 text-white/80"
+              ? "border-green-200 bg-green-50 text-green-700"
+              : "border-red-200 bg-red-50 text-red-700"
           }`}
         >
           {state.message}
