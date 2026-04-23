@@ -61,20 +61,22 @@ export default async function LeadDetailPage({
   return (
     <main className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <section className="flex flex-col gap-6">
-        <div className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/45">
+        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+          <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
             Lead detail
           </p>
+
           <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white">
+              <h1 className="text-3xl font-bold text-black">
                 {lead.firstName} {lead.lastName}
               </h1>
-              <p className="mt-2 text-sm text-white/62">
+              <p className="mt-2 text-sm text-black/65">
                 {lead.phone || "Geen telefoon"} • {lead.email || "Geen e-mail"}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/12 bg-white/5 px-4 py-2 text-sm font-semibold text-white">
+
+            <div className="rounded-2xl border border-black/12 bg-[#fafafa] px-4 py-2 text-sm font-semibold text-black">
               {getLeadStatusLabel(lead.status)}
             </div>
           </div>
@@ -109,26 +111,27 @@ export default async function LeadDetailPage({
           </div>
 
           {lead.customerMessage ? (
-            <div className="mt-8 rounded-[24px] border border-white/10 bg-[#121212] p-5">
-              <p className="text-sm font-semibold text-white">Bericht van klant</p>
-              <p className="mt-2 text-sm leading-6 text-white/68">
+            <div className="mt-8 rounded-[24px] border border-black/10 bg-[#efefef] p-5">
+              <p className="text-sm font-semibold text-black">Bericht van klant</p>
+              <p className="mt-2 text-sm leading-6 text-black/70">
                 {lead.customerMessage}
               </p>
             </div>
           ) : null}
 
           {lead.internalNotes ? (
-            <div className="mt-4 rounded-[24px] border border-white/10 bg-[#121212] p-5">
-              <p className="text-sm font-semibold text-white">Interne notities</p>
-              <p className="mt-2 text-sm leading-6 text-white/68">
+            <div className="mt-4 rounded-[24px] border border-black/10 bg-[#efefef] p-5">
+              <p className="text-sm font-semibold text-black">Interne notities</p>
+              <p className="mt-2 text-sm leading-6 text-black/70">
                 {lead.internalNotes}
               </p>
             </div>
           ) : null}
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
-          <h2 className="text-xl font-bold text-white">Activiteiten</h2>
+        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+          <h2 className="text-xl font-bold text-black">Activiteiten</h2>
+
           <div className="mt-6 flex flex-col gap-4">
             {lead.activities.length === 0 ? (
               <EmptyState text="Nog geen activiteiten geregistreerd." />
@@ -136,15 +139,17 @@ export default async function LeadDetailPage({
               lead.activities.map((activity) => (
                 <div
                   key={activity.id}
-                  className="rounded-[22px] border border-white/10 bg-[#131313] p-4"
+                  className="rounded-[22px] border border-black/10 bg-[#efefef] p-4"
                 >
-                  <p className="text-sm font-semibold text-white">{activity.summary}</p>
+                  <p className="text-sm font-semibold text-black">{activity.summary}</p>
+
                   {activity.details ? (
-                    <p className="mt-2 text-sm leading-6 text-white/66">
+                    <p className="mt-2 text-sm leading-6 text-black/70">
                       {activity.details}
                     </p>
                   ) : null}
-                  <p className="mt-2 text-xs text-white/42">
+
+                  <p className="mt-2 text-xs text-black/50">
                     {new Intl.DateTimeFormat("nl-BE", {
                       dateStyle: "medium",
                       timeStyle: "short"
@@ -176,19 +181,21 @@ export default async function LeadDetailPage({
           defaultAssignedUserId={lead.assignedUserId || users[0]?.id || ""}
         />
 
-        <div className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
-          <h2 className="text-xl font-bold text-white">Wagen</h2>
+        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+          <h2 className="text-xl font-bold text-black">Wagen</h2>
+
           {lead.primaryVehicle ? (
-            <div className="mt-6 rounded-[24px] border border-white/10 bg-[#121212] p-5">
-              <p className="text-lg font-bold text-white">
+            <div className="mt-6 rounded-[24px] border border-black/10 bg-[#efefef] p-5">
+              <p className="text-lg font-bold text-black">
                 {lead.primaryVehicle.brand} {lead.primaryVehicle.model}
               </p>
-              <p className="mt-1 text-sm text-white/62">
+              <p className="mt-1 text-sm text-black/65">
                 {lead.primaryVehicle.variant || "Variant niet ingevuld"} •{" "}
                 {lead.primaryVehicle.stockNumber}
               </p>
+
               {lead.primaryVehicle.priceCents ? (
-                <p className="mt-4 text-sm font-semibold text-white">
+                <p className="mt-4 text-sm font-semibold text-black">
                   {formatCurrencyFromCents(
                     lead.primaryVehicle.priceCents,
                     lead.primaryVehicle.currency
@@ -201,8 +208,9 @@ export default async function LeadDetailPage({
           )}
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
-          <h2 className="text-xl font-bold text-white">Open taken</h2>
+        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+          <h2 className="text-xl font-bold text-black">Open taken</h2>
+
           <div className="mt-6 flex flex-col gap-4">
             {lead.tasks.length === 0 ? (
               <EmptyState text="Nog geen taken toegevoegd." />
@@ -210,21 +218,22 @@ export default async function LeadDetailPage({
               lead.tasks.map((task) => (
                 <div
                   key={task.id}
-                  className="rounded-[22px] border border-white/10 bg-[#131313] p-4"
+                  className="rounded-[22px] border border-black/10 bg-[#efefef] p-4"
                 >
-                  <p className="text-sm font-semibold text-white">{task.title}</p>
-                  <p className="mt-2 text-xs text-white/42">
+                  <p className="text-sm font-semibold text-black">{task.title}</p>
+                  <p className="mt-2 text-xs text-black/50">
                     Vervaldatum:{" "}
                     {new Intl.DateTimeFormat("nl-BE", {
                       dateStyle: "medium",
                       timeStyle: "short"
                     }).format(task.dueAt)}
                   </p>
-                  <p className="mt-2 text-xs text-white/42">
+                  <p className="mt-2 text-xs text-black/50">
                     Status: {getTaskStatusLabel(task.status)}
                   </p>
+
                   {task.notes ? (
-                    <p className="mt-2 text-sm leading-6 text-white/66">
+                    <p className="mt-2 text-sm leading-6 text-black/70">
                       {task.notes}
                     </p>
                   ) : null}
@@ -234,8 +243,9 @@ export default async function LeadDetailPage({
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
-          <h2 className="text-xl font-bold text-white">Afspraken</h2>
+        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+          <h2 className="text-xl font-bold text-black">Afspraken</h2>
+
           <div className="mt-6 flex flex-col gap-4">
             {lead.appointments.length === 0 ? (
               <EmptyState text="Nog geen afspraken ingepland." />
@@ -243,19 +253,20 @@ export default async function LeadDetailPage({
               lead.appointments.map((appointment) => (
                 <div
                   key={appointment.id}
-                  className="rounded-[22px] border border-white/10 bg-[#131313] p-4"
+                  className="rounded-[22px] border border-black/10 bg-[#efefef] p-4"
                 >
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-sm font-semibold text-black">
                     {getAppointmentTypeLabel(appointment.type)}
                   </p>
-                  <p className="mt-2 text-xs text-white/42">
+                  <p className="mt-2 text-xs text-black/50">
                     {new Intl.DateTimeFormat("nl-BE", {
                       dateStyle: "medium",
                       timeStyle: "short"
                     }).format(appointment.scheduledAt)}
                   </p>
+
                   {appointment.notes ? (
-                    <p className="mt-2 text-sm leading-6 text-white/66">
+                    <p className="mt-2 text-sm leading-6 text-black/70">
                       {appointment.notes}
                     </p>
                   ) : null}
@@ -321,16 +332,16 @@ function toDateTimeLocalValue(value: Date | null) {
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-[#131313] p-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-white/40">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-white">{value}</p>
+    <div className="rounded-[22px] border border-black/10 bg-[#efefef] p-4">
+      <p className="text-xs uppercase tracking-[0.2em] text-black/45">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-black">{value}</p>
     </div>
   );
 }
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-[22px] border border-dashed border-white/12 bg-[#101010] p-4 text-sm text-white/50">
+    <div className="rounded-[22px] border border-dashed border-black/12 bg-[#ececec] p-4 text-sm text-black/55">
       {text}
     </div>
   );
