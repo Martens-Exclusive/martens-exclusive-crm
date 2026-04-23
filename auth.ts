@@ -16,35 +16,58 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Wachtwoord", type: "password" }
       },
       async authorize(credentials) {
-        const email = String(credentials?.email ?? "")
-          .trim()
-          .toLowerCase();
-        const password = String(credentials?.password ?? "");
+        try {
+          const email = String(credentials?.email ?? "")
+            .trim()
+            .toLowerCase();
+          const password = String(credentials?.password ?? "");
 
-        if (!email || !password) {
-          return null;
+          console.log("AUTH DEBUG: incoming email =", email);
+
+          if (!email || !password) {
+            console.log("AUTH DEBUG: missing email or password");
+            return null;
+          }
+
+          const user = await prisma.user.findUnique({
+            where: { email }
+          });
+
+          console.log(
+            "AUTH DEBUG: user found =",
+            user
+              ? {
+                  id: user.id,
+                  email: user.email,
+                  isActive: user.isActive,
+                  hasPasswordHash: Boolean(user.passwordHash),
+                  role: user.role
+                }
+              : null
+          );
+
+          if (!user || !user.passwordHash || !user.isActive) {
+            console.log("AUTH DEBUG: user missing / inactive / no password hash");
+            return null;
+          }
+
+          const isValid = await bcrypt.compare(password, user.passwordHash);
+          console.log("AUTH DEBUG: password match =", isValid);
+
+          if (!isValid) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: `${user.firstName} ${user.lastName}`.trim(),
+            role: user.role
+          };
+        } catch (error) {
+          console.error("AUTH DEBUG: authorize crashed", error);
+          throw error;
         }
-
-        const user = await prisma.user.findUnique({
-          where: { email }
-        });
-
-        if (!user || !user.passwordHash || !user.isActive) {
-          return null;
-        }
-
-        const isValid = await bcrypt.compare(password, user.passwordHash);
-
-        if (!isValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: `${user.firstName} ${user.lastName}`.trim(),
-          role: user.role
-        };
       }
     })
   ],

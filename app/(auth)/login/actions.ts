@@ -12,8 +12,10 @@ export async function authenticate(_: string | undefined, formData: FormData) {
       redirectTo: "/dashboard"
     });
   } catch (error) {
+    console.error("LOGIN ACTION DEBUG:", error);
+
     if (error instanceof AuthError) {
-      return "Ongeldige inloggegevens.";
+      return `Login fout: ${error.type}`;
     }
 
     throw error;
