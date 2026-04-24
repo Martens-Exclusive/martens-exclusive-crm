@@ -80,22 +80,6 @@ const vehicleSchema = z
       }
     }
 
-    if (data.purchaseVatType === "BTW_WAGEN" && data.purchaseVatRate === null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["purchaseVatRate"],
-        message: "Aankoop btw-percentage is verplicht."
-      });
-    }
-
-    if (data.saleVatType === "BTW_WAGEN" && data.saleVatRate === null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["saleVatRate"],
-        message: "Verkoop btw-percentage is verplicht."
-      });
-    }
-
     if (data.purchaseVatType === "MARGE_WAGEN" && data.purchaseVatRate !== null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
