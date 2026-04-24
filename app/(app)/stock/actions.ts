@@ -15,10 +15,16 @@ const inventoryTypes = ["STOCK", "CONSIGNMENT", "ON_ORDER"] as const;
 const vatRateField = z
   .string()
   .trim()
-  .refine((value) => value === "" || (Number.isFinite(Number(value)) && Number(value) >= 0), {
-    message: "Geef een geldig btw-percentage."
-  })
+  .refine(
+    (value) =>
+      value === "" || (Number.isFinite(Number(value)) && Number(value) >= 0),
+    {
+      message: "Geef een geldig btw-percentage."
+    }
+  )
   .transform((value) => (value === "" ? null : Number(value)));
+
+const optionalMoneyField = z.string().trim().optional();
 
 const vehicleSchema = z
   .object({
@@ -28,7 +34,12 @@ const vehicleSchema = z
     brand: z.string().trim().min(1, "Merk is verplicht."),
     model: z.string().trim().min(1, "Model is verplicht."),
     vin: z.string().trim().optional(),
-    mileageKm: z.coerce.number().int().min(0, "Kilometerstand is verplicht."),
+    mileageKm: z.coerce
+      .number({
+        invalid_type_error: "Kilometerstand is verplicht."
+      })
+      .int("Kilometerstand moet een geheel getal zijn.")
+      .min(0, "Kilometerstand is verplicht."),
     inventoryType: z.enum(inventoryTypes),
 
     commissionRate: z.string().trim().optional(),
@@ -39,9 +50,9 @@ const vehicleSchema = z
     purchaseVatRate: vatRateField,
     saleVatRate: vatRateField,
 
-    purchasePriceExclVat: z.string().trim().optional(),
-    salePriceExclVat: z.string().trim().min(1, "Verkoopprijs is verplicht."),
-    costsExclVat: z.string().trim().optional(),
+    purchasePriceExclVat: optionalMoneyField,
+    salePriceExclVat: optionalMoneyField,
+    costsExclVat: optionalMoneyField,
 
     status: z.enum(vehicleStatuses)
   })
@@ -54,16 +65,34 @@ const vehicleSchema = z
       });
     }
 
+    if (data.inventoryType === "STOCK" && !data.purchaseDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["purchaseDate"],
+        message: "Aankoopdatum is verplicht voor stockwagens."
+      });
+    }
+
     if (data.inventoryType === "STOCK" && !data.purchasePriceExclVat) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["purchasePriceExclVat"],
-        message: "Aankoopprijs is verplicht."
+        message: "Aankoopprijs is verplicht voor stockwagens."
+      });
+    }
+
+    if (data.inventoryType !== "ON_ORDER" && !data.salePriceExclVat) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["salePriceExclVat"],
+        message: "Verkoopprijs is verplicht."
       });
     }
 
     if (data.inventoryType === "CONSIGNMENT") {
-      if (!data.commissionRate || Number(data.commissionRate) <= 0) {
+      const commissionRate = Number(data.commissionRate || "6");
+
+      if (!Number.isFinite(commissionRate) || commissionRate <= 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["commissionRate"],
@@ -148,9 +177,12 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
   });
 
   if (!parsedVehicle.success) {
+    const fieldErrors = parsedVehicle.error.flatten().fieldErrors;
+    const firstError = Object.values(fieldErrors).flat().find(Boolean);
+
     return {
-      errors: parsedVehicle.error.flatten().fieldErrors,
-      message: "Controleer de ingevulde gegevens.",
+      errors: fieldErrors,
+      message: firstError || "Controleer de ingevulde gegevens.",
       success: false
     };
   }
@@ -159,12 +191,16 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     ? new Date(parsedVehicle.data.purchaseDate)
     : null;
 
-  if (parsedVehicle.data.purchaseDate && purchaseDate && Number.isNaN(purchaseDate.getTime())) {
+  if (
+    parsedVehicle.data.purchaseDate &&
+    purchaseDate &&
+    Number.isNaN(purchaseDate.getTime())
+  ) {
     return {
       errors: {
         purchaseDate: ["Geef een geldige datum in."]
       },
-      message: "Controleer de ingevulde gegevens.",
+      message: "Geef een geldige datum in.",
       success: false
     };
   }
@@ -172,11 +208,20 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
   const purchasePriceExclVatCents = parseMoneyToCents(
     parsedVehicle.data.purchasePriceExclVat
   );
-  const salePriceExclVatCents = parseMoneyToCents(parsedVehicle.data.salePriceExclVat);
-  const costsExclVatCents = parseMoneyToCents(parsedVehicle.data.costsExclVat) ?? 0;
+  const salePriceExclVatCents = parseMoneyToCents(
+    parsedVehicle.data.salePriceExclVat
+  );
+  const costsExclVatCents =
+    parseMoneyToCents(parsedVehicle.data.costsExclVat) ?? 0;
 
-  if (salePriceExclVatCents === null) {
+  if (
+    parsedVehicle.data.inventoryType !== "ON_ORDER" &&
+    salePriceExclVatCents === null
+  ) {
     return {
+      errors: {
+        salePriceExclVat: ["Controleer de verkoopprijs."]
+      },
       message: "Controleer de verkoopprijs.",
       success: false
     };
@@ -187,6 +232,9 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     purchasePriceExclVatCents === null
   ) {
     return {
+      errors: {
+        purchasePriceExclVat: ["Controleer de aankoopprijs."]
+      },
       message: "Controleer de aankoopprijs.",
       success: false
     };
@@ -206,16 +254,25 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
 
   if (parsedVehicle.data.inventoryType === "CONSIGNMENT") {
     const percentageCommission = Math.round(
-      salePriceExclVatCents * ((commissionRate ?? 0) / 100)
+      (salePriceExclVatCents ?? 0) * ((commissionRate ?? 0) / 100)
     );
 
     netProfitCents = Math.max(
       percentageCommission,
       commissionMinimumExclVatCents ?? 250000
     );
+  } else if (parsedVehicle.data.inventoryType === "ON_ORDER") {
+    netProfitCents =
+      salePriceExclVatCents !== null
+        ? salePriceExclVatCents -
+          (purchasePriceExclVatCents ?? 0) -
+          costsExclVatCents
+        : null;
   } else {
     netProfitCents =
-      salePriceExclVatCents - (purchasePriceExclVatCents ?? 0) - costsExclVatCents;
+      (salePriceExclVatCents ?? 0) -
+      (purchasePriceExclVatCents ?? 0) -
+      costsExclVatCents;
   }
 
   const vehicleData = {
