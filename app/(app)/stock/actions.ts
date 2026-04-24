@@ -24,7 +24,11 @@ const vatRateField = z
   )
   .transform((value) => (value === "" ? null : Number(value)));
 
-const optionalMoneyField = z.string().trim().optional();
+const optionalTextField = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((value) => (typeof value === "string" ? value.trim() : ""));
+
+const optionalMoneyField = optionalTextField;
 
 const vehicleSchema = z
   .object({
