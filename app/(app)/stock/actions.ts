@@ -12,53 +12,82 @@ const vehicleStatuses = ["AVAILABLE", "RESERVED", "SOLD"] as const;
 const vatTypes = ["BTW_WAGEN", "MARGE_WAGEN"] as const;
 const inventoryTypes = ["STOCK", "CONSIGNMENT", "ON_ORDER"] as const;
 
-const vatRateField = z
-  .string()
-  .trim()
-  .refine(
-    (value) =>
-      value === "" || (Number.isFinite(Number(value)) && Number(value) >= 0),
-    {
-      message: "Geef een geldig btw-percentage."
-    }
-  )
-  .transform((value) => (value === "" ? null : Number(value)));
+function toCleanString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
-const optionalTextField = z
-  .union([z.string(), z.null(), z.undefined()])
-  .transform((value) => (typeof value === "string" ? value.trim() : ""));
+const textField = z.preprocess(toCleanString, z.string());
+const requiredTextField = (message: string) =>
+  z.preprocess(toCleanString, z.string().min(1, message));
 
-const optionalMoneyField = optionalTextField;
+const vatRateField = z.preprocess(
+  toCleanString,
+  z
+    .string()
+    .refine(
+      (value) =>
+        value === "" || (Number.isFinite(Number(value)) && Number(value) >= 0),
+      {
+        message: "Geef een geldig btw-percentage."
+      }
+    )
+    .transform((value) => (value === "" ? null : Number(value)))
+);
+
+const mileageField = z.preprocess(
+  toCleanString,
+  z
+    .string()
+    .refine(
+      (value) =>
+        value !== "" &&
+        Number.isFinite(Number(value)) &&
+        Number(value) >= 0 &&
+        Number.isInteger(Number(value)),
+      {
+        message: "Kilometerstand is verplicht."
+      }
+    )
+    .transform((value) => Number(value))
+);
 
 const vehicleSchema = z
   .object({
-    vehicleId: z.string().trim().optional(),
-    stockNumber: z.string().trim().min(1, "Referentienummer is verplicht."),
-    purchaseDate: z.string().trim().optional(),
-    brand: z.string().trim().min(1, "Merk is verplicht."),
-    model: z.string().trim().min(1, "Model is verplicht."),
-    vin: z.string().trim().optional(),
-    mileageKm: z.coerce
-      .number({
-        invalid_type_error: "Kilometerstand is verplicht."
-      })
-      .int("Kilometerstand moet een geheel getal zijn.")
-      .min(0, "Kilometerstand is verplicht."),
-    inventoryType: z.enum(inventoryTypes),
+    vehicleId: textField,
+    stockNumber: requiredTextField("Referentienummer is verplicht."),
+    purchaseDate: textField,
+    brand: requiredTextField("Merk is verplicht."),
+    model: requiredTextField("Model is verplicht."),
+    vin: textField,
+    mileageKm: mileageField,
 
-    commissionRate: z.string().trim().optional(),
-    commissionMinimum: z.string().trim().optional(),
+    inventoryType: z.preprocess(
+      (value) => toCleanString(value) || "STOCK",
+      z.enum(inventoryTypes)
+    ),
 
-    purchaseVatType: z.enum(vatTypes),
-    saleVatType: z.enum(vatTypes),
+    commissionRate: textField,
+    commissionMinimum: textField,
+
+    purchaseVatType: z.preprocess(
+      (value) => toCleanString(value) || "BTW_WAGEN",
+      z.enum(vatTypes)
+    ),
+    saleVatType: z.preprocess(
+      (value) => toCleanString(value) || "BTW_WAGEN",
+      z.enum(vatTypes)
+    ),
     purchaseVatRate: vatRateField,
     saleVatRate: vatRateField,
 
-    purchasePriceExclVat: optionalMoneyField,
-    salePriceExclVat: optionalMoneyField,
-    costsExclVat: optionalMoneyField,
+    purchasePriceExclVat: textField,
+    salePriceExclVat: textField,
+    costsExclVat: textField,
 
-    status: z.enum(vehicleStatuses)
+    status: z.preprocess(
+      (value) => toCleanString(value) || "AVAILABLE",
+      z.enum(vehicleStatuses)
+    )
   })
   .superRefine((data, ctx) => {
     if (data.inventoryType !== "ON_ORDER" && !data.vin) {
