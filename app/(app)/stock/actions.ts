@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 const vehicleStatuses = ["AVAILABLE", "RESERVED", "SOLD"] as const;
 const vatTypes = ["BTW_WAGEN", "MARGE_WAGEN"] as const;
 const inventoryTypes = ["STOCK", "CONSIGNMENT", "ON_ORDER"] as const;
+const commissionTypes = ["PERCENTAGE", "FIXED"] as const;
 
 function toCleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -27,9 +28,7 @@ const vatRateField = z.preprocess(
     .refine(
       (value) =>
         value === "" || (Number.isFinite(Number(value)) && Number(value) >= 0),
-      {
-        message: "Geef een geldig btw-percentage."
-      }
+      { message: "Geef een geldig btw-percentage." }
     )
     .transform((value) => (value === "" ? null : Number(value)))
 );
@@ -44,9 +43,7 @@ const mileageField = z.preprocess(
         Number.isFinite(Number(value)) &&
         Number(value) >= 0 &&
         Number.isInteger(Number(value)),
-      {
-        message: "Kilometerstand is verplicht."
-      }
+      { message: "Kilometerstand is verplicht." }
     )
     .transform((value) => Number(value))
 );
@@ -66,8 +63,12 @@ const vehicleSchema = z
       z.enum(inventoryTypes)
     ),
 
+    commissionType: z.preprocess(
+      (value) => toCleanString(value) || "PERCENTAGE",
+      z.enum(commissionTypes)
+    ),
     commissionRate: textField,
-    commissionMinimum: textField,
+    commissionFixed: textField,
 
     purchaseVatType: z.preprocess(
       (value) => toCleanString(value) || "BTW_WAGEN",
@@ -123,21 +124,23 @@ const vehicleSchema = z
     }
 
     if (data.inventoryType === "CONSIGNMENT") {
-      const commissionRate = Number(data.commissionRate || "6");
+      if (data.commissionType === "PERCENTAGE") {
+        const commissionRate = Number(data.commissionRate || "0");
 
-      if (!Number.isFinite(commissionRate) || commissionRate <= 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["commissionRate"],
-          message: "Commissiepercentage is verplicht."
-        });
+        if (!Number.isFinite(commissionRate) || commissionRate <= 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["commissionRate"],
+            message: "Commissiepercentage is verplicht."
+          });
+        }
       }
 
-      if (!data.commissionMinimum) {
+      if (data.commissionType === "FIXED" && !data.commissionFixed) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["commissionMinimum"],
-          message: "Minimum commissie is verplicht."
+          path: ["commissionFixed"],
+          message: "Vast commissiebedrag is verplicht."
         });
       }
     }
@@ -171,16 +174,12 @@ export type DeleteVehicleState = {
 };
 
 function parseMoneyToCents(value?: string | null) {
-  if (!value) {
-    return null;
-  }
+  if (!value) return null;
 
   const normalizedValue = value.replace(/\s/g, "").replace(",", ".");
   const amount = Number(normalizedValue);
 
-  if (!Number.isFinite(amount) || amount < 0) {
-    return null;
-  }
+  if (!Number.isFinite(amount) || amount < 0) return null;
 
   return Math.round(amount * 100);
 }
@@ -197,8 +196,9 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     vin: formData.get("vin"),
     mileageKm: formData.get("mileageKm"),
     inventoryType: formData.get("inventoryType"),
+    commissionType: formData.get("commissionType"),
     commissionRate: formData.get("commissionRate"),
-    commissionMinimum: formData.get("commissionMinimum"),
+    commissionFixed: formData.get("commissionFixed"),
     purchaseVatType: formData.get("purchaseVatType"),
     saleVatType: formData.get("saleVatType"),
     purchaseVatRate: formData.get("purchaseVatRate"),
@@ -230,9 +230,7 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     Number.isNaN(purchaseDate.getTime())
   ) {
     return {
-      errors: {
-        purchaseDate: ["Geef een geldige datum in."]
-      },
+      errors: { purchaseDate: ["Geef een geldige datum in."] },
       message: "Geef een geldige datum in.",
       success: false
     };
@@ -252,9 +250,7 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     salePriceExclVatCents === null
   ) {
     return {
-      errors: {
-        salePriceExclVat: ["Controleer de verkoopprijs."]
-      },
+      errors: { salePriceExclVat: ["Controleer de verkoopprijs."] },
       message: "Controleer de verkoopprijs.",
       success: false
     };
@@ -265,35 +261,39 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     purchasePriceExclVatCents === null
   ) {
     return {
-      errors: {
-        purchasePriceExclVat: ["Controleer de aankoopprijs."]
-      },
+      errors: { purchasePriceExclVat: ["Controleer de aankoopprijs."] },
       message: "Controleer de aankoopprijs.",
       success: false
     };
   }
 
-  const commissionRate =
+  const commissionType =
     parsedVehicle.data.inventoryType === "CONSIGNMENT"
-      ? Number(parsedVehicle.data.commissionRate || "6")
+      ? parsedVehicle.data.commissionType
       : null;
 
-  const commissionMinimumExclVatCents =
-    parsedVehicle.data.inventoryType === "CONSIGNMENT"
-      ? parseMoneyToCents(parsedVehicle.data.commissionMinimum) ?? 250000
+  const commissionRate =
+    parsedVehicle.data.inventoryType === "CONSIGNMENT" &&
+    parsedVehicle.data.commissionType === "PERCENTAGE"
+      ? Number(parsedVehicle.data.commissionRate)
+      : null;
+
+  const commissionFixedExclVatCents =
+    parsedVehicle.data.inventoryType === "CONSIGNMENT" &&
+    parsedVehicle.data.commissionType === "FIXED"
+      ? parseMoneyToCents(parsedVehicle.data.commissionFixed)
       : null;
 
   let netProfitCents: number | null = null;
 
   if (parsedVehicle.data.inventoryType === "CONSIGNMENT") {
-    const percentageCommission = Math.round(
-      (salePriceExclVatCents ?? 0) * ((commissionRate ?? 0) / 100)
-    );
-
-    netProfitCents = Math.max(
-      percentageCommission,
-      commissionMinimumExclVatCents ?? 250000
-    );
+    if (parsedVehicle.data.commissionType === "FIXED") {
+      netProfitCents = commissionFixedExclVatCents ?? 0;
+    } else {
+      netProfitCents = Math.round(
+        (salePriceExclVatCents ?? 0) * ((commissionRate ?? 0) / 100)
+      );
+    }
   } else if (parsedVehicle.data.inventoryType === "ON_ORDER") {
     netProfitCents =
       salePriceExclVatCents !== null
@@ -316,8 +316,10 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     vin: parsedVehicle.data.vin || null,
     mileageKm: parsedVehicle.data.mileageKm,
     inventoryType: parsedVehicle.data.inventoryType,
+    commissionType,
     commissionRate,
-    commissionMinimumExclVatCents,
+    commissionFixedExclVatCents,
+    commissionMinimumExclVatCents: null,
     purchaseVatType: parsedVehicle.data.purchaseVatType,
     saleVatType: parsedVehicle.data.saleVatType,
     purchaseVatRate: parsedVehicle.data.purchaseVatRate,
@@ -381,10 +383,7 @@ export async function deleteVehicle(_: DeleteVehicleState, formData: FormData) {
   const vehicleId = formData.get("vehicleId");
 
   if (typeof vehicleId !== "string" || vehicleId.length === 0) {
-    return {
-      message: "Wagen niet gevonden.",
-      success: false
-    };
+    return { message: "Wagen niet gevonden.", success: false };
   }
 
   try {
@@ -402,10 +401,7 @@ export async function deleteVehicle(_: DeleteVehicleState, formData: FormData) {
       }
 
       if (error.code === "P2025") {
-        return {
-          message: "Wagen niet gevonden.",
-          success: false
-        };
+        return { message: "Wagen niet gevonden.", success: false };
       }
     }
 

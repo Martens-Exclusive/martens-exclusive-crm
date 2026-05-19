@@ -20,8 +20,9 @@ type VehicleFormProps = {
     vin: string | null;
     mileageKm: number | null;
     inventoryType?: string | null;
+    commissionType?: string | null;
     commissionRate?: number | null;
-    commissionMinimumExclVatCents?: number | null;
+    commissionFixedExclVatCents?: number | null;
     purchaseVatType: string | null;
     saleVatType: string | null;
     purchaseVatRate: number | null;
@@ -53,6 +54,11 @@ const inventoryTypeOptions = [
   { value: "ON_ORDER", label: "In bestelling" }
 ] as const;
 
+const commissionTypeOptions = [
+  { value: "PERCENTAGE", label: "Percentage %" },
+  { value: "FIXED", label: "Vast bedrag" }
+] as const;
+
 function centsToInputValue(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "";
@@ -71,9 +77,13 @@ export function VehicleForm({
   const [inventoryType, setInventoryType] = useState(
     vehicle?.inventoryType ?? "STOCK"
   );
+  const [commissionType, setCommissionType] = useState(
+    vehicle?.commissionType ?? "PERCENTAGE"
+  );
 
   const isConsignment = inventoryType === "CONSIGNMENT";
   const isOnOrder = inventoryType === "ON_ORDER";
+  const isFixedCommission = commissionType === "FIXED";
 
   return (
     <form
@@ -91,7 +101,7 @@ export function VehicleForm({
             {isEditing ? "Wagen bewerken" : "Nieuwe wagen toevoegen"}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-black/70">
-            Beheer je stock, consignatie en bestellingen rechtstreeks in het CRM.
+            Beheer stockwagens, consignatie en bestellingen rechtstreeks in het CRM.
           </p>
         </div>
 
@@ -114,7 +124,7 @@ export function VehicleForm({
           <Field label="Type dossier">
             <Select
               name="inventoryType"
-              defaultValue={vehicle?.inventoryType ?? "STOCK"}
+              value={inventoryType}
               onChange={(event) => setInventoryType(event.target.value)}
             >
               {inventoryTypeOptions.map((option) => (
@@ -134,8 +144,8 @@ export function VehicleForm({
 
           {isConsignment ? (
             <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-              Deze wagen wordt in <strong>consignatie</strong> verkocht. De commissie
-              wordt berekend op basis van het verkoopbedrag.
+              Deze wagen wordt in <strong>consignatie</strong> verkocht. Kies hieronder
+              of je commissie een vast bedrag of een percentage is.
             </div>
           ) : null}
 
@@ -226,23 +236,39 @@ export function VehicleForm({
 
           {isConsignment ? (
             <>
-              <Field label="Commissie % excl. btw">
-                <Input
-                  name="commissionRate"
-                  inputMode="decimal"
-                  defaultValue={vehicle?.commissionRate ?? "6"}
-                />
+              <Field label="Commissietype">
+                <Select
+                  name="commissionType"
+                  value={commissionType}
+                  onChange={(event) => setCommissionType(event.target.value)}
+                >
+                  {commissionTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
               </Field>
 
-              <Field label="Minimum commissie excl. btw">
-                <Input
-                  name="commissionMinimum"
-                  inputMode="decimal"
-                  defaultValue={centsToInputValue(
-                    vehicle?.commissionMinimumExclVatCents ?? 250000
-                  )}
-                />
-              </Field>
+              {isFixedCommission ? (
+                <Field label="Vast commissiebedrag excl. btw">
+                  <Input
+                    name="commissionFixed"
+                    inputMode="decimal"
+                    required
+                    defaultValue={centsToInputValue(vehicle?.commissionFixedExclVatCents)}
+                  />
+                </Field>
+              ) : (
+                <Field label="Commissie % excl. btw">
+                  <Input
+                    name="commissionRate"
+                    inputMode="decimal"
+                    required
+                    defaultValue={vehicle?.commissionRate ?? "6"}
+                  />
+                </Field>
+              )}
 
               <Field label="Verkoopprijs excl. btw">
                 <Input
@@ -267,7 +293,7 @@ export function VehicleForm({
                 <Input
                   name="purchasePriceExclVat"
                   inputMode="decimal"
-                  required={!isConsignment}
+                  required={!isOnOrder}
                   defaultValue={centsToInputValue(
                     vehicle?.purchasePriceExclVatCents ?? null
                   )}
@@ -278,7 +304,7 @@ export function VehicleForm({
                 <Input
                   name="salePriceExclVat"
                   inputMode="decimal"
-                  required
+                  required={!isOnOrder}
                   defaultValue={centsToInputValue(vehicle?.salePriceExclVatCents ?? null)}
                 />
               </Field>

@@ -9,6 +9,7 @@ import {
 } from "@/lib/lead-status";
 import { formatCurrencyFromCents } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
+
 import { AssignVehicleForm } from "./assign-vehicle-form";
 import { CreateActivityForm } from "./create-activity-form";
 import { CreateAppointmentForm } from "./create-appointment-form";
@@ -58,15 +59,24 @@ export default async function LeadDetailPage({
     prisma.user.findMany({
       where: { isActive: true },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-      select: { id: true, firstName: true, lastName: true }
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true
+      }
     }),
+
     prisma.vehicle.findMany({
       where: {
         status: {
           not: "SOLD"
         }
       },
-      orderBy: [{ brand: "asc" }, { model: "asc" }, { stockNumber: "asc" }],
+      orderBy: [
+        { brand: "asc" },
+        { model: "asc" },
+        { stockNumber: "asc" }
+      ],
       select: {
         id: true,
         brand: true,
@@ -81,94 +91,184 @@ export default async function LeadDetailPage({
     <main className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <section className="flex flex-col gap-6">
         <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
-            Lead detail
-          </p>
-
-          <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-black">
+              <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
+                Lead detail
+              </p>
+
+              <h1 className="mt-3 text-3xl font-bold text-black">
                 {lead.firstName} {lead.lastName}
               </h1>
-              <p className="mt-2 text-sm text-black/65">
-                {lead.phone || "Geen telefoon"} • {lead.email || "Geen e-mail"}
+
+              <p className="mt-2 text-sm text-black/60">
+                {lead.phone || "Geen telefoon"} •{" "}
+                {lead.email || "Geen e-mail"}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-black/12 bg-[#fafafa] px-4 py-2 text-sm font-semibold text-black">
+            <div className="rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-black">
               {getLeadStatusLabel(lead.status)}
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <InfoCard label="Bron" value={lead.source.name} />
-            <InfoCard
-              label="Verkoper"
-              value={
-                lead.assignedUser
-                  ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}`
-                  : "Nog niet toegewezen"
-              }
-            />
-            <InfoCard label="Prioriteit" value={getLeadPriorityLabel(lead.priority)} />
-            <InfoCard
-              label="Volgende opvolging"
-              value={
-                lead.nextFollowUpAt
-                  ? new Intl.DateTimeFormat("nl-BE", {
-                      dateStyle: "medium",
-                      timeStyle: "short"
-                    }).format(lead.nextFollowUpAt)
-                  : "Nog niet ingepland"
-              }
-            />
-            <InfoCard
-              label="Laatste contact"
-              value={
-                lead.lastContactedAt
-                  ? new Intl.DateTimeFormat("nl-BE", {
-                      dateStyle: "medium",
-                      timeStyle: "short"
-                    }).format(lead.lastContactedAt)
-                  : "Nog geen contact geregistreerd"
-              }
-            />
-            <InfoCard
-              label="Financiering"
-              value={lead.financeInterest ? "Ja" : "Nee"}
-            />
-            <InfoCard label="Overname" value={lead.tradeInInterest ? "Ja" : "Nee"} />
-            <InfoCard
-              label="Gekoppelde wagen"
-              value={
-                lead.primaryVehicle
-                  ? `${lead.primaryVehicle.brand} ${lead.primaryVehicle.model}`
-                  : "Nog geen wagen gekoppeld"
-              }
-            />
+          {/* CONTACT */}
+          <div className="mt-10">
+            <SectionTitle title="Contactgegevens" />
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <InfoRow
+                label="Telefoon"
+                value={lead.phone || "-"}
+              />
+
+              <InfoRow
+                label="E-mail"
+                value={lead.email || "-"}
+              />
+            </div>
           </div>
 
+          {/* ADRES */}
+          <div className="mt-10">
+            <SectionTitle title="Adres" />
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <InfoRow
+                label="Straat"
+                value={lead.street || "-"}
+              />
+
+              <InfoRow
+                label="Huisnummer"
+                value={lead.houseNumber || "-"}
+              />
+
+              <InfoRow
+                label="Postcode"
+                value={lead.postalCode || "-"}
+              />
+
+              <InfoRow
+                label="Gemeente"
+                value={lead.city || "-"}
+              />
+
+              <InfoRow
+                label="Land"
+                value={lead.country || "-"}
+              />
+            </div>
+          </div>
+
+          {/* LEAD INFO */}
+          <div className="mt-10">
+            <SectionTitle title="Leadinformatie" />
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <InfoRow
+                label="Bron"
+                value={lead.source.name}
+              />
+
+              <InfoRow
+                label="Verkoper"
+                value={
+                  lead.assignedUser
+                    ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}`
+                    : "Niet toegewezen"
+                }
+              />
+
+              <InfoRow
+                label="Prioriteit"
+                value={getLeadPriorityLabel(lead.priority)}
+              />
+
+              <InfoRow
+                label="Volgende opvolging"
+                value={
+                  lead.nextFollowUpAt
+                    ? new Intl.DateTimeFormat("nl-BE", {
+                        dateStyle: "medium",
+                        timeStyle: "short"
+                      }).format(lead.nextFollowUpAt)
+                    : "-"
+                }
+              />
+
+              <InfoRow
+                label="Laatste contact"
+                value={
+                  lead.lastContactedAt
+                    ? new Intl.DateTimeFormat("nl-BE", {
+                        dateStyle: "medium",
+                        timeStyle: "short"
+                      }).format(lead.lastContactedAt)
+                    : "-"
+                }
+              />
+            </div>
+          </div>
+
+          {/* INTERESSE */}
+          <div className="mt-10">
+            <SectionTitle title="Interesse" />
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <InfoRow
+                label="Financiering"
+                value={lead.financeInterest ? "Ja" : "Nee"}
+              />
+
+              <InfoRow
+                label="Overname"
+                value={lead.tradeInInterest ? "Ja" : "Nee"}
+              />
+
+              <InfoRow
+                label="Gekoppelde wagen"
+                value={
+                  lead.primaryVehicle
+                    ? `${lead.primaryVehicle.brand} ${lead.primaryVehicle.model}`
+                    : "Geen gekoppelde wagen"
+                }
+              />
+            </div>
+          </div>
+
+          {/* KLANTNOTITIE */}
           {lead.customerMessage ? (
-            <div className="mt-8 rounded-[24px] border border-black/10 bg-[#efefef] p-5">
-              <p className="text-sm font-semibold text-black">Bericht van klant</p>
-              <p className="mt-2 text-sm leading-6 text-black/70">
-                {lead.customerMessage}
-              </p>
+            <div className="mt-10">
+              <SectionTitle title="Bericht van klant" />
+
+              <div className="mt-4 rounded-2xl border border-black/10 bg-[#efefef] p-5">
+                <p className="text-sm leading-7 text-black/75">
+                  {lead.customerMessage}
+                </p>
+              </div>
             </div>
           ) : null}
 
+          {/* INTERNE NOTITIES */}
           {lead.internalNotes ? (
-            <div className="mt-4 rounded-[24px] border border-black/10 bg-[#efefef] p-5">
-              <p className="text-sm font-semibold text-black">Interne notities</p>
-              <p className="mt-2 text-sm leading-6 text-black/70">
-                {lead.internalNotes}
-              </p>
+            <div className="mt-10">
+              <SectionTitle title="Interne notities" />
+
+              <div className="mt-4 rounded-2xl border border-black/10 bg-[#efefef] p-5">
+                <p className="text-sm leading-7 text-black/75">
+                  {lead.internalNotes}
+                </p>
+              </div>
             </div>
           ) : null}
         </div>
 
+        {/* ACTIVITEITEN */}
         <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-          <h2 className="text-xl font-bold text-black">Activiteiten</h2>
+          <h2 className="text-xl font-bold text-black">
+            Activiteiten
+          </h2>
 
           <div className="mt-6 flex flex-col gap-4">
             {lead.activities.length === 0 ? (
@@ -177,9 +277,11 @@ export default async function LeadDetailPage({
               lead.activities.map((activity) => (
                 <div
                   key={activity.id}
-                  className="rounded-[22px] border border-black/10 bg-[#efefef] p-4"
+                  className="rounded-2xl border border-black/10 bg-[#efefef] p-5"
                 >
-                  <p className="text-sm font-semibold text-black">{activity.summary}</p>
+                  <p className="font-semibold text-black">
+                    {activity.summary}
+                  </p>
 
                   {activity.details ? (
                     <p className="mt-2 text-sm leading-6 text-black/70">
@@ -187,7 +289,7 @@ export default async function LeadDetailPage({
                     </p>
                   ) : null}
 
-                  <p className="mt-2 text-xs text-black/50">
+                  <p className="mt-3 text-xs text-black/45">
                     {new Intl.DateTimeFormat("nl-BE", {
                       dateStyle: "medium",
                       timeStyle: "short"
@@ -200,11 +302,14 @@ export default async function LeadDetailPage({
         </div>
       </section>
 
+      {/* RECHTERKOLOM */}
       <section className="flex flex-col gap-6">
         <EditLeadForm
           leadId={lead.id}
           currentStatus={lead.status}
-          currentNextFollowUpAt={toDateTimeLocalValue(lead.nextFollowUpAt)}
+          currentNextFollowUpAt={toDateTimeLocalValue(
+            lead.nextFollowUpAt
+          )}
           currentInternalNotes={lead.internalNotes || ""}
           statuses={statuses}
         />
@@ -217,31 +322,40 @@ export default async function LeadDetailPage({
           vehicles={vehicles}
         />
 
-        {lead.status === "LOST" ? <DeleteLeadButton leadId={lead.id} /> : null}
+        {lead.status === "LOST" ? (
+          <DeleteLeadButton leadId={lead.id} />
+        ) : null}
 
         <CreateAppointmentForm leadId={lead.id} />
 
         <CreateTaskForm
           leadId={lead.id}
           users={users}
-          defaultAssignedUserId={lead.assignedUserId || users[0]?.id || ""}
+          defaultAssignedUserId={
+            lead.assignedUserId || users[0]?.id || ""
+          }
         />
 
+        {/* WAGEN */}
         <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-          <h2 className="text-xl font-bold text-black">Wagen</h2>
+          <h2 className="text-xl font-bold text-black">
+            Wagen
+          </h2>
 
           {lead.primaryVehicle ? (
-            <div className="mt-6 rounded-[24px] border border-black/10 bg-[#efefef] p-5">
+            <div className="mt-6 rounded-2xl border border-black/10 bg-[#efefef] p-5">
               <p className="text-lg font-bold text-black">
-                {lead.primaryVehicle.brand} {lead.primaryVehicle.model}
+                {lead.primaryVehicle.brand}{" "}
+                {lead.primaryVehicle.model}
               </p>
+
               <p className="mt-1 text-sm text-black/65">
-                {lead.primaryVehicle.variant || "Variant niet ingevuld"} •{" "}
+                {lead.primaryVehicle.variant || "Geen variant"} •{" "}
                 {lead.primaryVehicle.stockNumber}
               </p>
 
               {lead.primaryVehicle.priceCents ? (
-                <p className="mt-4 text-sm font-semibold text-black">
+                <p className="mt-4 font-semibold text-black">
                   {formatCurrencyFromCents(
                     lead.primaryVehicle.priceCents,
                     lead.primaryVehicle.currency
@@ -250,76 +364,10 @@ export default async function LeadDetailPage({
               ) : null}
             </div>
           ) : (
-            <EmptyState text="Nog geen wagen gekoppeld." />
+            <div className="mt-6">
+              <EmptyState text="Nog geen wagen gekoppeld." />
+            </div>
           )}
-        </div>
-
-        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-          <h2 className="text-xl font-bold text-black">Open taken</h2>
-
-          <div className="mt-6 flex flex-col gap-4">
-            {lead.tasks.length === 0 ? (
-              <EmptyState text="Nog geen taken toegevoegd." />
-            ) : (
-              lead.tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="rounded-[22px] border border-black/10 bg-[#efefef] p-4"
-                >
-                  <p className="text-sm font-semibold text-black">{task.title}</p>
-                  <p className="mt-2 text-xs text-black/50">
-                    Vervaldatum:{" "}
-                    {new Intl.DateTimeFormat("nl-BE", {
-                      dateStyle: "medium",
-                      timeStyle: "short"
-                    }).format(task.dueAt)}
-                  </p>
-                  <p className="mt-2 text-xs text-black/50">
-                    Status: {getTaskStatusLabel(task.status)}
-                  </p>
-
-                  {task.notes ? (
-                    <p className="mt-2 text-sm leading-6 text-black/70">
-                      {task.notes}
-                    </p>
-                  ) : null}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-          <h2 className="text-xl font-bold text-black">Afspraken</h2>
-
-          <div className="mt-6 flex flex-col gap-4">
-            {lead.appointments.length === 0 ? (
-              <EmptyState text="Nog geen afspraken ingepland." />
-            ) : (
-              lead.appointments.map((appointment) => (
-                <div
-                  key={appointment.id}
-                  className="rounded-[22px] border border-black/10 bg-[#efefef] p-4"
-                >
-                  <p className="text-sm font-semibold text-black">
-                    {getAppointmentTypeLabel(appointment.type)}
-                  </p>
-                  <p className="mt-2 text-xs text-black/50">
-                    {new Intl.DateTimeFormat("nl-BE", {
-                      dateStyle: "medium",
-                      timeStyle: "short"
-                    }).format(appointment.scheduledAt)}
-                  </p>
-
-                  {appointment.notes ? (
-                    <p className="mt-2 text-sm leading-6 text-black/70">
-                      {appointment.notes}
-                    </p>
-                  ) : null}
-                </div>
-              ))
-            )}
-          </div>
         </div>
       </section>
     </main>
@@ -334,38 +382,6 @@ function getLeadPriorityLabel(priority: string) {
   return leadPriorityLabels[priority as LeadPriority] ?? priority;
 }
 
-function getAppointmentTypeLabel(type: string) {
-  if (type === "SHOWROOM_VISIT") {
-    return "Showroombezoek";
-  }
-
-  if (type === "TEST_DRIVE") {
-    return "Testrit";
-  }
-
-  if (type === "PHONE_CALL") {
-    return "Telefonische afspraak";
-  }
-
-  return type;
-}
-
-function getTaskStatusLabel(status: string) {
-  if (status === "OPEN") {
-    return "Open";
-  }
-
-  if (status === "COMPLETED") {
-    return "Voltooid";
-  }
-
-  if (status === "CANCELLED") {
-    return "Geannuleerd";
-  }
-
-  return status;
-}
-
 function toDateTimeLocalValue(value: Date | null) {
   if (!value) {
     return "";
@@ -373,21 +389,41 @@ function toDateTimeLocalValue(value: Date | null) {
 
   const offset = value.getTimezoneOffset();
   const localDate = new Date(value.getTime() - offset * 60_000);
+
   return localDate.toISOString().slice(0, 16);
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
+function SectionTitle({ title }: { title: string }) {
   return (
-    <div className="rounded-[22px] border border-black/10 bg-[#efefef] p-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-black/45">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-black">{value}</p>
+    <h2 className="text-lg font-bold text-black">
+      {title}
+    </h2>
+  );
+}
+
+function InfoRow({
+  label,
+  value
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="border-b border-black/8 pb-3">
+      <p className="text-xs uppercase tracking-[0.2em] text-black/45">
+        {label}
+      </p>
+
+      <p className="mt-1 text-sm font-medium text-black">
+        {value}
+      </p>
     </div>
   );
 }
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-[22px] border border-dashed border-black/12 bg-[#ececec] p-4 text-sm text-black/55">
+    <div className="rounded-2xl border border-dashed border-black/12 bg-[#ececec] p-4 text-sm text-black/55">
       {text}
     </div>
   );

@@ -9,14 +9,23 @@ import { requireUser } from "@/lib/auth";
 import { leadPriorities, leadStatuses } from "@/lib/lead-status";
 import { prisma } from "@/lib/prisma";
 
+const optionalText = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((value) => (typeof value === "string" ? value.trim() : ""));
+
 const createLeadSchema = z.object({
   firstName: z.string().trim().min(1, "Voornaam is verplicht."),
   lastName: z.string().trim().min(1, "Achternaam is verplicht."),
-  phone: z.string().trim().optional(),
+  phone: optionalText,
   email: z.string().trim().email("Ongeldig e-mailadres.").or(z.literal("")),
+  street: optionalText,
+  houseNumber: optionalText,
+  postalCode: optionalText,
+  city: optionalText,
+  country: optionalText,
   sourceId: z.string().trim().min(1, "Bron is verplicht."),
   assignedUserId: z.string().trim().min(1, "Verkoper is verplicht."),
-  primaryVehicleId: z.string().trim().optional(),
+  primaryVehicleId: optionalText,
   status: z.enum(leadStatuses).default("NEW"),
   priority: z.enum(leadPriorities).default("NORMAL"),
   nextFollowUpAt: z.string().trim().min(1, "Volgende opvolging is verplicht."),
@@ -26,29 +35,38 @@ const createLeadSchema = z.object({
   tradeInInterest: z
     .union([z.literal("on"), z.null(), z.undefined()])
     .transform((value) => value === "on"),
-  customerMessage: z.string().trim().optional(),
-  internalNotes: z.string().trim().optional()
+  customerMessage: optionalText,
+  internalNotes: optionalText
 });
 
 const updateLeadSchema = z.object({
   leadId: z.string().trim().min(1),
+  firstName: optionalText,
+  lastName: optionalText,
+  phone: optionalText,
+  email: z.string().trim().email("Ongeldig e-mailadres.").or(z.literal("")),
+  street: optionalText,
+  houseNumber: optionalText,
+  postalCode: optionalText,
+  city: optionalText,
+  country: optionalText,
   status: z.enum(leadStatuses),
   nextFollowUpAt: z.string().trim().min(1, "Volgende opvolging is verplicht."),
-  internalNotes: z.string().trim().optional()
+  internalNotes: optionalText
 });
 
 const createAppointmentSchema = z.object({
   leadId: z.string().trim().min(1),
   type: z.enum(["SHOWROOM_VISIT", "TEST_DRIVE", "PHONE_CALL"]),
   scheduledAt: z.string().trim().min(1, "Datum en tijd zijn verplicht."),
-  notes: z.string().trim().optional()
+  notes: optionalText
 });
 
 const createTaskSchema = z.object({
   leadId: z.string().trim().min(1),
   title: z.string().trim().min(1, "Titel is verplicht."),
   dueAt: z.string().trim().min(1, "Vervaldatum is verplicht."),
-  notes: z.string().trim().optional(),
+  notes: optionalText,
   assignedUserId: z.string().trim().min(1, "Verkoper is verplicht.")
 });
 
@@ -68,7 +86,7 @@ const createActivitySchema = z.object({
 
 const assignVehicleSchema = z.object({
   leadId: z.string().trim().min(1),
-  vehicleId: z.string().trim().optional()
+  vehicleId: optionalText
 });
 
 export type CreateLeadState = {
@@ -112,13 +130,18 @@ export type AssignVehicleState = {
 };
 
 export async function createLead(_: CreateLeadState, formData: FormData) {
-  const currentUser = await requireUser();
+  await requireUser();
 
   const parsedLead = createLeadSchema.safeParse({
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
     phone: formData.get("phone"),
     email: formData.get("email"),
+    street: formData.get("street"),
+    houseNumber: formData.get("houseNumber"),
+    postalCode: formData.get("postalCode"),
+    city: formData.get("city"),
+    country: formData.get("country"),
     sourceId: formData.get("sourceId"),
     assignedUserId: formData.get("assignedUserId"),
     primaryVehicleId: formData.get("primaryVehicleId"),
@@ -154,6 +177,11 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
       lastName: parsedLead.data.lastName,
       phone: parsedLead.data.phone || null,
       email: parsedLead.data.email || null,
+      street: parsedLead.data.street || null,
+      houseNumber: parsedLead.data.houseNumber || null,
+      postalCode: parsedLead.data.postalCode || null,
+      city: parsedLead.data.city || null,
+      country: parsedLead.data.country || "België",
       sourceId: parsedLead.data.sourceId,
       assignedUserId: parsedLead.data.assignedUserId,
       primaryVehicleId: parsedLead.data.primaryVehicleId || null,
@@ -169,20 +197,17 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
           type: "LEAD_CREATED",
           summary: "Lead aangemaakt",
           details: "Nieuwe lead ingevoerd in het systeem.",
-          occurredAt: new Date(),
-          userId: currentUser.id
+          occurredAt: new Date()
         }
       },
       statusHistory: {
         create: {
-          toStatus: parsedLead.data.status,
-          changedByUserId: currentUser.id
+          toStatus: parsedLead.data.status
         }
       },
       assignmentHistory: {
         create: {
-          toUserId: parsedLead.data.assignedUserId,
-          changedByUserId: currentUser.id
+          toUserId: parsedLead.data.assignedUserId
         }
       }
     },
@@ -197,10 +222,19 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
 }
 
 export async function updateLead(_: UpdateLeadState, formData: FormData) {
-  const currentUser = await requireUser();
+  await requireUser();
 
   const parsedLead = updateLeadSchema.safeParse({
     leadId: formData.get("leadId"),
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
+    phone: formData.get("phone"),
+    email: formData.get("email"),
+    street: formData.get("street"),
+    houseNumber: formData.get("houseNumber"),
+    postalCode: formData.get("postalCode"),
+    city: formData.get("city"),
+    country: formData.get("country"),
     status: formData.get("status"),
     nextFollowUpAt: formData.get("nextFollowUpAt"),
     internalNotes: formData.get("internalNotes")
@@ -210,6 +244,17 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     return {
       errors: parsedLead.error.flatten().fieldErrors,
       message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  if (!parsedLead.data.phone && !parsedLead.data.email) {
+    return {
+      errors: {
+        phone: ["Telefoon of e-mailadres is verplicht."],
+        email: ["Telefoon of e-mailadres is verplicht."]
+      },
+      message: "Een lead heeft minstens één contactmethode nodig.",
       success: false
     };
   }
@@ -243,31 +288,20 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
   }
 
   const nextInternalNotes = parsedLead.data.internalNotes || null;
+
   const activitiesToCreate: Array<{
     type: string;
     summary: string;
     details?: string;
     occurredAt: Date;
-    userId: string;
   }> = [];
-
-  const updateData: {
-    status: string;
-    nextFollowUpAt: Date;
-    internalNotes: string | null;
-  } = {
-    status: parsedLead.data.status,
-    nextFollowUpAt,
-    internalNotes: nextInternalNotes
-  };
 
   if (existingLead.status !== parsedLead.data.status) {
     activitiesToCreate.push({
       type: "STATUS_CHANGE",
       summary: "Status gewijzigd",
       details: `Status gewijzigd naar ${parsedLead.data.status}.`,
-      occurredAt: new Date(),
-      userId: currentUser.id
+      occurredAt: new Date()
     });
   }
 
@@ -276,22 +310,31 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
       type: "NOTE",
       summary: "Interne notities bijgewerkt",
       details: nextInternalNotes || "Interne notities werden leeggemaakt.",
-      occurredAt: new Date(),
-      userId: currentUser.id
+      occurredAt: new Date()
     });
   }
 
   await prisma.lead.update({
     where: { id: existingLead.id },
     data: {
-      ...updateData,
+      firstName: parsedLead.data.firstName,
+      lastName: parsedLead.data.lastName,
+      phone: parsedLead.data.phone || null,
+      email: parsedLead.data.email || null,
+      street: parsedLead.data.street || null,
+      houseNumber: parsedLead.data.houseNumber || null,
+      postalCode: parsedLead.data.postalCode || null,
+      city: parsedLead.data.city || null,
+      country: parsedLead.data.country || "België",
+      status: parsedLead.data.status,
+      nextFollowUpAt,
+      internalNotes: nextInternalNotes,
       statusHistory:
         existingLead.status !== parsedLead.data.status
           ? {
               create: {
                 fromStatus: existingLead.status,
-                toStatus: parsedLead.data.status,
-                changedByUserId: currentUser.id
+                toStatus: parsedLead.data.status
               }
             }
           : undefined,
@@ -317,7 +360,7 @@ export async function createAppointment(
   _: CreateAppointmentState,
   formData: FormData
 ) {
-  const currentUser = await requireUser();
+  await requireUser();
 
   const parsedAppointment = createAppointmentSchema.safeParse({
     leadId: formData.get("leadId"),
@@ -336,12 +379,22 @@ export async function createAppointment(
 
   const existingLead = await prisma.lead.findUnique({
     where: { id: parsedAppointment.data.leadId },
-    select: { id: true }
+    select: {
+      id: true,
+      assignedUserId: true
+    }
   });
 
   if (!existingLead) {
     return {
       message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  if (!existingLead.assignedUserId) {
+    return {
+      message: "Deze lead heeft geen verkoper.",
       success: false
     };
   }
@@ -361,7 +414,7 @@ export async function createAppointment(
   await prisma.appointment.create({
     data: {
       leadId: existingLead.id,
-      assignedUserId: currentUser.id,
+      assignedUserId: existingLead.assignedUserId,
       type: parsedAppointment.data.type,
       scheduledAt,
       notes: parsedAppointment.data.notes || null
@@ -371,11 +424,11 @@ export async function createAppointment(
   await prisma.activity.create({
     data: {
       leadId: existingLead.id,
-      userId: currentUser.id,
       type: "APPOINTMENT_BOOKED",
       summary: "Afspraak ingepland",
       details:
-        parsedAppointment.data.notes || `Nieuwe afspraak van type ${parsedAppointment.data.type}.`,
+        parsedAppointment.data.notes ||
+        `Nieuwe afspraak van type ${parsedAppointment.data.type}.`,
       occurredAt: new Date()
     }
   });
@@ -390,7 +443,7 @@ export async function createAppointment(
 }
 
 export async function createTask(_: CreateTaskState, formData: FormData) {
-  const currentUser = await requireUser();
+  await requireUser();
 
   const parsedTask = createTaskSchema.safeParse({
     leadId: formData.get("leadId"),
@@ -436,7 +489,6 @@ export async function createTask(_: CreateTaskState, formData: FormData) {
     data: {
       leadId: existingLead.id,
       assignedUserId: parsedTask.data.assignedUserId,
-      createdByUserId: currentUser.id,
       taskType: "FOLLOW_UP",
       title: parsedTask.data.title,
       notes: parsedTask.data.notes || null,
@@ -448,7 +500,6 @@ export async function createTask(_: CreateTaskState, formData: FormData) {
   await prisma.activity.create({
     data: {
       leadId: existingLead.id,
-      userId: currentUser.id,
       type: "NOTE",
       summary: "Taak toegevoegd",
       details: parsedTask.data.notes || `Nieuwe taak: ${parsedTask.data.title}.`,
@@ -478,7 +529,7 @@ export async function createActivity(
   _: CreateActivityState,
   formData: FormData
 ) {
-  const currentUser = await requireUser();
+  await requireUser();
 
   const parsed = createActivitySchema.safeParse({
     leadId: formData.get("leadId"),
@@ -530,7 +581,6 @@ export async function createActivity(
   await prisma.activity.create({
     data: {
       leadId: existingLead.id,
-      userId: currentUser.id,
       type: parsed.data.type,
       summary: getActivitySummary(parsed.data.type),
       details: parsed.data.details,
@@ -550,7 +600,7 @@ export async function assignVehicle(
   _: AssignVehicleState,
   formData: FormData
 ) {
-  const currentUser = await requireUser();
+  await requireUser();
 
   const parsed = assignVehicleSchema.safeParse({
     leadId: formData.get("leadId"),
@@ -617,7 +667,6 @@ export async function assignVehicle(
   await prisma.activity.create({
     data: {
       leadId: existingLead.id,
-      userId: currentUser.id,
       type: vehicleId ? "VEHICLE_LINKED" : "VEHICLE_UNLINKED",
       summary: vehicleId ? "Wagen gekoppeld" : "Wagen ontkoppeld",
       details: vehicleId
@@ -639,7 +688,8 @@ export async function assignVehicle(
 }
 
 export async function completeTask(formData: FormData) {
-  const currentUser = await requireUser();
+  await requireUser();
+
   const taskId = formData.get("taskId");
 
   if (typeof taskId !== "string" || taskId.length === 0) {
@@ -671,7 +721,6 @@ export async function completeTask(formData: FormData) {
   await prisma.activity.create({
     data: {
       leadId: existingTask.leadId,
-      userId: currentUser.id,
       type: "NOTE",
       summary: "Taak voltooid",
       details: `Taak voltooid: ${existingTask.title}.`,

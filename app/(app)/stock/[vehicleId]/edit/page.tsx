@@ -20,13 +20,14 @@ export default async function EditStockVehiclePage({
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-white/10 bg-[#0f0f10] p-8">
-        <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/45">
+      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Stock
         </p>
-        <h1 className="mt-3 text-2xl font-bold text-white">Stockwagen bewerken</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
-          Werk de gegevens van deze stockwagen bij op een aparte pagina, met dezelfde logica en stijl als de rest van het CRM.
+        <h1 className="mt-3 text-2xl font-bold text-black">Stockwagen bewerken</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-black/70">
+          Werk de gegevens van deze stockwagen bij op een aparte pagina, met dezelfde
+          logica en stijl als de rest van het CRM.
         </p>
       </section>
 
@@ -39,6 +40,10 @@ export default async function EditStockVehiclePage({
           model: vehicle.model,
           vin: vehicle.vin ?? "",
           mileageKm: vehicle.mileageKm,
+          inventoryType: vehicle.inventoryType,
+          commissionType: vehicle.commissionType,
+          commissionRate: vehicle.commissionRate,
+          commissionFixedExclVatCents: vehicle.commissionFixedExclVatCents,
           purchaseVatType: vehicle.purchaseVatType,
           saleVatType: vehicle.saleVatType,
           purchaseVatRate: vehicle.purchaseVatRate,

@@ -30,41 +30,50 @@ export default async function StockPage({
 
   const visibleVehicles = currentTab === "archive" ? archivedVehicles : activeVehicles;
 
+  const totalMargin = activeVehicles.reduce(
+    (total, vehicle) => total + (vehicle.netProfitCents ?? 0),
+    0
+  );
+
+  const consignmentCount = activeVehicles.filter(
+    (vehicle) => vehicle.inventoryType === "CONSIGNMENT"
+  ).length;
+
+  const onOrderCount = activeVehicles.filter(
+    (vehicle) => vehicle.inventoryType === "ON_ORDER"
+  ).length;
+
   return (
     <main className="flex flex-col gap-6">
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <SummaryCard label="Actieve stock" value={String(activeVehicles.length)} />
-        <SummaryCard label="Archief" value={String(archivedVehicles.length)} />
+        <SummaryCard label="Consignatie" value={String(consignmentCount)} />
+        <SummaryCard label="In bestelling" value={String(onOrderCount)} />
         <SummaryCard
-          label="Totale actieve marge / commissie"
-          value={formatCurrencyFromCents(
-            activeVehicles.reduce(
-              (total, vehicle) => total + (vehicle.netProfitCents ?? 0),
-              0
-            )
-          )}
+          label="Marge / commissie"
+          value={formatCurrencyFromCents(totalMargin)}
         />
       </section>
 
-      <section className="rounded-[28px] border border-black/10 bg-[#f2f2f2] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <section className="rounded-[30px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
+            <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/50">
               Stock
             </p>
-            <h1 className="mt-3 text-2xl font-bold text-black">Stockoverzicht</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-black/70">
-              Beheer actieve stock en archief in een rustige overzichtspagina, en open
-              aparte pagina’s voor toevoegen of bewerken.
+            <h1 className="mt-3 text-3xl font-bold text-black">Stockoverzicht</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-black/65">
+              Compact overzicht van stockwagens, consignatie en bestellingen met
+              directe focus op prijs, dagen in stock en marge.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <Link
               href={"/stock/new" as Route}
-              className="rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#e7e7e7]"
+              className="rounded-2xl border border-black/15 bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80"
             >
-              Nieuwe stockwagen toevoegen
+              Nieuwe stockwagen
             </Link>
 
             <TabLink
@@ -82,12 +91,12 @@ export default async function StockPage({
         </div>
       </section>
 
-      <VehicleCardList
+      <VehicleOverview
         title={currentTab === "archive" ? "Archief" : "Actieve stock"}
         description={
           currentTab === "archive"
             ? "Verkochte wagens blijven hier raadpleegbaar met aankoop-, verkoop-, kosten- en margegegevens."
-            : "Beschikbare, gereserveerde, consignatie- en bestelde wagens voor dagelijkse opvolging."
+            : "Wagennummer, merk, model, kilometerstand, prijs en dagen in stock in één compact overzicht."
         }
         vehicles={visibleVehicles}
         emptyText={
@@ -100,7 +109,7 @@ export default async function StockPage({
   );
 }
 
-function VehicleCardList({
+function VehicleOverview({
   title,
   description,
   vehicles,
@@ -132,173 +141,182 @@ function VehicleCardList({
   emptyText: string;
 }) {
   return (
-    <section className="rounded-[28px] border border-black/10 bg-[#f2f2f2] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-      <div>
-        <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
-          Stocklijst
+    <section className="rounded-[30px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/50">
+            Stocklijst
+          </p>
+          <h2 className="mt-3 text-2xl font-bold text-black">{title}</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-black/65">
+            {description}
+          </p>
+        </div>
+
+        <p className="text-sm font-semibold text-black/50">
+          {vehicles.length} voertuigen
         </p>
-        <h2 className="mt-3 text-2xl font-bold text-black">{title}</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-black/70">{description}</p>
       </div>
 
-      <div className="mt-6 flex flex-col gap-4">
+      <div className="mt-6 overflow-hidden rounded-[24px] border border-black/10 bg-white">
+        <div className="hidden grid-cols-[1fr_1.4fr_0.8fr_1fr_1fr_1fr_0.9fr] border-b border-black/10 bg-[#eeeeee] px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-black/45 lg:grid">
+          <div>Wagennr.</div>
+          <div>Wagen</div>
+          <div>Km</div>
+          <div>Prijs</div>
+          <div>Dagen</div>
+          <div>Marge</div>
+          <div className="text-right">Actie</div>
+        </div>
+
         {vehicles.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-black/12 bg-[#e9e9e9] p-5 text-sm text-black/55">
-            {emptyText}
-          </div>
+          <div className="p-8 text-center text-sm text-black/50">{emptyText}</div>
         ) : (
-          vehicles.map((vehicle) => (
-            <article
-              key={vehicle.id}
-              className="rounded-[24px] border border-black/10 bg-[#ececec] p-6 shadow-[0_12px_32px_rgba(0,0,0,0.05)]"
-            >
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4 border-b border-black/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-xs uppercase tracking-[0.2em] text-black/50">
-                      Referentie
-                    </p>
-                    <div className="mt-2 flex flex-col gap-1">
-                      <h3 className="text-xl font-bold text-black">{vehicle.stockNumber}</h3>
-                      <p className="text-sm font-medium text-black/75">
-                        {vehicle.brand} {vehicle.model}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="rounded-2xl border border-black/12 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black">
-                      {getStatusLabel(vehicle.status)}
-                    </div>
-
-                    <div className="rounded-2xl border border-black/12 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black">
-                      {getInventoryTypeLabel(vehicle.inventoryType)}
-                    </div>
-
-                    <Link
-                      href={`/stock/${vehicle.id}/edit` as Route}
-                      className="rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-[#e2e2e2] hover:text-black"
-                    >
-                      Bewerken
-                    </Link>
-
-                    {vehicle.status === "SOLD" ? (
-                      <DeleteVehicleButton vehicleId={vehicle.id} />
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
-                  <section className="rounded-[20px] border border-black/10 bg-[#f7f7f7] p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-black/50">
-                      Wageninformatie
-                    </p>
-
-                    <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                      <DetailItem label="Aankoopdatum / besteldatum" value={formatDate(vehicle.purchaseDate)} />
-                      <DetailItem
-                        label="Dagen in stock"
-                        value={formatDaysInStock(vehicle.purchaseDate)}
-                        strong
-                        tone={getDaysInStockTone(vehicle.purchaseDate)}
-                      />
-                      <DetailItem
-                        label="Kilometerstand"
-                        value={formatInteger(vehicle.mileageKm)}
-                      />
-                      <DetailItem
-                        label="Chassisnummer"
-                        value={
-                          vehicle.vin ||
-                          (vehicle.inventoryType === "ON_ORDER"
-                            ? "Nog niet beschikbaar"
-                            : "-")
-                        }
-                      />
-                    </div>
-
-                    <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
-                      <DetailItem
-                        label="Aankoop btw-type"
-                        value={formatVatType(vehicle.purchaseVatType)}
-                      />
-                      <DetailItem
-                        label="Verkoop btw-type"
-                        value={formatVatType(vehicle.saleVatType)}
-                      />
-                      <DetailItem
-                        label="Aankoop btw-percentage"
-                        value={formatVatRate(vehicle.purchaseVatRate)}
-                      />
-                      <DetailItem
-                        label="Verkoop btw-percentage"
-                        value={formatVatRate(vehicle.saleVatRate)}
-                      />
-                    </div>
-                  </section>
-
-                  <section className="rounded-[20px] border border-black/10 bg-[#f7f7f7] p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-black/50">
-                      Financieel
-                    </p>
-
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <FinanceItem
-                        label="Aankoop excl. btw"
-                        value={
-                          vehicle.inventoryType === "CONSIGNMENT"
-                            ? "Niet van toepassing"
-                            : formatMoney(vehicle.purchasePriceExclVatCents)
-                        }
-                      />
-                      <FinanceItem
-                        label="Verkoop excl. btw"
-                        value={formatMoney(vehicle.salePriceExclVatCents)}
-                      />
-                      <FinanceItem
-                        label={
-                          vehicle.inventoryType === "CONSIGNMENT"
-                            ? "Kosten"
-                            : "Kosten excl. btw"
-                        }
-                        value={formatMoney(vehicle.costsExclVatCents)}
-                      />
-                      <FinanceItem
-                        label={
-                          vehicle.inventoryType === "CONSIGNMENT"
-                            ? "Commissie / opbrengst"
-                            : "Netto winst"
-                        }
-                        value={formatMoney(vehicle.netProfitCents)}
-                        highlight
-                        tone={getNetProfitTone(vehicle.netProfitCents)}
-                      />
-                    </div>
-
-                    {vehicle.inventoryType === "CONSIGNMENT" ? (
-                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                        <FinanceItem
-                          label="Commissie %"
-                          value={
-                            vehicle.commissionRate !== null && vehicle.commissionRate !== undefined
-                              ? `${vehicle.commissionRate}%`
-                              : "-"
-                          }
-                        />
-                        <FinanceItem
-                          label="Minimum commissie"
-                          value={formatMoney(vehicle.commissionMinimumExclVatCents)}
-                        />
-                      </div>
-                    ) : null}
-                  </section>
-                </div>
-              </div>
-            </article>
-          ))
+          <div className="divide-y divide-black/10">
+            {vehicles.map((vehicle) => (
+              <VehicleRow key={vehicle.id} vehicle={vehicle} />
+            ))}
+          </div>
         )}
       </div>
     </section>
+  );
+}
+
+function VehicleRow({
+  vehicle
+}: {
+  vehicle: {
+    id: string;
+    stockNumber: string;
+    purchaseDate: Date | null;
+    brand: string;
+    model: string;
+    vin: string | null;
+    mileageKm: number | null;
+    inventoryType: string | null;
+    commissionRate: number | null;
+    commissionMinimumExclVatCents: number | null;
+    purchaseVatType: string | null;
+    saleVatType: string | null;
+    purchaseVatRate: number | null;
+    saleVatRate: number | null;
+    purchasePriceExclVatCents: number | null;
+    salePriceExclVatCents: number | null;
+    costsExclVatCents: number | null;
+    netProfitCents: number | null;
+    status: string;
+  };
+}) {
+  return (
+    <article className="grid gap-4 px-5 py-5 transition hover:bg-[#f7f7f7] lg:grid-cols-[1fr_1.4fr_0.8fr_1fr_1fr_1fr_0.9fr] lg:items-center">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/40 lg:hidden">
+          Wagennr.
+        </p>
+        <p className="text-base font-bold text-black">{vehicle.stockNumber}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Badge label={getInventoryTypeLabel(vehicle.inventoryType)} tone={getInventoryTone(vehicle.inventoryType)} />
+          <Badge label={getStatusLabel(vehicle.status)} tone="neutral" />
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/40 lg:hidden">
+          Wagen
+        </p>
+        <Link
+          href={`/stock/${vehicle.id}/edit` as Route}
+          className="text-base font-bold text-black transition hover:text-black/65"
+        >
+          {vehicle.brand} {vehicle.model}
+        </Link>
+        <p className="mt-1 text-xs text-black/50">
+          Chassis:{" "}
+          {vehicle.vin ||
+            (vehicle.inventoryType === "ON_ORDER" ? "nog niet beschikbaar" : "-")}
+        </p>
+      </div>
+
+      <Metric
+        label="Km"
+        value={formatInteger(vehicle.mileageKm)}
+      />
+
+      <Metric
+        label="Prijs"
+        value={formatMoney(vehicle.salePriceExclVatCents)}
+      />
+
+      <Metric
+        label="Dagen"
+        value={formatDaysInStock(vehicle.purchaseDate)}
+        tone={getDaysInStockTone(vehicle.purchaseDate)}
+      />
+
+      <Metric
+        label={
+          vehicle.inventoryType === "CONSIGNMENT" ? "Commissie" : "Marge"
+        }
+        value={formatMoney(vehicle.netProfitCents)}
+        tone={getNetProfitTone(vehicle.netProfitCents)}
+      />
+
+      <div className="flex justify-start gap-2 lg:justify-end">
+        <Link
+          href={`/stock/${vehicle.id}/edit` as Route}
+          className="rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-[#e2e2e2] hover:text-black"
+        >
+          Open
+        </Link>
+
+        {vehicle.status === "SOLD" ? (
+          <DeleteVehicleButton vehicleId={vehicle.id} />
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  tone = "default"
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "positive" | "warning" | "negative";
+}) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/40 lg:hidden">
+        {label}
+      </p>
+      <p className={`text-sm font-bold ${getToneClassName(tone)}`}>{value}</p>
+    </div>
+  );
+}
+
+function Badge({
+  label,
+  tone
+}: {
+  label: string;
+  tone: "neutral" | "blue" | "orange" | "black";
+}) {
+  const toneClassName = {
+    neutral: "border-black/10 bg-[#f2f2f2] text-black/70",
+    blue: "border-blue-200 bg-blue-50 text-blue-700",
+    orange: "border-amber-200 bg-amber-50 text-amber-700",
+    black: "border-black bg-black text-white"
+  }[tone];
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${toneClassName}`}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -316,8 +334,8 @@ function TabLink({
       href={href}
       className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
         active
-          ? "border-black/15 bg-[#fafafa] text-black"
-          : "border-black/10 bg-[#e9e9e9] text-black/70 hover:bg-[#dfdfdf] hover:text-black"
+          ? "border-black bg-black text-white"
+          : "border-black/10 bg-[#fafafa] text-black/70 hover:bg-[#e7e7e7] hover:text-black"
       }`}
     >
       {label}
@@ -325,73 +343,13 @@ function TabLink({
   );
 }
 
-function DetailItem({
-  label,
-  value,
-  strong = false,
-  tone = "default"
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-  tone?: "default" | "positive" | "warning" | "negative";
-}) {
-  return (
-    <div>
-      <p className="text-xs uppercase tracking-[0.16em] text-black/55">{label}</p>
-      <p
-        className={`mt-2 text-sm ${
-          strong ? "font-bold" : "font-semibold"
-        } ${getToneClassName(tone, strong)}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function FinanceItem({
-  label,
-  value,
-  highlight = false,
-  tone = "default"
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-  tone?: "default" | "positive" | "warning" | "negative";
-}) {
-  return (
-    <div className="rounded-[18px] border border-black/10 bg-[#f9f9f9] p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-black/55">{label}</p>
-      <p
-        className={`mt-2 text-base ${
-          highlight ? "font-bold" : "font-semibold"
-        } ${getToneClassName(tone, highlight)}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[24px] border border-black/10 bg-[#f2f2f2] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
-      <p className="text-sm font-semibold text-black/55">{label}</p>
+    <div className="rounded-[26px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
+      <p className="text-sm font-semibold text-black/50">{label}</p>
       <p className="mt-4 text-3xl font-bold text-black">{value}</p>
     </div>
   );
-}
-
-function formatDate(value: Date | null) {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("nl-BE", {
-    dateStyle: "medium"
-  }).format(value);
 }
 
 function formatInteger(value: number | null) {
@@ -408,28 +366,6 @@ function formatMoney(value: number | null) {
   }
 
   return formatCurrencyFromCents(value);
-}
-
-function formatVatRate(value: number | null) {
-  if (value === null) {
-    return "-";
-  }
-
-  return `${new Intl.NumberFormat("nl-BE", {
-    maximumFractionDigits: 2
-  }).format(value)}%`;
-}
-
-function formatVatType(value: string | null) {
-  if (value === "BTW_WAGEN") {
-    return "Btw wagen";
-  }
-
-  if (value === "MARGE_WAGEN") {
-    return "Marge wagen";
-  }
-
-  return value || "-";
 }
 
 function formatDaysInStock(value: Date | null) {
@@ -496,23 +432,20 @@ function getNetProfitTone(value: number | null) {
   return "negative" as const;
 }
 
-function getToneClassName(
-  tone: "default" | "positive" | "warning" | "negative",
-  emphasized: boolean
-) {
+function getToneClassName(tone: "default" | "positive" | "warning" | "negative") {
   if (tone === "positive") {
-    return emphasized ? "text-green-600" : "text-green-700";
+    return "text-green-700";
   }
 
   if (tone === "warning") {
-    return emphasized ? "text-amber-600" : "text-amber-700";
+    return "text-amber-700";
   }
 
   if (tone === "negative") {
-    return emphasized ? "text-red-600" : "text-red-700";
+    return "text-red-700";
   }
 
-  return emphasized ? "text-black" : "text-black/80";
+  return "text-black/80";
 }
 
 function getStatusLabel(status: string) {
@@ -545,4 +478,16 @@ function getInventoryTypeLabel(inventoryType: string | null) {
   }
 
   return inventoryType || "Stock";
+}
+
+function getInventoryTone(inventoryType: string | null) {
+  if (inventoryType === "CONSIGNMENT") {
+    return "blue" as const;
+  }
+
+  if (inventoryType === "ON_ORDER") {
+    return "orange" as const;
+  }
+
+  return "black" as const;
 }

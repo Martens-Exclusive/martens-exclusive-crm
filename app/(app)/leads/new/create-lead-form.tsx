@@ -49,21 +49,57 @@ export function CreateLeadForm({
           <Field label="Voornaam">
             <Input name="firstName" required />
           </Field>
+
           <Field label="Achternaam">
             <Input name="lastName" required />
           </Field>
+
           <Field label="Telefoon" hint="Minstens telefoon of e-mail is verplicht.">
             <Input name="phone" />
           </Field>
+
           <Field label="E-mail" hint="Minstens telefoon of e-mail is verplicht.">
             <Input name="email" type="email" />
           </Field>
+        </div>
+
+        <div className="mt-8 border-t border-black/10 pt-6">
+          <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-black/45">
+            Adresgegevens
+          </h3>
+
+          <div className="mt-5 grid gap-5 md:grid-cols-[1fr_0.45fr]">
+            <Field label="Straat">
+              <Input name="street" />
+            </Field>
+
+            <Field label="Huisnummer">
+              <Input name="houseNumber" />
+            </Field>
+          </div>
+
+          <div className="mt-5 grid gap-5 md:grid-cols-[0.45fr_1fr]">
+            <Field label="Postcode">
+              <Input name="postalCode" />
+            </Field>
+
+            <Field label="Gemeente">
+              <Input name="city" />
+            </Field>
+          </div>
+
+          <div className="mt-5">
+            <Field label="Land">
+              <Input name="country" defaultValue="België" />
+            </Field>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-5">
           <Field label="Bericht van klant">
             <Textarea name="customerMessage" rows={4} />
           </Field>
+
           <Field label="Interne notities">
             <Textarea name="internalNotes" rows={4} />
           </Field>
@@ -100,7 +136,7 @@ export function CreateLeadForm({
             </Select>
           </Field>
 
-          <Field label="Geinteresseerde wagen">
+          <Field label="Geïnteresseerde wagen">
             <Select name="primaryVehicleId" defaultValue="">
               <option value="">Nog niet gekozen</option>
               {vehicles.map((vehicle) => (

@@ -52,7 +52,9 @@ model Vehicle {
   transmission                  String?
   color                         String?
   inventoryType                 String   @default("STOCK")
+  commissionType                String?  @default("PERCENTAGE")
   commissionRate                Float?
+  commissionFixedExclVatCents   Int?
   commissionMinimumExclVatCents Int?
   purchaseVatType               String?
   saleVatType                   String?
@@ -76,6 +78,11 @@ model Lead {
   lastName               String
   phone                  String?
   email                  String?
+  street                 String?
+  houseNumber            String?
+  postalCode             String?
+  city                   String?
+  country                String?                 @default("België")
   preferredContactMethod String?
   status                 String                  @default("NEW")
   priority               String                  @default("NORMAL")
