@@ -5,7 +5,6 @@ import { useActionState } from "react";
 import { updateLead, type UpdateLeadState } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { LeadStatus } from "@/lib/lead-status";
@@ -23,7 +22,6 @@ const initialState: UpdateLeadState = {};
 export function EditLeadForm({
   leadId,
   currentStatus,
-  currentNextFollowUpAt,
   currentInternalNotes,
   statuses
 }: EditLeadFormProps) {
@@ -37,8 +35,9 @@ export function EditLeadForm({
       <input type="hidden" name="leadId" value={leadId} />
 
       <h2 className="text-xl font-bold text-black">Lead bewerken</h2>
+
       <p className="mt-2 text-sm leading-6 text-black/70">
-        Werk de status, opvolging en interne notities meteen bij na contact met de klant.
+        Werk de status en interne notities bij. Opvolgingen beheer je via taken.
       </p>
 
       <div className="mt-6 flex flex-col gap-5">
@@ -52,17 +51,12 @@ export function EditLeadForm({
           </Select>
         </Field>
 
-        <Field label="Volgende opvolging">
-          <Input
-            name="nextFollowUpAt"
-            type="datetime-local"
-            required
-            defaultValue={currentNextFollowUpAt}
-          />
-        </Field>
-
         <Field label="Interne notities">
-          <Textarea name="internalNotes" rows={6} defaultValue={currentInternalNotes} />
+          <Textarea
+            name="internalNotes"
+            rows={6}
+            defaultValue={currentInternalNotes}
+          />
         </Field>
       </div>
 

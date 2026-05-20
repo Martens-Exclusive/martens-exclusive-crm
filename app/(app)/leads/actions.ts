@@ -42,7 +42,6 @@ const createLeadSchema = z.object({
 const updateLeadSchema = z.object({
   leadId: z.string().trim().min(1),
   status: z.enum(leadStatuses),
-  nextFollowUpAt: z.string().trim().min(1, "Volgende opvolging is verplicht."),
   internalNotes: optionalText
 });
 
@@ -232,7 +231,6 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
   const parsedLead = updateLeadSchema.safeParse({
     leadId: formData.get("leadId"),
     status: formData.get("status"),
-    nextFollowUpAt: formData.get("nextFollowUpAt"),
     internalNotes: formData.get("internalNotes")
   });
 
@@ -256,18 +254,6 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
   if (!existingLead) {
     return {
       message: "Lead niet gevonden.",
-      success: false
-    };
-  }
-
-  const nextFollowUpAt = new Date(parsedLead.data.nextFollowUpAt);
-
-  if (Number.isNaN(nextFollowUpAt.getTime())) {
-    return {
-      errors: {
-        nextFollowUpAt: ["Volgende opvolging is verplicht."]
-      },
-      message: "Controleer de ingevulde gegevens.",
       success: false
     };
   }
@@ -306,7 +292,6 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     where: { id: existingLead.id },
     data: {
       status: parsedLead.data.status,
-      nextFollowUpAt,
       internalNotes: nextInternalNotes,
       statusHistory:
         existingLead.status !== parsedLead.data.status
