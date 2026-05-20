@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 
+import { completeTask } from "../actions";
+
 import {
   leadPriorityLabels,
   leadStatuses,
@@ -83,7 +85,18 @@ export default async function LeadDetailPage({
     })
   ]);
 
-  const openTasks = lead.tasks.filter((task) => task.status !== "COMPLETED");
+  const now = new Date();
+
+  const overdueTasks = lead.tasks.filter(
+    (task) => task.status === "OPEN" && task.dueAt < now
+  );
+
+  const openTasks = lead.tasks.filter(
+    (task) => task.status === "OPEN" && task.dueAt >= now
+  );
+
+  const completedTasks = lead.tasks.filter((task) => task.status === "COMPLETED");
+
   const openAppointments = lead.appointments.filter(
     (appointment) =>
       appointment.status !== "COMPLETED" && appointment.status !== "CANCELLED"
@@ -116,7 +129,7 @@ export default async function LeadDetailPage({
           <div className="mt-8 grid gap-4 md:grid-cols-4">
             <StatCard label="Status" value={getLeadStatusLabel(lead.status)} />
             <StatCard label="Prioriteit" value={getLeadPriorityLabel(lead.priority)} />
-            <StatCard label="Open taken" value={String(openTasks.length)} />
+            <StatCard label="Open taken" value={String(openTasks.length + overdueTasks.length)} />
             <StatCard label="Open afspraken" value={String(openAppointments.length)} />
           </div>
 
@@ -187,22 +200,15 @@ export default async function LeadDetailPage({
           ) : null}
         </div>
 
-        <OverviewBlock title="Open taken">
+        <OverviewBlock title="Taken">
           {lead.tasks.length === 0 ? (
             <EmptyState text="Nog geen taken voor deze lead." />
           ) : (
-            lead.tasks.map((task) => (
-              <div key={task.id} className="rounded-2xl border border-black/10 bg-[#efefef] p-5">
-                <p className="font-semibold text-black">{task.title}</p>
-                <p className="mt-1 text-sm text-black/60">
-                  {task.assignedUser.firstName} {task.assignedUser.lastName}
-                </p>
-                {task.notes ? <p className="mt-3 text-sm leading-6 text-black/70">{task.notes}</p> : null}
-                <p className="mt-3 text-xs text-black/45">
-                  Vervalt op {dateFormatter.format(task.dueAt)} • {task.status}
-                </p>
-              </div>
-            ))
+            <>
+              <TaskGroup title="Te laat" tasks={overdueTasks} highlight="overdue" />
+              <TaskGroup title="Open" tasks={openTasks} />
+              <TaskGroup title="Voltooid" tasks={completedTasks} />
+            </>
           )}
         </OverviewBlock>
 
@@ -328,12 +334,96 @@ export default async function LeadDetailPage({
   );
 }
 
+function TaskGroup({
+  title,
+  tasks,
+  highlight
+}: {
+  title: string;
+  tasks: Array<{
+    id: string;
+    title: string;
+    dueAt: Date;
+    notes: string | null;
+    status: string;
+    assignedUser: { firstName: string; lastName: string };
+  }>;
+  highlight?: "overdue";
+}) {
+  if (tasks.length === 0) return null;
+
+  return (
+    <div>
+      <h3 className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-black/45">
+        {title}
+      </h3>
+
+      <div className="flex flex-col gap-3">
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            className={`rounded-2xl border p-5 ${
+              highlight === "overdue"
+                ? "border-red-300 bg-red-50"
+                : task.status === "COMPLETED"
+                  ? "border-black/10 bg-[#efefef] opacity-70"
+                  : "border-black/10 bg-[#efefef]"
+            }`}
+          >
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="font-semibold text-black">{task.title}</p>
+
+                <p className="mt-1 text-sm text-black/60">
+                  {task.assignedUser.firstName} {task.assignedUser.lastName}
+                </p>
+
+                {task.notes ? (
+                  <p className="mt-3 text-sm leading-6 text-black/70">
+                    {task.notes}
+                  </p>
+                ) : null}
+
+                <p className="mt-3 text-xs text-black/45">
+                  Vervalt op {dateFormatter.format(task.dueAt)} •{" "}
+                  {highlight === "overdue" ? "Te laat" : getTaskStatusLabel(task.status)}
+                </p>
+              </div>
+
+              {task.status === "OPEN" ? (
+                <form action={completeTask}>
+                  <input type="hidden" name="taskId" value={task.id} />
+
+                  <button
+                    type="submit"
+                    className="rounded-2xl border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-[#ececec]"
+                  >
+                    Markeer als voltooid
+                  </button>
+                </form>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function getLeadStatusLabel(status: string) {
   return leadStatusLabels[status as LeadStatus] ?? status;
 }
 
 function getLeadPriorityLabel(priority: string) {
   return leadPriorityLabels[priority as LeadPriority] ?? priority;
+}
+
+function getTaskStatusLabel(status: string) {
+  if (status === "OPEN") return "Open";
+  if (status === "COMPLETED") return "Voltooid";
+  if (status === "CANCELLED") return "Geannuleerd";
+
+  return status;
 }
 
 function formatAppointmentType(type: string) {
