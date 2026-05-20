@@ -41,15 +41,6 @@ const createLeadSchema = z.object({
 
 const updateLeadSchema = z.object({
   leadId: z.string().trim().min(1),
-  firstName: optionalText,
-  lastName: optionalText,
-  phone: optionalText,
-  email: z.string().trim().email("Ongeldig e-mailadres.").or(z.literal("")),
-  street: optionalText,
-  houseNumber: optionalText,
-  postalCode: optionalText,
-  city: optionalText,
-  country: optionalText,
   status: z.enum(leadStatuses),
   nextFollowUpAt: z.string().trim().min(1, "Volgende opvolging is verplicht."),
   internalNotes: optionalText
@@ -130,7 +121,7 @@ export type AssignVehicleState = {
 };
 
 export async function createLead(_: CreateLeadState, formData: FormData) {
-  await requireUser();
+  const currentUser = await requireUser();
 
   const parsedLead = createLeadSchema.safeParse({
     firstName: formData.get("firstName"),
@@ -171,6 +162,17 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
     };
   }
 
+  const nextFollowUpAt = new Date(parsedLead.data.nextFollowUpAt);
+
+  if (Number.isNaN(nextFollowUpAt.getTime())) {
+    return {
+      errors: {
+        nextFollowUpAt: ["Volgende opvolging is verplicht."]
+      },
+      message: "Controleer de ingevulde gegevens."
+    };
+  }
+
   const lead = await prisma.lead.create({
     data: {
       firstName: parsedLead.data.firstName,
@@ -187,13 +189,14 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
       primaryVehicleId: parsedLead.data.primaryVehicleId || null,
       status: parsedLead.data.status,
       priority: parsedLead.data.priority,
-      nextFollowUpAt: new Date(parsedLead.data.nextFollowUpAt),
+      nextFollowUpAt,
       financeInterest: parsedLead.data.financeInterest,
       tradeInInterest: parsedLead.data.tradeInInterest,
       customerMessage: parsedLead.data.customerMessage || null,
       internalNotes: parsedLead.data.internalNotes || null,
       activities: {
         create: {
+          userId: currentUser.id,
           type: "LEAD_CREATED",
           summary: "Lead aangemaakt",
           details: "Nieuwe lead ingevoerd in het systeem.",
@@ -202,12 +205,14 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
       },
       statusHistory: {
         create: {
-          toStatus: parsedLead.data.status
+          toStatus: parsedLead.data.status,
+          changedByUserId: currentUser.id
         }
       },
       assignmentHistory: {
         create: {
-          toUserId: parsedLead.data.assignedUserId
+          toUserId: parsedLead.data.assignedUserId,
+          changedByUserId: currentUser.id
         }
       }
     },
@@ -222,19 +227,10 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
 }
 
 export async function updateLead(_: UpdateLeadState, formData: FormData) {
-  await requireUser();
+  const currentUser = await requireUser();
 
   const parsedLead = updateLeadSchema.safeParse({
     leadId: formData.get("leadId"),
-    firstName: formData.get("firstName"),
-    lastName: formData.get("lastName"),
-    phone: formData.get("phone"),
-    email: formData.get("email"),
-    street: formData.get("street"),
-    houseNumber: formData.get("houseNumber"),
-    postalCode: formData.get("postalCode"),
-    city: formData.get("city"),
-    country: formData.get("country"),
     status: formData.get("status"),
     nextFollowUpAt: formData.get("nextFollowUpAt"),
     internalNotes: formData.get("internalNotes")
@@ -244,17 +240,6 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     return {
       errors: parsedLead.error.flatten().fieldErrors,
       message: "Controleer de ingevulde gegevens.",
-      success: false
-    };
-  }
-
-  if (!parsedLead.data.phone && !parsedLead.data.email) {
-    return {
-      errors: {
-        phone: ["Telefoon of e-mailadres is verplicht."],
-        email: ["Telefoon of e-mailadres is verplicht."]
-      },
-      message: "Een lead heeft minstens één contactmethode nodig.",
       success: false
     };
   }
@@ -294,6 +279,7 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     summary: string;
     details?: string;
     occurredAt: Date;
+    userId: string;
   }> = [];
 
   if (existingLead.status !== parsedLead.data.status) {
@@ -301,7 +287,8 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
       type: "STATUS_CHANGE",
       summary: "Status gewijzigd",
       details: `Status gewijzigd naar ${parsedLead.data.status}.`,
-      occurredAt: new Date()
+      occurredAt: new Date(),
+      userId: currentUser.id
     });
   }
 
@@ -310,22 +297,14 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
       type: "NOTE",
       summary: "Interne notities bijgewerkt",
       details: nextInternalNotes || "Interne notities werden leeggemaakt.",
-      occurredAt: new Date()
+      occurredAt: new Date(),
+      userId: currentUser.id
     });
   }
 
   await prisma.lead.update({
     where: { id: existingLead.id },
     data: {
-      firstName: parsedLead.data.firstName,
-      lastName: parsedLead.data.lastName,
-      phone: parsedLead.data.phone || null,
-      email: parsedLead.data.email || null,
-      street: parsedLead.data.street || null,
-      houseNumber: parsedLead.data.houseNumber || null,
-      postalCode: parsedLead.data.postalCode || null,
-      city: parsedLead.data.city || null,
-      country: parsedLead.data.country || "België",
       status: parsedLead.data.status,
       nextFollowUpAt,
       internalNotes: nextInternalNotes,
@@ -334,7 +313,8 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
           ? {
               create: {
                 fromStatus: existingLead.status,
-                toStatus: parsedLead.data.status
+                toStatus: parsedLead.data.status,
+                changedByUserId: currentUser.id
               }
             }
           : undefined,
@@ -360,7 +340,7 @@ export async function createAppointment(
   _: CreateAppointmentState,
   formData: FormData
 ) {
-  await requireUser();
+  const currentUser = await requireUser();
 
   const parsedAppointment = createAppointmentSchema.safeParse({
     leadId: formData.get("leadId"),
@@ -424,6 +404,7 @@ export async function createAppointment(
   await prisma.activity.create({
     data: {
       leadId: existingLead.id,
+      userId: currentUser.id,
       type: "APPOINTMENT_BOOKED",
       summary: "Afspraak ingepland",
       details:
@@ -442,362 +423,6 @@ export async function createAppointment(
   };
 }
 
-export async function createTask(_: CreateTaskState, formData: FormData) {
-  await requireUser();
-
-  const parsedTask = createTaskSchema.safeParse({
-    leadId: formData.get("leadId"),
-    title: formData.get("title"),
-    dueAt: formData.get("dueAt"),
-    notes: formData.get("notes"),
-    assignedUserId: formData.get("assignedUserId")
-  });
-
-  if (!parsedTask.success) {
-    return {
-      errors: parsedTask.error.flatten().fieldErrors,
-      message: "Controleer de ingevulde gegevens.",
-      success: false
-    };
-  }
-
-  const existingLead = await prisma.lead.findUnique({
-    where: { id: parsedTask.data.leadId },
-    select: { id: true }
-  });
-
-  if (!existingLead) {
-    return {
-      message: "Lead niet gevonden.",
-      success: false
-    };
-  }
-
-  const dueAt = new Date(parsedTask.data.dueAt);
-
-  if (Number.isNaN(dueAt.getTime())) {
-    return {
-      errors: {
-        dueAt: ["Vervaldatum is verplicht."]
-      },
-      message: "Controleer de ingevulde gegevens.",
-      success: false
-    };
-  }
-
-  await prisma.task.create({
-    data: {
-      leadId: existingLead.id,
-      assignedUserId: parsedTask.data.assignedUserId,
-      taskType: "FOLLOW_UP",
-      title: parsedTask.data.title,
-      notes: parsedTask.data.notes || null,
-      dueAt,
-      status: "OPEN"
-    }
-  });
-
-  await prisma.activity.create({
-    data: {
-      leadId: existingLead.id,
-      type: "NOTE",
-      summary: "Taak toegevoegd",
-      details: parsedTask.data.notes || `Nieuwe taak: ${parsedTask.data.title}.`,
-      occurredAt: new Date()
-    }
-  });
-
-  revalidatePath(`/leads/${existingLead.id}`);
-  revalidatePath("/tasks");
-
-  return {
-    message: "Taak opgeslagen.",
-    success: true
-  };
-}
-
-function getActivitySummary(type: string) {
-  if (type === "PHONE_CALL") return "Contact gehad via telefoon";
-  if (type === "EMAIL") return "Contact gehad via mail";
-  if (type === "SMS") return "Contact gehad via sms";
-  if (type === "WHATSAPP") return "Contact gehad via WhatsApp";
-  if (type === "SHOWROOM_VISIT") return "Showroombezoek";
-  return "Interne update";
-}
-
-export async function createActivity(
-  _: CreateActivityState,
-  formData: FormData
-) {
-  await requireUser();
-
-  const parsed = createActivitySchema.safeParse({
-    leadId: formData.get("leadId"),
-    occurredAt: formData.get("occurredAt"),
-    type: formData.get("type"),
-    details: formData.get("details")
-  });
-
-  if (!parsed.success) {
-    return {
-      errors: parsed.error.flatten().fieldErrors,
-      message: "Controleer de velden.",
-      success: false
-    };
-  }
-
-  const existingLead = await prisma.lead.findUnique({
-    where: { id: parsed.data.leadId },
-    select: { id: true }
-  });
-
-  if (!existingLead) {
-    return {
-      message: "Lead niet gevonden.",
-      success: false
-    };
-  }
-
-  const occurredAt = new Date(parsed.data.occurredAt);
-
-  if (Number.isNaN(occurredAt.getTime())) {
-    return {
-      errors: {
-        occurredAt: ["Datum en uur zijn verplicht."]
-      },
-      message: "Controleer de velden.",
-      success: false
-    };
-  }
-
-  await prisma.lead.update({
-    where: { id: existingLead.id },
-    data: {
-      lastContactedAt:
-        parsed.data.type === "INTERNAL_NOTE" ? undefined : occurredAt
-    }
-  });
-
-  await prisma.activity.create({
-    data: {
-      leadId: existingLead.id,
-      type: parsed.data.type,
-      summary: getActivitySummary(parsed.data.type),
-      details: parsed.data.details,
-      occurredAt
-    }
-  });
-
-  revalidatePath(`/leads/${existingLead.id}`);
-
-  return {
-    message: "Activiteit opgeslagen.",
-    success: true
-  };
-}
-
-export async function assignVehicle(
-  _: AssignVehicleState,
-  formData: FormData
-) {
-  await requireUser();
-
-  const parsed = assignVehicleSchema.safeParse({
-    leadId: formData.get("leadId"),
-    vehicleId: formData.get("vehicleId")
-  });
-
-  if (!parsed.success) {
-    return {
-      errors: parsed.error.flatten().fieldErrors,
-      message: "Fout bij koppelen.",
-      success: false
-    };
-  }
-
-  const existingLead = await prisma.lead.findUnique({
-    where: { id: parsed.data.leadId },
-    select: { id: true }
-  });
-
-  if (!existingLead) {
-    return {
-      message: "Lead niet gevonden.",
-      success: false
-    };
-  }
-
-  const vehicleId = parsed.data.vehicleId || null;
-
-  let vehicleDetails:
-    | {
-        brand: string;
-        model: string;
-        variant: string | null;
-        stockNumber: string;
-      }
-    | null = null;
-
-  if (vehicleId) {
-    vehicleDetails = await prisma.vehicle.findUnique({
-      where: { id: vehicleId },
-      select: {
-        brand: true,
-        model: true,
-        variant: true,
-        stockNumber: true
-      }
-    });
-
-    if (!vehicleDetails) {
-      return {
-        message: "Wagen niet gevonden.",
-        success: false
-      };
-    }
-  }
-
-  await prisma.lead.update({
-    where: { id: existingLead.id },
-    data: {
-      primaryVehicleId: vehicleId
-    }
-  });
-
-  await prisma.activity.create({
-    data: {
-      leadId: existingLead.id,
-      type: vehicleId ? "VEHICLE_LINKED" : "VEHICLE_UNLINKED",
-      summary: vehicleId ? "Wagen gekoppeld" : "Wagen ontkoppeld",
-      details: vehicleId
-        ? `${vehicleDetails?.brand} ${vehicleDetails?.model}${
-            vehicleDetails?.variant ? ` ${vehicleDetails.variant}` : ""
-          } (${vehicleDetails?.stockNumber}) gekoppeld aan lead.`
-        : "Wagenkoppeling verwijderd.",
-      occurredAt: new Date()
-    }
-  });
-
-  revalidatePath(`/leads/${existingLead.id}`);
-  revalidatePath("/leads");
-
-  return {
-    message: vehicleId ? "Wagen gekoppeld." : "Wagen ontkoppeld.",
-    success: true
-  };
-}
-
-export async function completeTask(formData: FormData) {
-  await requireUser();
-
-  const taskId = formData.get("taskId");
-
-  if (typeof taskId !== "string" || taskId.length === 0) {
-    return;
-  }
-
-  const existingTask = await prisma.task.findUnique({
-    where: { id: taskId },
-    select: {
-      id: true,
-      title: true,
-      leadId: true,
-      status: true
-    }
-  });
-
-  if (!existingTask || existingTask.status === "COMPLETED") {
-    return;
-  }
-
-  await prisma.task.update({
-    where: { id: existingTask.id },
-    data: {
-      status: "COMPLETED",
-      completedAt: new Date()
-    }
-  });
-
-  await prisma.activity.create({
-    data: {
-      leadId: existingTask.leadId,
-      type: "NOTE",
-      summary: "Taak voltooid",
-      details: `Taak voltooid: ${existingTask.title}.`,
-      occurredAt: new Date()
-    }
-  });
-
-  revalidatePath("/tasks");
-  revalidatePath(`/leads/${existingTask.leadId}`);
-}
-
-export async function deleteLead(_: DeleteLeadState, formData: FormData) {
-  await requireUser();
-
-  const leadId = formData.get("leadId");
-
-  if (typeof leadId !== "string" || leadId.length === 0) {
-    return {
-      message: "Lead niet gevonden.",
-      success: false
-    };
-  }
-
-  const existingLead = await prisma.lead.findUnique({
-    where: { id: leadId },
-    select: {
-      id: true,
-      status: true
-    }
-  });
-
-  if (!existingLead) {
-    return {
-      message: "Lead niet gevonden.",
-      success: false
-    };
-  }
-
-  if (existingLead.status !== "LOST") {
-    return {
-      message: "Alleen verloren leads kunnen verwijderd worden.",
-      success: false
-    };
-  }
-
-  try {
-    await prisma.lead.delete({
-      where: { id: existingLead.id }
-    });
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2003") {
-        return {
-          message:
-            "Deze lead kan niet verwijderd worden omdat er nog gekoppelde gegevens zijn.",
-          success: false
-        };
-      }
-
-      if (error.code === "P2025") {
-        return {
-          message: "Lead niet gevonden.",
-          success: false
-        };
-      }
-    }
-
-    return {
-      message: "Er ging iets mis bij het verwijderen van de lead.",
-      success: false
-    };
-  }
-
-  revalidatePath("/dashboard");
-  revalidatePath("/leads");
-  redirect("/leads");
-}
 export async function completeAppointment(formData: FormData) {
   const currentUser = await requireUser();
 
@@ -888,4 +513,367 @@ export async function cancelAppointment(formData: FormData) {
 
   revalidatePath(`/leads/${appointment.leadId}`);
   revalidatePath("/appointments");
+}
+
+export async function createTask(_: CreateTaskState, formData: FormData) {
+  const currentUser = await requireUser();
+
+  const parsedTask = createTaskSchema.safeParse({
+    leadId: formData.get("leadId"),
+    title: formData.get("title"),
+    dueAt: formData.get("dueAt"),
+    notes: formData.get("notes"),
+    assignedUserId: formData.get("assignedUserId")
+  });
+
+  if (!parsedTask.success) {
+    return {
+      errors: parsedTask.error.flatten().fieldErrors,
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: parsedTask.data.leadId },
+    select: { id: true }
+  });
+
+  if (!existingLead) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  const dueAt = new Date(parsedTask.data.dueAt);
+
+  if (Number.isNaN(dueAt.getTime())) {
+    return {
+      errors: {
+        dueAt: ["Vervaldatum is verplicht."]
+      },
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  await prisma.task.create({
+    data: {
+      leadId: existingLead.id,
+      assignedUserId: parsedTask.data.assignedUserId,
+      createdByUserId: currentUser.id,
+      taskType: "FOLLOW_UP",
+      title: parsedTask.data.title,
+      notes: parsedTask.data.notes || null,
+      dueAt,
+      status: "OPEN"
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: existingLead.id,
+      userId: currentUser.id,
+      type: "NOTE",
+      summary: "Taak toegevoegd",
+      details: parsedTask.data.notes || `Nieuwe taak: ${parsedTask.data.title}.`,
+      occurredAt: new Date()
+    }
+  });
+
+  revalidatePath(`/leads/${existingLead.id}`);
+  revalidatePath("/tasks");
+
+  return {
+    message: "Taak opgeslagen.",
+    success: true
+  };
+}
+
+function getActivitySummary(type: string) {
+  if (type === "PHONE_CALL") return "Contact gehad via telefoon";
+  if (type === "EMAIL") return "Contact gehad via mail";
+  if (type === "SMS") return "Contact gehad via sms";
+  if (type === "WHATSAPP") return "Contact gehad via WhatsApp";
+  if (type === "SHOWROOM_VISIT") return "Showroombezoek";
+
+  return "Interne update";
+}
+
+export async function createActivity(
+  _: CreateActivityState,
+  formData: FormData
+) {
+  const currentUser = await requireUser();
+
+  const parsed = createActivitySchema.safeParse({
+    leadId: formData.get("leadId"),
+    occurredAt: formData.get("occurredAt"),
+    type: formData.get("type"),
+    details: formData.get("details")
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Controleer de velden.",
+      success: false
+    };
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: parsed.data.leadId },
+    select: { id: true }
+  });
+
+  if (!existingLead) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  const occurredAt = new Date(parsed.data.occurredAt);
+
+  if (Number.isNaN(occurredAt.getTime())) {
+    return {
+      errors: {
+        occurredAt: ["Datum en uur zijn verplicht."]
+      },
+      message: "Controleer de velden.",
+      success: false
+    };
+  }
+
+  await prisma.lead.update({
+    where: { id: existingLead.id },
+    data: {
+      lastContactedAt:
+        parsed.data.type === "INTERNAL_NOTE" ? undefined : occurredAt
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: existingLead.id,
+      userId: currentUser.id,
+      type: parsed.data.type,
+      summary: getActivitySummary(parsed.data.type),
+      details: parsed.data.details,
+      occurredAt
+    }
+  });
+
+  revalidatePath(`/leads/${existingLead.id}`);
+
+  return {
+    message: "Activiteit opgeslagen.",
+    success: true
+  };
+}
+
+export async function assignVehicle(
+  _: AssignVehicleState,
+  formData: FormData
+) {
+  const currentUser = await requireUser();
+
+  const parsed = assignVehicleSchema.safeParse({
+    leadId: formData.get("leadId"),
+    vehicleId: formData.get("vehicleId")
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Fout bij koppelen.",
+      success: false
+    };
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: parsed.data.leadId },
+    select: { id: true }
+  });
+
+  if (!existingLead) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  const vehicleId = parsed.data.vehicleId || null;
+
+  let vehicleDetails:
+    | {
+        brand: string;
+        model: string;
+        variant: string | null;
+        stockNumber: string;
+      }
+    | null = null;
+
+  if (vehicleId) {
+    vehicleDetails = await prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: {
+        brand: true,
+        model: true,
+        variant: true,
+        stockNumber: true
+      }
+    });
+
+    if (!vehicleDetails) {
+      return {
+        message: "Wagen niet gevonden.",
+        success: false
+      };
+    }
+  }
+
+  await prisma.lead.update({
+    where: { id: existingLead.id },
+    data: {
+      primaryVehicleId: vehicleId
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: existingLead.id,
+      userId: currentUser.id,
+      type: vehicleId ? "VEHICLE_LINKED" : "VEHICLE_UNLINKED",
+      summary: vehicleId ? "Wagen gekoppeld" : "Wagen ontkoppeld",
+      details: vehicleId
+        ? `${vehicleDetails?.brand} ${vehicleDetails?.model}${
+            vehicleDetails?.variant ? ` ${vehicleDetails.variant}` : ""
+          } (${vehicleDetails?.stockNumber}) gekoppeld aan lead.`
+        : "Wagenkoppeling verwijderd.",
+      occurredAt: new Date()
+    }
+  });
+
+  revalidatePath(`/leads/${existingLead.id}`);
+  revalidatePath("/leads");
+
+  return {
+    message: vehicleId ? "Wagen gekoppeld." : "Wagen ontkoppeld.",
+    success: true
+  };
+}
+
+export async function completeTask(formData: FormData) {
+  const currentUser = await requireUser();
+
+  const taskId = formData.get("taskId");
+
+  if (typeof taskId !== "string" || taskId.length === 0) {
+    return;
+  }
+
+  const existingTask = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: {
+      id: true,
+      title: true,
+      leadId: true,
+      status: true
+    }
+  });
+
+  if (!existingTask || existingTask.status === "COMPLETED") {
+    return;
+  }
+
+  await prisma.task.update({
+    where: { id: existingTask.id },
+    data: {
+      status: "COMPLETED",
+      completedAt: new Date()
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: existingTask.leadId,
+      userId: currentUser.id,
+      type: "NOTE",
+      summary: "Taak voltooid",
+      details: `Taak voltooid: ${existingTask.title}.`,
+      occurredAt: new Date()
+    }
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath(`/leads/${existingTask.leadId}`);
+}
+
+export async function deleteLead(_: DeleteLeadState, formData: FormData) {
+  await requireUser();
+
+  const leadId = formData.get("leadId");
+
+  if (typeof leadId !== "string" || leadId.length === 0) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: {
+      id: true,
+      status: true
+    }
+  });
+
+  if (!existingLead) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  if (existingLead.status !== "LOST") {
+    return {
+      message: "Alleen verloren leads kunnen verwijderd worden.",
+      success: false
+    };
+  }
+
+  try {
+    await prisma.lead.delete({
+      where: { id: existingLead.id }
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2003") {
+        return {
+          message:
+            "Deze lead kan niet verwijderd worden omdat er nog gekoppelde gegevens zijn.",
+          success: false
+        };
+      }
+
+      if (error.code === "P2025") {
+        return {
+          message: "Lead niet gevonden.",
+          success: false
+        };
+      }
+    }
+
+    return {
+      message: "Er ging iets mis bij het verwijderen van de lead.",
+      success: false
+    };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/leads");
+  redirect("/leads");
 }
