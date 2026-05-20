@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Prisma } from "@prisma/client";
 
 import {
   leadPriorities,
@@ -22,6 +23,8 @@ export default async function LeadsPage({
     q?: string;
     status?: string;
     priority?: string;
+    assignedUserId?: string;
+    openOnly?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -29,78 +32,141 @@ export default async function LeadsPage({
   const query = params?.q?.trim() || "";
   const status = params?.status || "";
   const priority = params?.priority || "";
+  const assignedUserId = params?.assignedUserId || "";
+  const openOnly = params?.openOnly === "1";
 
   const now = new Date();
 
-  const where = {
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const where: Prisma.LeadWhereInput = {
     ...(query
       ? {
           OR: [
-            { firstName: { contains: query, mode: "insensitive" as const } },
-            { lastName: { contains: query, mode: "insensitive" as const } },
-            { phone: { contains: query, mode: "insensitive" as const } },
-            { email: { contains: query, mode: "insensitive" as const } }
+            { firstName: { contains: query, mode: "insensitive" } },
+            { lastName: { contains: query, mode: "insensitive" } },
+            { phone: { contains: query, mode: "insensitive" } },
+            { email: { contains: query, mode: "insensitive" } }
           ]
         }
       : {}),
     ...(status ? { status } : {}),
-    ...(priority ? { priority } : {})
-  };
-
-  const [leads, totalLeads, newLeads, overdueLeads, wonLeads] =
-    await Promise.all([
-      prisma.lead.findMany({
-        where,
-        include: {
-          source: true,
-          assignedUser: true,
-          primaryVehicle: true
-        },
-        orderBy: [{ nextFollowUpAt: "asc" }, { createdAt: "desc" }],
-        take: 75
-      }),
-
-      prisma.lead.count(),
-
-      prisma.lead.count({
-        where: {
-          status: "NEW"
-        }
-      }),
-
-      prisma.lead.count({
-        where: {
-          nextFollowUpAt: {
-            lt: now
-          },
+    ...(priority ? { priority } : {}),
+    ...(assignedUserId ? { assignedUserId } : {}),
+    ...(openOnly
+      ? {
           status: {
             notIn: ["WON", "LOST"]
           }
         }
-      }),
+      : {})
+  };
 
-      prisma.lead.count({
-        where: {
-          status: "WON"
+  const [
+    leads,
+    users,
+    totalLeads,
+    openLeads,
+    overdueLeads,
+    wonThisMonth,
+    wonLeads,
+    lostLeads,
+    pipelineCounts
+  ] = await Promise.all([
+    prisma.lead.findMany({
+      where,
+      include: {
+        source: true,
+        assignedUser: true,
+        primaryVehicle: true
+      },
+      orderBy: [{ nextFollowUpAt: "asc" }, { createdAt: "desc" }],
+      take: 100
+    }),
+
+    prisma.user.findMany({
+      where: { isActive: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true
+      }
+    }),
+
+    prisma.lead.count(),
+
+    prisma.lead.count({
+      where: {
+        status: {
+          notIn: ["WON", "LOST"]
         }
-      })
-    ]);
+      }
+    }),
+
+    prisma.lead.count({
+      where: {
+        nextFollowUpAt: {
+          lt: now
+        },
+        status: {
+          notIn: ["WON", "LOST"]
+        }
+      }
+    }),
+
+    prisma.lead.count({
+      where: {
+        status: "WON",
+        wonAt: {
+          gte: startOfMonth
+        }
+      }
+    }),
+
+    prisma.lead.count({
+      where: {
+        status: "WON"
+      }
+    }),
+
+    prisma.lead.count({
+      where: {
+        status: "LOST"
+      }
+    }),
+
+    prisma.lead.groupBy({
+      by: ["status"],
+      _count: {
+        status: true
+      }
+    })
+  ]);
+
+  const closedLeads = wonLeads + lostLeads;
+  const conversionRate =
+    closedLeads > 0 ? Math.round((wonLeads / closedLeads) * 100) : 0;
+
+  const pipelineMap = new Map(
+    pipelineCounts.map((item) => [item.status, item._count.status])
+  );
 
   return (
     <main className="flex flex-col gap-6">
       <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
-            Leads
+            Pipeline
           </p>
 
           <h1 className="mt-4 text-3xl font-bold text-black">
-            Lead overzicht
+            Verkoopfunnel leads
           </h1>
 
           <p className="mt-3 max-w-2xl text-sm leading-6 text-black/70">
-            Beheer nieuwe aanvragen, opvolgingen, verkopers en geïnteresseerde
-            wagens vanuit één overzicht.
+            Volg open leads, opvolgingen, conversie en gewonnen deals vanuit één
+            verkoopoverzicht.
           </p>
         </div>
 
@@ -112,15 +178,41 @@ export default async function LeadsPage({
         </Link>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Totaal leads" value={totalLeads} />
-        <StatCard label="Nieuwe leads" value={newLeads} />
-        <StatCard label="Te late opvolging" value={overdueLeads} />
-        <StatCard label="Gewonnen" value={wonLeads} />
+      <section className="grid gap-4 md:grid-cols-5">
+        <StatCard label="Totaal leads" value={String(totalLeads)} />
+        <StatCard label="Open leads" value={String(openLeads)} />
+        <StatCard label="Te late opvolging" value={String(overdueLeads)} />
+        <StatCard label="Gewonnen deze maand" value={String(wonThisMonth)} />
+        <StatCard label="Conversie" value={`${conversionRate}%`} />
       </section>
 
       <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-        <form className="grid gap-4 md:grid-cols-[1fr_0.35fr_0.35fr_auto]">
+        <div className="mb-5">
+          <h2 className="text-lg font-bold text-black">Funnel fases</h2>
+          <p className="mt-1 text-sm text-black/60">
+            Klik op een fase om het overzicht te filteren.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-5">
+          {leadStatuses.map((pipelineStatus) => (
+            <Link
+              key={pipelineStatus}
+              href={`/leads?status=${pipelineStatus}`}
+              className="rounded-2xl border border-black/10 bg-white p-4 transition hover:bg-[#ececec]"
+            >
+              <StatusBadge status={pipelineStatus} />
+
+              <p className="mt-3 text-2xl font-bold text-black">
+                {pipelineMap.get(pipelineStatus) || 0}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <form className="grid gap-4 xl:grid-cols-[1fr_0.35fr_0.35fr_0.35fr_auto]">
           <input
             name="q"
             defaultValue={query}
@@ -154,15 +246,39 @@ export default async function LeadsPage({
             ))}
           </select>
 
+          <select
+            name="assignedUserId"
+            defaultValue={assignedUserId}
+            className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black outline-none transition focus:border-black/30"
+          >
+            <option value="">Alle verkopers</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.firstName} {user.lastName}
+              </option>
+            ))}
+          </select>
+
           <button
             type="submit"
             className="rounded-2xl border border-black/15 bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80"
           >
             Filter
           </button>
+
+          <label className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black/70 xl:col-span-5">
+            <input
+              type="checkbox"
+              name="openOnly"
+              value="1"
+              defaultChecked={openOnly}
+              className="h-4 w-4"
+            />
+            Alleen open leads tonen
+          </label>
         </form>
 
-        {(query || status || priority) ? (
+        {(query || status || priority || assignedUserId || openOnly) ? (
           <Link
             href="/leads"
             className="mt-4 inline-flex text-sm font-semibold text-black/60 hover:text-black"
@@ -223,9 +339,7 @@ export default async function LeadsPage({
                       </td>
 
                       <td className="px-6 py-5">
-                        <Badge>
-                          {getLeadStatusLabel(lead.status)}
-                        </Badge>
+                        <StatusBadge status={lead.status} />
                       </td>
 
                       <td className="px-6 py-5">
@@ -263,9 +377,7 @@ export default async function LeadsPage({
                       </td>
 
                       <td className="px-6 py-5">
-                        <Badge>
-                          {getLeadPriorityLabel(lead.priority)}
-                        </Badge>
+                        <PriorityBadge priority={lead.priority} />
                       </td>
                     </tr>
                   );
@@ -287,7 +399,43 @@ function getLeadPriorityLabel(priority: string) {
   return leadPriorityLabels[priority as LeadPriority] ?? priority;
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function getStatusClassName(status: string) {
+  if (status === "NEW") {
+    return "border-blue-200 bg-blue-50 text-blue-700";
+  }
+
+  if (status === "CONTACTED") {
+    return "border-indigo-200 bg-indigo-50 text-indigo-700";
+  }
+
+  if (status === "NEGOTIATION") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+
+  if (status === "WON") {
+    return "border-green-200 bg-green-50 text-green-700";
+  }
+
+  if (status === "LOST") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  return "border-black/10 bg-white text-black/70";
+}
+
+function getPriorityClassName(priority: string) {
+  if (priority === "HIGH") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  if (priority === "LOW") {
+    return "border-black/10 bg-white text-black/50";
+  }
+
+  return "border-black/10 bg-white text-black/70";
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
       <p className="text-sm font-semibold text-black/55">{label}</p>
@@ -296,10 +444,26 @@ function StatCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
+function StatusBadge({ status }: { status: string }) {
   return (
-    <span className="inline-flex rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-black/70">
-      {children}
+    <span
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClassName(
+        status
+      )}`}
+    >
+      {getLeadStatusLabel(status)}
+    </span>
+  );
+}
+
+function PriorityBadge({ priority }: { priority: string }) {
+  return (
+    <span
+      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getPriorityClassName(
+        priority
+      )}`}
+    >
+      {getLeadPriorityLabel(priority)}
     </span>
   );
 }
