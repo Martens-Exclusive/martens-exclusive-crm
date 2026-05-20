@@ -6,17 +6,25 @@ import { prisma } from "@/lib/prisma";
 const numberFormatter = new Intl.NumberFormat("nl-BE");
 
 export default async function DashboardPage() {
+  const now = new Date();
+
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
 
-  const [newLeads, overdueLeads, todayTasks, appointmentsToday] = await Promise.all([
+  const [
+    newLeads,
+    overdueLeads,
+    openTasks,
+    overdueTasks,
+    appointmentsToday
+  ] = await Promise.all([
     prisma.lead.count({ where: { status: "NEW" } }),
     prisma.lead.count({
       where: {
-        nextFollowUpAt: { lt: new Date() },
+        nextFollowUpAt: { lt: now },
         status: {
           notIn: ["WON", "LOST"]
         }
@@ -24,7 +32,14 @@ export default async function DashboardPage() {
     }),
     prisma.task.count({
       where: {
-        status: "OPEN"
+        status: "OPEN",
+        dueAt: { gte: now }
+      }
+    }),
+    prisma.task.count({
+      where: {
+        status: "OPEN",
+        dueAt: { lt: now }
       }
     }),
     prisma.appointment.count({
@@ -44,7 +59,8 @@ export default async function DashboardPage() {
   }> = [
     { label: "Nieuwe leads", value: newLeads, href: "/leads" },
     { label: "Te late opvolging", value: overdueLeads, href: "/leads" },
-    { label: "Open taken", value: todayTasks, href: "/tasks" },
+    { label: "Open taken", value: openTasks, href: "/tasks?status=open" },
+    { label: "Te late taken", value: overdueTasks, href: "/tasks?status=overdue" },
     { label: "Afspraken vandaag", value: appointmentsToday, href: "/appointments" }
   ];
 
@@ -54,16 +70,18 @@ export default async function DashboardPage() {
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Dashboard
         </p>
+
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-black">
           Dagelijks overzicht van leads en opvolging.
         </h1>
+
         <p className="mt-3 max-w-2xl text-sm leading-6 text-black/70">
           Dit dashboard houdt de focus op wat vandaag telt: nieuwe leads,
-          open opvolging en afspraken.
+          open taken, te late opvolging en afspraken.
         </p>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {cards.map((card) => (
           <Link
             key={card.label}
