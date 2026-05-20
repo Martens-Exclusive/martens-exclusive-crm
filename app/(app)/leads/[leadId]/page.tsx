@@ -17,6 +17,11 @@ import { CreateTaskForm } from "./create-task-form";
 import { DeleteLeadButton } from "./delete-lead-button";
 import { EditLeadForm } from "./editLeadForm";
 
+const dateFormatter = new Intl.DateTimeFormat("nl-BE", {
+  dateStyle: "medium",
+  timeStyle: "short"
+});
+
 export default async function LeadDetailPage({
   params
 }: {
@@ -33,15 +38,24 @@ export default async function LeadDetailPage({
       lostReason: true,
       tasks: {
         orderBy: [{ status: "asc" }, { dueAt: "asc" }],
-        take: 5
+        take: 8,
+        include: {
+          assignedUser: true
+        }
       },
       activities: {
         orderBy: { occurredAt: "desc" },
-        take: 20
+        take: 25,
+        include: {
+          user: true
+        }
       },
       appointments: {
         orderBy: { scheduledAt: "asc" },
-        take: 5
+        take: 8,
+        include: {
+          assignedUser: true
+        }
       }
     }
   });
@@ -72,11 +86,7 @@ export default async function LeadDetailPage({
           not: "SOLD"
         }
       },
-      orderBy: [
-        { brand: "asc" },
-        { model: "asc" },
-        { stockNumber: "asc" }
-      ],
+      orderBy: [{ brand: "asc" }, { model: "asc" }, { stockNumber: "asc" }],
       select: {
         id: true,
         brand: true,
@@ -86,6 +96,11 @@ export default async function LeadDetailPage({
       }
     })
   ]);
+
+  const openTasks = lead.tasks.filter((task) => task.status !== "COMPLETED");
+  const plannedAppointments = lead.appointments.filter(
+    (appointment) => appointment.status !== "CANCELLED"
+  );
 
   return (
     <main className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -102,8 +117,7 @@ export default async function LeadDetailPage({
               </h1>
 
               <p className="mt-2 text-sm text-black/60">
-                {lead.phone || "Geen telefoon"} •{" "}
-                {lead.email || "Geen e-mail"}
+                {lead.phone || "Geen telefoon"} • {lead.email || "Geen e-mail"}
               </p>
             </div>
 
@@ -112,64 +126,45 @@ export default async function LeadDetailPage({
             </div>
           </div>
 
-          {/* CONTACT */}
+          <div className="mt-8 grid gap-4 md:grid-cols-4">
+            <StatCard label="Status" value={getLeadStatusLabel(lead.status)} />
+            <StatCard
+              label="Prioriteit"
+              value={getLeadPriorityLabel(lead.priority)}
+            />
+            <StatCard label="Open taken" value={String(openTasks.length)} />
+            <StatCard
+              label="Afspraken"
+              value={String(plannedAppointments.length)}
+            />
+          </div>
+
           <div className="mt-10">
             <SectionTitle title="Contactgegevens" />
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <InfoRow
-                label="Telefoon"
-                value={lead.phone || "-"}
-              />
-
-              <InfoRow
-                label="E-mail"
-                value={lead.email || "-"}
-              />
+              <InfoRow label="Telefoon" value={lead.phone || "-"} />
+              <InfoRow label="E-mail" value={lead.email || "-"} />
             </div>
           </div>
 
-          {/* ADRES */}
           <div className="mt-10">
             <SectionTitle title="Adres" />
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <InfoRow
-                label="Straat"
-                value={lead.street || "-"}
-              />
-
-              <InfoRow
-                label="Huisnummer"
-                value={lead.houseNumber || "-"}
-              />
-
-              <InfoRow
-                label="Postcode"
-                value={lead.postalCode || "-"}
-              />
-
-              <InfoRow
-                label="Gemeente"
-                value={lead.city || "-"}
-              />
-
-              <InfoRow
-                label="Land"
-                value={lead.country || "-"}
-              />
+              <InfoRow label="Straat" value={lead.street || "-"} />
+              <InfoRow label="Huisnummer" value={lead.houseNumber || "-"} />
+              <InfoRow label="Postcode" value={lead.postalCode || "-"} />
+              <InfoRow label="Gemeente" value={lead.city || "-"} />
+              <InfoRow label="Land" value={lead.country || "-"} />
             </div>
           </div>
 
-          {/* LEAD INFO */}
           <div className="mt-10">
             <SectionTitle title="Leadinformatie" />
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <InfoRow
-                label="Bron"
-                value={lead.source.name}
-              />
+              <InfoRow label="Bron" value={lead.source.name} />
 
               <InfoRow
                 label="Verkoper"
@@ -181,50 +176,27 @@ export default async function LeadDetailPage({
               />
 
               <InfoRow
-                label="Prioriteit"
-                value={getLeadPriorityLabel(lead.priority)}
-              />
-
-              <InfoRow
                 label="Volgende opvolging"
                 value={
-                  lead.nextFollowUpAt
-                    ? new Intl.DateTimeFormat("nl-BE", {
-                        dateStyle: "medium",
-                        timeStyle: "short"
-                      }).format(lead.nextFollowUpAt)
-                    : "-"
+                  lead.nextFollowUpAt ? dateFormatter.format(lead.nextFollowUpAt) : "-"
                 }
               />
 
               <InfoRow
                 label="Laatste contact"
                 value={
-                  lead.lastContactedAt
-                    ? new Intl.DateTimeFormat("nl-BE", {
-                        dateStyle: "medium",
-                        timeStyle: "short"
-                      }).format(lead.lastContactedAt)
-                    : "-"
+                  lead.lastContactedAt ? dateFormatter.format(lead.lastContactedAt) : "-"
                 }
               />
             </div>
           </div>
 
-          {/* INTERESSE */}
           <div className="mt-10">
             <SectionTitle title="Interesse" />
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <InfoRow
-                label="Financiering"
-                value={lead.financeInterest ? "Ja" : "Nee"}
-              />
-
-              <InfoRow
-                label="Overname"
-                value={lead.tradeInInterest ? "Ja" : "Nee"}
-              />
+              <InfoRow label="Financiering" value={lead.financeInterest ? "Ja" : "Nee"} />
+              <InfoRow label="Overname" value={lead.tradeInInterest ? "Ja" : "Nee"} />
 
               <InfoRow
                 label="Gekoppelde wagen"
@@ -237,79 +209,119 @@ export default async function LeadDetailPage({
             </div>
           </div>
 
-          {/* KLANTNOTITIE */}
           {lead.customerMessage ? (
-            <div className="mt-10">
-              <SectionTitle title="Bericht van klant" />
-
-              <div className="mt-4 rounded-2xl border border-black/10 bg-[#efefef] p-5">
-                <p className="text-sm leading-7 text-black/75">
-                  {lead.customerMessage}
-                </p>
-              </div>
-            </div>
+            <TextBlock title="Bericht van klant" text={lead.customerMessage} />
           ) : null}
 
-          {/* INTERNE NOTITIES */}
           {lead.internalNotes ? (
-            <div className="mt-10">
-              <SectionTitle title="Interne notities" />
-
-              <div className="mt-4 rounded-2xl border border-black/10 bg-[#efefef] p-5">
-                <p className="text-sm leading-7 text-black/75">
-                  {lead.internalNotes}
-                </p>
-              </div>
-            </div>
+            <TextBlock title="Interne notities" text={lead.internalNotes} />
           ) : null}
         </div>
 
-        {/* ACTIVITEITEN */}
-        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-          <h2 className="text-xl font-bold text-black">
-            Activiteiten
-          </h2>
-
-          <div className="mt-6 flex flex-col gap-4">
-            {lead.activities.length === 0 ? (
-              <EmptyState text="Nog geen activiteiten geregistreerd." />
-            ) : (
-              lead.activities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="rounded-2xl border border-black/10 bg-[#efefef] p-5"
-                >
-                  <p className="font-semibold text-black">
-                    {activity.summary}
-                  </p>
-
-                  {activity.details ? (
-                    <p className="mt-2 text-sm leading-6 text-black/70">
-                      {activity.details}
+        <OverviewBlock title="Open taken">
+          {lead.tasks.length === 0 ? (
+            <EmptyState text="Nog geen taken voor deze lead." />
+          ) : (
+            lead.tasks.map((task) => (
+              <div key={task.id} className="rounded-2xl border border-black/10 bg-[#efefef] p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-black">{task.title}</p>
+                    <p className="mt-1 text-sm text-black/60">
+                      {task.assignedUser.firstName} {task.assignedUser.lastName}
                     </p>
-                  ) : null}
+                  </div>
 
-                  <p className="mt-3 text-xs text-black/45">
-                    {new Intl.DateTimeFormat("nl-BE", {
-                      dateStyle: "medium",
-                      timeStyle: "short"
-                    }).format(activity.occurredAt)}
-                  </p>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-black/60">
+                    {task.status}
+                  </span>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+
+                {task.notes ? (
+                  <p className="mt-3 text-sm leading-6 text-black/70">{task.notes}</p>
+                ) : null}
+
+                <p className="mt-3 text-xs text-black/45">
+                  Vervalt op {dateFormatter.format(task.dueAt)}
+                </p>
+              </div>
+            ))
+          )}
+        </OverviewBlock>
+
+        <OverviewBlock title="Afspraken">
+          {lead.appointments.length === 0 ? (
+            <EmptyState text="Nog geen afspraken ingepland." />
+          ) : (
+            lead.appointments.map((appointment) => (
+              <div
+                key={appointment.id}
+                className="rounded-2xl border border-black/10 bg-[#efefef] p-5"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-black">
+                      {formatAppointmentType(appointment.type)}
+                    </p>
+                    <p className="mt-1 text-sm text-black/60">
+                      {appointment.assignedUser.firstName}{" "}
+                      {appointment.assignedUser.lastName}
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-black/60">
+                    {appointment.status}
+                  </span>
+                </div>
+
+                {appointment.notes ? (
+                  <p className="mt-3 text-sm leading-6 text-black/70">
+                    {appointment.notes}
+                  </p>
+                ) : null}
+
+                <p className="mt-3 text-xs text-black/45">
+                  {dateFormatter.format(appointment.scheduledAt)}
+                </p>
+              </div>
+            ))
+          )}
+        </OverviewBlock>
+
+        <OverviewBlock title="Activiteiten timeline">
+          {lead.activities.length === 0 ? (
+            <EmptyState text="Nog geen activiteiten geregistreerd." />
+          ) : (
+            lead.activities.map((activity) => (
+              <div
+                key={activity.id}
+                className="rounded-2xl border border-black/10 bg-[#efefef] p-5"
+              >
+                <p className="font-semibold text-black">{activity.summary}</p>
+
+                {activity.details ? (
+                  <p className="mt-2 text-sm leading-6 text-black/70">
+                    {activity.details}
+                  </p>
+                ) : null}
+
+                <p className="mt-3 text-xs text-black/45">
+                  {dateFormatter.format(activity.occurredAt)}
+                  {activity.user
+                    ? ` • ${activity.user.firstName} ${activity.user.lastName}`
+                    : ""}
+                </p>
+              </div>
+            ))
+          )}
+        </OverviewBlock>
       </section>
 
-      {/* RECHTERKOLOM */}
       <section className="flex flex-col gap-6">
         <EditLeadForm
           leadId={lead.id}
           currentStatus={lead.status}
-          currentNextFollowUpAt={toDateTimeLocalValue(
-            lead.nextFollowUpAt
-          )}
+          currentNextFollowUpAt={toDateTimeLocalValue(lead.nextFollowUpAt)}
           currentInternalNotes={lead.internalNotes || ""}
           statuses={statuses}
         />
@@ -322,31 +334,23 @@ export default async function LeadDetailPage({
           vehicles={vehicles}
         />
 
-        {lead.status === "LOST" ? (
-          <DeleteLeadButton leadId={lead.id} />
-        ) : null}
+        {lead.status === "LOST" ? <DeleteLeadButton leadId={lead.id} /> : null}
 
         <CreateAppointmentForm leadId={lead.id} />
 
         <CreateTaskForm
           leadId={lead.id}
           users={users}
-          defaultAssignedUserId={
-            lead.assignedUserId || users[0]?.id || ""
-          }
+          defaultAssignedUserId={lead.assignedUserId || users[0]?.id || ""}
         />
 
-        {/* WAGEN */}
         <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-          <h2 className="text-xl font-bold text-black">
-            Wagen
-          </h2>
+          <h2 className="text-xl font-bold text-black">Wagen</h2>
 
           {lead.primaryVehicle ? (
             <div className="mt-6 rounded-2xl border border-black/10 bg-[#efefef] p-5">
               <p className="text-lg font-bold text-black">
-                {lead.primaryVehicle.brand}{" "}
-                {lead.primaryVehicle.model}
+                {lead.primaryVehicle.brand} {lead.primaryVehicle.model}
               </p>
 
               <p className="mt-1 text-sm text-black/65">
@@ -382,6 +386,13 @@ function getLeadPriorityLabel(priority: string) {
   return leadPriorityLabels[priority as LeadPriority] ?? priority;
 }
 
+function formatAppointmentType(type: string) {
+  if (type === "SHOWROOM_VISIT") return "Showroombezoek";
+  if (type === "TEST_DRIVE") return "Testrit";
+  if (type === "PHONE_CALL") return "Telefonische afspraak";
+  return type;
+}
+
 function toDateTimeLocalValue(value: Date | null) {
   if (!value) {
     return "";
@@ -394,29 +405,50 @@ function toDateTimeLocalValue(value: Date | null) {
 }
 
 function SectionTitle({ title }: { title: string }) {
+  return <h2 className="text-lg font-bold text-black">{title}</h2>;
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <h2 className="text-lg font-bold text-black">
-      {title}
-    </h2>
+    <div className="border-b border-black/8 pb-3">
+      <p className="text-xs uppercase tracking-[0.2em] text-black/45">{label}</p>
+      <p className="mt-1 text-sm font-medium text-black">{value}</p>
+    </div>
   );
 }
 
-function InfoRow({
-  label,
-  value
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-black/10 bg-[#efefef] p-4">
+      <p className="text-xs uppercase tracking-[0.2em] text-black/45">{label}</p>
+      <p className="mt-2 text-lg font-bold text-black">{value}</p>
+    </div>
+  );
+}
+
+function TextBlock({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="mt-10">
+      <SectionTitle title={title} />
+
+      <div className="mt-4 rounded-2xl border border-black/10 bg-[#efefef] p-5">
+        <p className="text-sm leading-7 text-black/75">{text}</p>
+      </div>
+    </div>
+  );
+}
+
+function OverviewBlock({
+  title,
+  children
 }: {
-  label: string;
-  value: string;
+  title: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-black/8 pb-3">
-      <p className="text-xs uppercase tracking-[0.2em] text-black/45">
-        {label}
-      </p>
-
-      <p className="mt-1 text-sm font-medium text-black">
-        {value}
-      </p>
+    <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <h2 className="text-xl font-bold text-black">{title}</h2>
+      <div className="mt-6 flex flex-col gap-4">{children}</div>
     </div>
   );
 }
