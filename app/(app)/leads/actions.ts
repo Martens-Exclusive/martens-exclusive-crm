@@ -798,3 +798,94 @@ export async function deleteLead(_: DeleteLeadState, formData: FormData) {
   revalidatePath("/leads");
   redirect("/leads");
 }
+export async function completeAppointment(formData: FormData) {
+  const currentUser = await requireUser();
+
+  const appointmentId = formData.get("appointmentId");
+
+  if (typeof appointmentId !== "string" || appointmentId.length === 0) {
+    return;
+  }
+
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: {
+      id: true,
+      leadId: true,
+      type: true,
+      status: true
+    }
+  });
+
+  if (!appointment || appointment.status === "COMPLETED") {
+    return;
+  }
+
+  await prisma.appointment.update({
+    where: { id: appointment.id },
+    data: {
+      status: "COMPLETED",
+      outcome: "Afspraak afgerond"
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: appointment.leadId,
+      userId: currentUser.id,
+      type: "APPOINTMENT_COMPLETED",
+      summary: "Afspraak afgerond",
+      details: `Afspraak van type ${appointment.type} werd afgerond.`,
+      occurredAt: new Date()
+    }
+  });
+
+  revalidatePath(`/leads/${appointment.leadId}`);
+  revalidatePath("/appointments");
+}
+
+export async function cancelAppointment(formData: FormData) {
+  const currentUser = await requireUser();
+
+  const appointmentId = formData.get("appointmentId");
+
+  if (typeof appointmentId !== "string" || appointmentId.length === 0) {
+    return;
+  }
+
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: {
+      id: true,
+      leadId: true,
+      type: true,
+      status: true
+    }
+  });
+
+  if (!appointment || appointment.status === "CANCELLED") {
+    return;
+  }
+
+  await prisma.appointment.update({
+    where: { id: appointment.id },
+    data: {
+      status: "CANCELLED",
+      outcome: "Afspraak geannuleerd"
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: appointment.leadId,
+      userId: currentUser.id,
+      type: "APPOINTMENT_CANCELLED",
+      summary: "Afspraak geannuleerd",
+      details: `Afspraak van type ${appointment.type} werd geannuleerd.`,
+      occurredAt: new Date()
+    }
+  });
+
+  revalidatePath(`/leads/${appointment.leadId}`);
+  revalidatePath("/appointments");
+}

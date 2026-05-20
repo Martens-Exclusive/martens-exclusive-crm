@@ -10,6 +10,7 @@ import {
 import { formatCurrencyFromCents } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 
+import { AppointmentStatusButtons } from "./appointment-status-buttons";
 import { AssignVehicleForm } from "./assign-vehicle-form";
 import { CreateActivityForm } from "./create-activity-form";
 import { CreateAppointmentForm } from "./create-appointment-form";
@@ -39,23 +40,17 @@ export default async function LeadDetailPage({
       tasks: {
         orderBy: [{ status: "asc" }, { dueAt: "asc" }],
         take: 8,
-        include: {
-          assignedUser: true
-        }
+        include: { assignedUser: true }
       },
       activities: {
         orderBy: { occurredAt: "desc" },
         take: 25,
-        include: {
-          user: true
-        }
+        include: { user: true }
       },
       appointments: {
         orderBy: { scheduledAt: "asc" },
         take: 8,
-        include: {
-          assignedUser: true
-        }
+        include: { assignedUser: true }
       }
     }
   });
@@ -73,19 +68,10 @@ export default async function LeadDetailPage({
     prisma.user.findMany({
       where: { isActive: true },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true
-      }
+      select: { id: true, firstName: true, lastName: true }
     }),
-
     prisma.vehicle.findMany({
-      where: {
-        status: {
-          not: "SOLD"
-        }
-      },
+      where: { status: { not: "SOLD" } },
       orderBy: [{ brand: "asc" }, { model: "asc" }, { stockNumber: "asc" }],
       select: {
         id: true,
@@ -98,8 +84,9 @@ export default async function LeadDetailPage({
   ]);
 
   const openTasks = lead.tasks.filter((task) => task.status !== "COMPLETED");
-  const plannedAppointments = lead.appointments.filter(
-    (appointment) => appointment.status !== "CANCELLED"
+  const openAppointments = lead.appointments.filter(
+    (appointment) =>
+      appointment.status !== "COMPLETED" && appointment.status !== "CANCELLED"
   );
 
   return (
@@ -128,20 +115,13 @@ export default async function LeadDetailPage({
 
           <div className="mt-8 grid gap-4 md:grid-cols-4">
             <StatCard label="Status" value={getLeadStatusLabel(lead.status)} />
-            <StatCard
-              label="Prioriteit"
-              value={getLeadPriorityLabel(lead.priority)}
-            />
+            <StatCard label="Prioriteit" value={getLeadPriorityLabel(lead.priority)} />
             <StatCard label="Open taken" value={String(openTasks.length)} />
-            <StatCard
-              label="Afspraken"
-              value={String(plannedAppointments.length)}
-            />
+            <StatCard label="Open afspraken" value={String(openAppointments.length)} />
           </div>
 
           <div className="mt-10">
             <SectionTitle title="Contactgegevens" />
-
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <InfoRow label="Telefoon" value={lead.phone || "-"} />
               <InfoRow label="E-mail" value={lead.email || "-"} />
@@ -150,7 +130,6 @@ export default async function LeadDetailPage({
 
           <div className="mt-10">
             <SectionTitle title="Adres" />
-
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <InfoRow label="Straat" value={lead.street || "-"} />
               <InfoRow label="Huisnummer" value={lead.houseNumber || "-"} />
@@ -162,10 +141,8 @@ export default async function LeadDetailPage({
 
           <div className="mt-10">
             <SectionTitle title="Leadinformatie" />
-
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <InfoRow label="Bron" value={lead.source.name} />
-
               <InfoRow
                 label="Verkoper"
                 value={
@@ -174,30 +151,22 @@ export default async function LeadDetailPage({
                     : "Niet toegewezen"
                 }
               />
-
               <InfoRow
                 label="Volgende opvolging"
-                value={
-                  lead.nextFollowUpAt ? dateFormatter.format(lead.nextFollowUpAt) : "-"
-                }
+                value={lead.nextFollowUpAt ? dateFormatter.format(lead.nextFollowUpAt) : "-"}
               />
-
               <InfoRow
                 label="Laatste contact"
-                value={
-                  lead.lastContactedAt ? dateFormatter.format(lead.lastContactedAt) : "-"
-                }
+                value={lead.lastContactedAt ? dateFormatter.format(lead.lastContactedAt) : "-"}
               />
             </div>
           </div>
 
           <div className="mt-10">
             <SectionTitle title="Interesse" />
-
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <InfoRow label="Financiering" value={lead.financeInterest ? "Ja" : "Nee"} />
               <InfoRow label="Overname" value={lead.tradeInInterest ? "Ja" : "Nee"} />
-
               <InfoRow
                 label="Gekoppelde wagen"
                 value={
@@ -224,25 +193,13 @@ export default async function LeadDetailPage({
           ) : (
             lead.tasks.map((task) => (
               <div key={task.id} className="rounded-2xl border border-black/10 bg-[#efefef] p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-semibold text-black">{task.title}</p>
-                    <p className="mt-1 text-sm text-black/60">
-                      {task.assignedUser.firstName} {task.assignedUser.lastName}
-                    </p>
-                  </div>
-
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-black/60">
-                    {task.status}
-                  </span>
-                </div>
-
-                {task.notes ? (
-                  <p className="mt-3 text-sm leading-6 text-black/70">{task.notes}</p>
-                ) : null}
-
+                <p className="font-semibold text-black">{task.title}</p>
+                <p className="mt-1 text-sm text-black/60">
+                  {task.assignedUser.firstName} {task.assignedUser.lastName}
+                </p>
+                {task.notes ? <p className="mt-3 text-sm leading-6 text-black/70">{task.notes}</p> : null}
                 <p className="mt-3 text-xs text-black/45">
-                  Vervalt op {dateFormatter.format(task.dueAt)}
+                  Vervalt op {dateFormatter.format(task.dueAt)} • {task.status}
                 </p>
               </div>
             ))
@@ -254,23 +211,19 @@ export default async function LeadDetailPage({
             <EmptyState text="Nog geen afspraken ingepland." />
           ) : (
             lead.appointments.map((appointment) => (
-              <div
-                key={appointment.id}
-                className="rounded-2xl border border-black/10 bg-[#efefef] p-5"
-              >
+              <div key={appointment.id} className="rounded-2xl border border-black/10 bg-[#efefef] p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-semibold text-black">
                       {formatAppointmentType(appointment.type)}
                     </p>
                     <p className="mt-1 text-sm text-black/60">
-                      {appointment.assignedUser.firstName}{" "}
-                      {appointment.assignedUser.lastName}
+                      {appointment.assignedUser.firstName} {appointment.assignedUser.lastName}
                     </p>
                   </div>
 
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-black/60">
-                    {appointment.status}
+                    {formatAppointmentStatus(appointment.status)}
                   </span>
                 </div>
 
@@ -283,6 +236,11 @@ export default async function LeadDetailPage({
                 <p className="mt-3 text-xs text-black/45">
                   {dateFormatter.format(appointment.scheduledAt)}
                 </p>
+
+                <AppointmentStatusButtons
+                  appointmentId={appointment.id}
+                  status={appointment.status}
+                />
               </div>
             ))
           )}
@@ -293,23 +251,16 @@ export default async function LeadDetailPage({
             <EmptyState text="Nog geen activiteiten geregistreerd." />
           ) : (
             lead.activities.map((activity) => (
-              <div
-                key={activity.id}
-                className="rounded-2xl border border-black/10 bg-[#efefef] p-5"
-              >
+              <div key={activity.id} className="rounded-2xl border border-black/10 bg-[#efefef] p-5">
                 <p className="font-semibold text-black">{activity.summary}</p>
 
                 {activity.details ? (
-                  <p className="mt-2 text-sm leading-6 text-black/70">
-                    {activity.details}
-                  </p>
+                  <p className="mt-2 text-sm leading-6 text-black/70">{activity.details}</p>
                 ) : null}
 
                 <p className="mt-3 text-xs text-black/45">
                   {dateFormatter.format(activity.occurredAt)}
-                  {activity.user
-                    ? ` • ${activity.user.firstName} ${activity.user.lastName}`
-                    : ""}
+                  {activity.user ? ` • ${activity.user.firstName} ${activity.user.lastName}` : ""}
                 </p>
               </div>
             ))
@@ -354,8 +305,7 @@ export default async function LeadDetailPage({
               </p>
 
               <p className="mt-1 text-sm text-black/65">
-                {lead.primaryVehicle.variant || "Geen variant"} •{" "}
-                {lead.primaryVehicle.stockNumber}
+                {lead.primaryVehicle.variant || "Geen variant"} • {lead.primaryVehicle.stockNumber}
               </p>
 
               {lead.primaryVehicle.priceCents ? (
@@ -393,10 +343,16 @@ function formatAppointmentType(type: string) {
   return type;
 }
 
+function formatAppointmentStatus(status: string) {
+  if (status === "SCHEDULED") return "Gepland";
+  if (status === "COMPLETED") return "Afgerond";
+  if (status === "CANCELLED") return "Geannuleerd";
+  if (status === "NO_SHOW") return "Niet komen opdagen";
+  return status;
+}
+
 function toDateTimeLocalValue(value: Date | null) {
-  if (!value) {
-    return "";
-  }
+  if (!value) return "";
 
   const offset = value.getTimezoneOffset();
   const localDate = new Date(value.getTime() - offset * 60_000);
@@ -430,7 +386,6 @@ function TextBlock({ title, text }: { title: string; text: string }) {
   return (
     <div className="mt-10">
       <SectionTitle title={title} />
-
       <div className="mt-4 rounded-2xl border border-black/10 bg-[#efefef] p-5">
         <p className="text-sm leading-7 text-black/75">{text}</p>
       </div>
