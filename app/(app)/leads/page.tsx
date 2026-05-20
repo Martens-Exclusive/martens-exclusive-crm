@@ -170,12 +170,21 @@ export default async function LeadsPage({
           </p>
         </div>
 
-        <Link
-          href="/leads/new"
-          className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-[#fafafa] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#ececec]"
-        >
-          Nieuwe lead
-        </Link>
+        <div className="flex items-center gap-3">
+  <Link
+    href="/leads/pipeline"
+    className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80"
+  >
+    Pipeline
+  </Link>
+
+  <Link
+    href="/leads/new"
+    className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-[#fafafa] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#ececec]"
+  >
+    Nieuwe lead
+  </Link>
+</div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-5">
