@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { updateLead, type UpdateLeadState } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { LeadStatus } from "@/lib/lead-status";
@@ -22,6 +23,7 @@ const initialState: UpdateLeadState = {};
 export function EditLeadForm({
   leadId,
   currentStatus,
+  currentNextFollowUpAt,
   currentInternalNotes,
   statuses
 }: EditLeadFormProps) {
@@ -37,7 +39,7 @@ export function EditLeadForm({
       <h2 className="text-xl font-bold text-black">Lead bewerken</h2>
 
       <p className="mt-2 text-sm leading-6 text-black/70">
-        Werk de status en interne notities bij. Opvolgingen beheer je via taken.
+        Werk de status, de volgende opvolging en interne notities bij.
       </p>
 
       <div className="mt-6 flex flex-col gap-5">
@@ -49,6 +51,17 @@ export function EditLeadForm({
               </option>
             ))}
           </Select>
+        </Field>
+
+        <Field
+          label="Volgende opvolging"
+          hint="Laat leeg als er geen nieuwe opvolging meer gepland moet worden."
+        >
+          <Input
+            name="nextFollowUpAt"
+            type="datetime-local"
+            defaultValue={currentNextFollowUpAt}
+          />
         </Field>
 
         <Field label="Interne notities">

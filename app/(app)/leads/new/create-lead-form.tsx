@@ -136,7 +136,7 @@ export function CreateLeadForm({
             </Select>
           </Field>
 
-          <Field label="Geïnteresseerde wagen">
+          <Field label="Geïnteresseerde wagen" hint="Enkel als het om een wagen uit je huidige stock gaat.">
             <Select name="primaryVehicleId" defaultValue="">
               <option value="">Nog niet gekozen</option>
               {vehicles.map((vehicle) => (
@@ -147,6 +147,16 @@ export function CreateLeadForm({
               ))}
             </Select>
           </Field>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field label="Merk interesse" hint="Ook als die wagen nu niet in stock staat.">
+              <Input name="interestedBrand" />
+            </Field>
+
+            <Field label="Model interesse">
+              <Input name="interestedModel" />
+            </Field>
+          </div>
 
           <Field label="Status">
             <Select name="status" defaultValue="NEW">
@@ -180,6 +190,11 @@ export function CreateLeadForm({
           <label className="flex items-center gap-3 rounded-2xl border border-black/10 bg-[#ececec] px-4 py-3 text-sm text-black">
             <input name="tradeInInterest" type="checkbox" className="h-4 w-4" />
             Overname voertuig
+          </label>
+
+          <label className="flex items-center gap-3 rounded-2xl border border-black/10 bg-[#ececec] px-4 py-3 text-sm text-black">
+            <input name="storageInterest" type="checkbox" className="h-4 w-4" />
+            Interesse in Car Storage
           </label>
         </div>
 

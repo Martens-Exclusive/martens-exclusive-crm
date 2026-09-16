@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { formatCurrencyFromCents } from "@/lib/utils";
 import { saveVehicle, type SaveVehicleState } from "./actions";
 
 type VehicleFormProps = {
@@ -23,6 +24,7 @@ type VehicleFormProps = {
     commissionType?: string | null;
     commissionRate?: number | null;
     commissionFixedExclVatCents?: number | null;
+    commissionMinimumExclVatCents?: number | null;
     purchaseVatType: string | null;
     saleVatType: string | null;
     purchaseVatRate: number | null;
@@ -32,6 +34,8 @@ type VehicleFormProps = {
     costsExclVatCents: number | null;
     status: string;
   } | null;
+  /** Som van de individuele kostenposten (zie 'Kosten per voertuig' onderaan de fiche). */
+  totalCostCents?: number;
   backHref?: Route;
 };
 
@@ -69,6 +73,7 @@ function centsToInputValue(value: number | null | undefined) {
 
 export function VehicleForm({
   vehicle,
+  totalCostCents,
   backHref = "/stock"
 }: VehicleFormProps) {
   const [state, formAction, isPending] = useActionState(saveVehicle, initialState);
@@ -80,10 +85,98 @@ export function VehicleForm({
   const [commissionType, setCommissionType] = useState(
     vehicle?.commissionType ?? "PERCENTAGE"
   );
+  const [purchaseVatType, setPurchaseVatType] = useState(
+    vehicle?.purchaseVatType ?? "BTW_WAGEN"
+  );
+  const [saleVatType, setSaleVatType] = useState(
+    vehicle?.saleVatType ?? "BTW_WAGEN"
+  );
 
   const isConsignment = inventoryType === "CONSIGNMENT";
   const isOnOrder = inventoryType === "ON_ORDER";
   const isFixedCommission = commissionType === "FIXED";
+  const isPurchaseBtw = purchaseVatType === "BTW_WAGEN";
+  const isSaleBtw = saleVatType === "BTW_WAGEN";
+
+  // Live waarden, enkel gebruikt om de marge-indicatie hieronder meteen mee te
+  // berekenen. De echte, definitieve marge wordt bij het opslaan door de
+  // server berekend.
+  const [salePriceInput, setSalePriceInput] = useState(
+    centsToInputValue(vehicle?.salePriceExclVatCents ?? null)
+  );
+  const [purchasePriceInput, setPurchasePriceInput] = useState(
+    centsToInputValue(vehicle?.purchasePriceExclVatCents ?? null)
+  );
+  const [purchaseVatRateInput, setPurchaseVatRateInput] = useState(
+    vehicle?.purchaseVatRate != null ? String(vehicle.purchaseVatRate) : ""
+  );
+  const [saleVatRateInput, setSaleVatRateInput] = useState(
+    vehicle?.saleVatRate != null ? String(vehicle.saleVatRate) : ""
+  );
+  const [commissionRateInput, setCommissionRateInput] = useState(
+    String(vehicle?.commissionRate ?? 6)
+  );
+  const [commissionFixedInput, setCommissionFixedInput] = useState(
+    centsToInputValue(vehicle?.commissionFixedExclVatCents)
+  );
+  const [commissionMinimumInput, setCommissionMinimumInput] = useState(
+    vehicle?.commissionMinimumExclVatCents
+      ? centsToInputValue(vehicle.commissionMinimumExclVatCents)
+      : "2500"
+  );
+
+  const parseAmount = (value: string) => {
+    const normalized = value.trim().replace(/\s/g, "").replace(",", ".");
+    const amount = Number(normalized);
+    return Number.isFinite(amount) ? amount : 0;
+  };
+
+  const salePrice = parseAmount(salePriceInput);
+  const purchasePrice = parseAmount(purchasePriceInput);
+  const purchaseVatRateValue = parseAmount(purchaseVatRateInput);
+  const saleVatRateValue = parseAmount(saleVatRateInput);
+  const commissionRateValue = parseAmount(commissionRateInput);
+  const commissionFixedValue = parseAmount(commissionFixedInput);
+  const commissionMinimumValue = parseAmount(commissionMinimumInput);
+  const totalCostsCents = totalCostCents ?? 0;
+
+  const purchaseInclVatCents =
+    isPurchaseBtw && purchasePriceInput
+      ? Math.round(purchasePrice * (1 + purchaseVatRateValue / 100) * 100)
+      : null;
+  const saleInclVatCents =
+    isSaleBtw && salePriceInput
+      ? Math.round(salePrice * (1 + saleVatRateValue / 100) * 100)
+      : null;
+
+  let grossMarginCents: number | null = null;
+  let grossExplanation = "";
+
+  if (isConsignment) {
+    if (isFixedCommission) {
+      grossMarginCents = Math.round(commissionFixedValue * 100);
+      grossExplanation = "Vast commissiebedrag excl. btw.";
+    } else {
+      const percentageCents = Math.round(
+        salePrice * (commissionRateValue / 100) * 100
+      );
+      const minimumCents = Math.round(commissionMinimumValue * 100);
+      grossMarginCents = Math.max(percentageCents, minimumCents);
+
+      grossExplanation =
+        percentageCents < minimumCents
+          ? `${commissionRateValue || 0}% van de verkoopprijs komt uit op ${formatCurrencyFromCents(percentageCents)}, dat ligt onder het minimum van ${formatCurrencyFromCents(minimumCents)} — het minimum wordt toegepast.`
+          : `${commissionRateValue || 0}% van de verkoopprijs excl. btw (minimum ${formatCurrencyFromCents(minimumCents)}).`;
+    }
+  } else if (!isOnOrder || salePriceInput) {
+    grossMarginCents = Math.round((salePrice - purchasePrice) * 100);
+    grossExplanation = "Verkoopprijs min aankoopprijs, excl. btw.";
+  } else {
+    grossExplanation = "Nog niet gekend zolang de verkoopprijs ontbreekt.";
+  }
+
+  const netMarginCents =
+    grossMarginCents === null ? null : grossMarginCents - totalCostsCents;
 
   return (
     <form
@@ -113,6 +206,38 @@ export function VehicleForm({
             Terug naar stock
           </Link>
         ) : null}
+      </div>
+
+      <div className="mt-6 flex flex-col gap-6 rounded-3xl border border-black/10 bg-black px-6 py-5 text-white shadow-sm md:flex-row md:items-stretch md:justify-between md:gap-8">
+        <div className="flex-1">
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-white/55">
+            {isConsignment ? "Bruto-commissie" : "Brutomarge"}
+          </p>
+          <p className="mt-2 text-3xl font-bold">
+            {grossMarginCents === null ? "-" : formatCurrencyFromCents(grossMarginCents)}
+          </p>
+          {grossExplanation ? (
+            <p className="mt-2 max-w-sm text-sm leading-6 text-white/70">
+              {grossExplanation}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="hidden w-px bg-white/15 md:block" />
+
+        <div className="flex-1">
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-white/55">
+            {isConsignment ? "Netto na kosten" : "Nettomarge"}
+          </p>
+          <p className="mt-2 text-3xl font-bold">
+            {netMarginCents === null ? "-" : formatCurrencyFromCents(netMarginCents)}
+          </p>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-white/70">
+            {isEditing
+              ? `Brutomarge min de kosten hieronder (${formatCurrencyFromCents(totalCostsCents)}).`
+              : "Kosten voeg je toe nadat je de wagen hebt opgeslagen."}
+          </p>
+        </div>
       </div>
 
       <div className="mt-8 grid gap-8 xl:grid-cols-2">
@@ -193,7 +318,11 @@ export function VehicleForm({
           </h3>
 
           <Field label="Aankoop btw-type">
-            <Select name="purchaseVatType" defaultValue={vehicle?.purchaseVatType ?? "BTW_WAGEN"}>
+            <Select
+              name="purchaseVatType"
+              value={purchaseVatType}
+              onChange={(event) => setPurchaseVatType(event.target.value)}
+            >
               {vatTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -202,19 +331,26 @@ export function VehicleForm({
             </Select>
           </Field>
 
-          <Field label="Aankoop btw-percentage">
-            <Input
-              name="purchaseVatRate"
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              defaultValue={vehicle?.purchaseVatRate ?? ""}
-            />
-          </Field>
+          {isPurchaseBtw ? (
+            <Field label="Aankoop btw-percentage">
+              <Input
+                name="purchaseVatRate"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={purchaseVatRateInput}
+                onChange={(event) => setPurchaseVatRateInput(event.target.value)}
+              />
+            </Field>
+          ) : null}
 
           <Field label="Verkoop btw-type">
-            <Select name="saleVatType" defaultValue={vehicle?.saleVatType ?? "BTW_WAGEN"}>
+            <Select
+              name="saleVatType"
+              value={saleVatType}
+              onChange={(event) => setSaleVatType(event.target.value)}
+            >
               {vatTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -223,16 +359,19 @@ export function VehicleForm({
             </Select>
           </Field>
 
-          <Field label="Verkoop btw-percentage">
-            <Input
-              name="saleVatRate"
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              defaultValue={vehicle?.saleVatRate ?? ""}
-            />
-          </Field>
+          {isSaleBtw ? (
+            <Field label="Verkoop btw-percentage">
+              <Input
+                name="saleVatRate"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={saleVatRateInput}
+                onChange={(event) => setSaleVatRateInput(event.target.value)}
+              />
+            </Field>
+          ) : null}
 
           {isConsignment ? (
             <>
@@ -256,64 +395,87 @@ export function VehicleForm({
                     name="commissionFixed"
                     inputMode="decimal"
                     required
-                    defaultValue={centsToInputValue(vehicle?.commissionFixedExclVatCents)}
+                    defaultValue={commissionFixedInput}
+                    onChange={(event) => setCommissionFixedInput(event.target.value)}
                   />
                 </Field>
               ) : (
-                <Field label="Commissie % excl. btw">
-                  <Input
-                    name="commissionRate"
-                    inputMode="decimal"
-                    required
-                    defaultValue={vehicle?.commissionRate ?? "6"}
-                  />
-                </Field>
+                <>
+                  <Field label="Commissie % excl. btw">
+                    <Input
+                      name="commissionRate"
+                      inputMode="decimal"
+                      required
+                      defaultValue={commissionRateInput}
+                      onChange={(event) => setCommissionRateInput(event.target.value)}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Minimum commissie excl. btw"
+                    hint="Wordt toegepast als het percentage lager uitkomt."
+                  >
+                    <Input
+                      name="commissionMinimum"
+                      inputMode="decimal"
+                      required
+                      defaultValue={commissionMinimumInput}
+                      onChange={(event) => setCommissionMinimumInput(event.target.value)}
+                    />
+                  </Field>
+                </>
               )}
 
-              <Field label="Verkoopprijs excl. btw">
+              <Field
+                label="Verkoopprijs excl. btw"
+                hint={
+                  saleInclVatCents !== null
+                    ? `Incl. btw: ${formatCurrencyFromCents(saleInclVatCents)}`
+                    : undefined
+                }
+              >
                 <Input
                   name="salePriceExclVat"
                   inputMode="decimal"
                   required
-                  defaultValue={centsToInputValue(vehicle?.salePriceExclVatCents ?? null)}
-                />
-              </Field>
-
-              <Field label="Kosten excl. btw">
-                <Input
-                  name="costsExclVat"
-                  inputMode="decimal"
-                  defaultValue={centsToInputValue(vehicle?.costsExclVatCents ?? 0)}
+                  defaultValue={salePriceInput}
+                  onChange={(event) => setSalePriceInput(event.target.value)}
                 />
               </Field>
             </>
           ) : (
             <>
-              <Field label="Aankoopprijs excl. btw">
+              <Field
+                label="Aankoopprijs excl. btw"
+                hint={
+                  purchaseInclVatCents !== null
+                    ? `Incl. btw: ${formatCurrencyFromCents(purchaseInclVatCents)}`
+                    : undefined
+                }
+              >
                 <Input
                   name="purchasePriceExclVat"
                   inputMode="decimal"
                   required={!isOnOrder}
-                  defaultValue={centsToInputValue(
-                    vehicle?.purchasePriceExclVatCents ?? null
-                  )}
+                  defaultValue={purchasePriceInput}
+                  onChange={(event) => setPurchasePriceInput(event.target.value)}
                 />
               </Field>
 
-              <Field label="Verkoopprijs excl. btw">
+              <Field
+                label="Verkoopprijs excl. btw"
+                hint={
+                  saleInclVatCents !== null
+                    ? `Incl. btw: ${formatCurrencyFromCents(saleInclVatCents)}`
+                    : undefined
+                }
+              >
                 <Input
                   name="salePriceExclVat"
                   inputMode="decimal"
                   required={!isOnOrder}
-                  defaultValue={centsToInputValue(vehicle?.salePriceExclVatCents ?? null)}
-                />
-              </Field>
-
-              <Field label="Kosten excl. btw">
-                <Input
-                  name="costsExclVat"
-                  inputMode="decimal"
-                  defaultValue={centsToInputValue(vehicle?.costsExclVatCents ?? 0)}
+                  defaultValue={salePriceInput}
+                  onChange={(event) => setSalePriceInput(event.target.value)}
                 />
               </Field>
             </>

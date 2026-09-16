@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Prisma } from "@prisma/client";
 
+import { buildLeadWhere, describeLeadFilters } from "@/lib/lead-filters";
 import {
   leadPriorities,
   leadPriorityLabels,
@@ -39,28 +39,13 @@ export default async function LeadsPage({
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const where: Prisma.LeadWhereInput = {
-    ...(query
-      ? {
-          OR: [
-            { firstName: { contains: query, mode: "insensitive" } },
-            { lastName: { contains: query, mode: "insensitive" } },
-            { phone: { contains: query, mode: "insensitive" } },
-            { email: { contains: query, mode: "insensitive" } }
-          ]
-        }
-      : {}),
-    ...(status ? { status } : {}),
-    ...(priority ? { priority } : {}),
-    ...(assignedUserId ? { assignedUserId } : {}),
-    ...(openOnly
-      ? {
-          status: {
-            notIn: ["WON", "LOST"]
-          }
-        }
-      : {})
-  };
+  // Verloren leads blijven standaard uit de lijst zodat die overzichtelijk
+  // blijft. Kies je zelf expliciet een status (bv. via de funnel of het
+  // filter), dan tonen we precies wat je koos — ook als dat "Verloren" is.
+  const isShowingLost = status === "LOST";
+
+  const filters = { q: query, status, priority, assignedUserId, openOnly };
+  const where = buildLeadWhere(filters);
 
   const [
     leads,
@@ -71,7 +56,9 @@ export default async function LeadsPage({
     wonThisMonth,
     wonLeads,
     lostLeads,
-    pipelineCounts
+    pipelineCounts,
+    sourceCounts,
+    sources
   ] = await Promise.all([
     prisma.lead.findMany({
       where,
@@ -141,16 +128,61 @@ export default async function LeadsPage({
       _count: {
         status: true
       }
+    }),
+
+    prisma.lead.groupBy({
+      by: ["sourceId"],
+      _count: {
+        sourceId: true
+      },
+      orderBy: {
+        _count: {
+          sourceId: "desc"
+        }
+      }
+    }),
+
+    prisma.leadSource.findMany({
+      select: { id: true, name: true }
     })
   ]);
 
   const closedLeads = wonLeads + lostLeads;
   const conversionRate =
     closedLeads > 0 ? Math.round((wonLeads / closedLeads) * 100) : 0;
+  const lostRate = closedLeads > 0 ? 100 - conversionRate : 0;
 
   const pipelineMap = new Map(
     pipelineCounts.map((item) => [item.status, item._count.status])
   );
+
+  const sourceNameById = new Map(sources.map((source) => [source.id, source.name]));
+  const sourceBreakdown = sourceCounts.map((item) => ({
+    id: item.sourceId,
+    name: sourceNameById.get(item.sourceId) ?? "Onbekend",
+    count: item._count.sourceId
+  }));
+  const sourceTotal = sourceBreakdown.reduce((total, item) => total + item.count, 0);
+
+  const assignedUserLabel = assignedUserId
+    ? (() => {
+        const user = users.find((candidate) => candidate.id === assignedUserId);
+        return user ? `${user.firstName} ${user.lastName}` : undefined;
+      })()
+    : undefined;
+
+  const overviewFilterDescription = describeLeadFilters(filters, assignedUserLabel);
+
+  const overviewPdfParams = new URLSearchParams({ type: "overview" });
+  if (query) overviewPdfParams.set("q", query);
+  if (status) overviewPdfParams.set("status", status);
+  if (priority) overviewPdfParams.set("priority", priority);
+  if (assignedUserId) overviewPdfParams.set("assignedUserId", assignedUserId);
+  if (openOnly) overviewPdfParams.set("openOnly", "1");
+  if (overviewFilterDescription) {
+    overviewPdfParams.set("label", overviewFilterDescription);
+  }
+  const overviewPdfHref = `/api/leads/pdf?${overviewPdfParams.toString()}`;
 
   return (
     <main className="flex flex-col gap-6">
@@ -217,6 +249,92 @@ export default async function LeadsPage({
               </p>
             </Link>
           ))}
+        </div>
+      </section>
+
+      <section className="grid gap-6 md:grid-cols-2">
+        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-black">
+                Resultaat: gewonnen vs. verloren
+              </h2>
+              <p className="mt-1 text-sm text-black/60">
+                Van alle leads waar een uitkomst op zit ({closedLeads}).
+              </p>
+            </div>
+
+            <PdfButton href="/api/leads/pdf?type=result" />
+          </div>
+
+          {closedLeads === 0 ? (
+            <p className="text-sm text-black/55">
+              Nog geen gewonnen of verloren leads om te tonen.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <ResultBar
+                label="Gewonnen"
+                count={wonLeads}
+                percentage={conversionRate}
+                colorClassName="bg-green-600"
+              />
+              <ResultBar
+                label="Verloren"
+                count={lostLeads}
+                percentage={lostRate}
+                colorClassName="bg-red-600"
+              />
+            </div>
+          )}
+
+          <div className="mt-5 grid grid-cols-3 gap-3 border-t border-black/10 pt-5">
+            <MiniStat label="Gewonnen" value={String(wonLeads)} />
+            <MiniStat label="Verloren" value={String(lostLeads)} />
+            <MiniStat label="Conversie" value={`${conversionRate}%`} />
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-black">Leads per bron</h2>
+              <p className="mt-1 text-sm text-black/60">
+                Waar komen je leads vandaan (alle leads, ooit aangemaakt).
+              </p>
+            </div>
+
+            <PdfButton href="/api/leads/pdf?type=source" />
+          </div>
+
+          {sourceBreakdown.length === 0 ? (
+            <p className="text-sm text-black/55">Nog geen leads met een bron.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {sourceBreakdown.map((source) => {
+                const sharePercentage =
+                  sourceTotal > 0 ? Math.round((source.count / sourceTotal) * 100) : 0;
+
+                return (
+                  <div key={source.id}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold text-black">{source.name}</span>
+                      <span className="text-black/55">
+                        {source.count} ({sharePercentage}%)
+                      </span>
+                    </div>
+
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-black/10">
+                      <div
+                        className="h-full rounded-full bg-black"
+                        style={{ width: `${sharePercentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
@@ -295,9 +413,41 @@ export default async function LeadsPage({
             Filters wissen
           </Link>
         ) : null}
+
+        {!status && !openOnly ? (
+          <p className="mt-4 text-sm text-black/55">
+            Verloren leads worden hier niet standaard getoond, zodat het overzicht
+            overzichtelijk blijft.{" "}
+            <Link
+              href="/leads?status=LOST"
+              className="font-semibold text-black underline underline-offset-2 hover:text-black/70"
+            >
+              Verloren leads bekijken
+            </Link>
+            .
+          </p>
+        ) : null}
       </section>
 
       <section className="overflow-hidden rounded-[28px] border border-black/10 bg-[#f5f5f5] shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <div className="flex items-start justify-between gap-4 px-6 pt-6">
+          <div>
+            <h2 className="text-lg font-bold text-black">Overzicht leads</h2>
+            <p className="mt-1 text-sm text-black/60">{overviewFilterDescription}</p>
+          </div>
+
+          <PdfButton href={overviewPdfHref} />
+        </div>
+
+        {isShowingLost ? (
+          <div className="mt-4 border-y border-red-100 bg-red-50 px-6 py-4 text-sm text-red-700">
+            Je bekijkt de <strong>verloren leads</strong>. Op de fiche van een verloren
+            lead kan je die definitief verwijderen.
+          </div>
+        ) : (
+          <div className="h-4" />
+        )}
+
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse">
             <thead>
@@ -449,6 +599,58 @@ function StatCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
       <p className="text-sm font-semibold text-black/55">{label}</p>
       <p className="mt-4 text-4xl font-bold text-black">{value}</p>
+    </div>
+  );
+}
+
+function PdfButton({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      className="inline-flex flex-none items-center justify-center rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-2 text-xs font-semibold text-black/80 transition hover:bg-[#e7e7e7] hover:text-black"
+    >
+      PDF afdrukken
+    </a>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-black/10 bg-white px-3 py-3 text-center">
+      <p className="text-2xl font-bold text-black">{value}</p>
+      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-black/45">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function ResultBar({
+  label,
+  count,
+  percentage,
+  colorClassName
+}: {
+  label: string;
+  count: number;
+  percentage: number;
+  colorClassName: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-semibold text-black">{label}</span>
+        <span className="text-black/55">
+          {count} ({percentage}%)
+        </span>
+      </div>
+
+      <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-black/10">
+        <div
+          className={`h-full rounded-full ${colorClassName}`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
     </div>
   );
 }

@@ -50,7 +50,7 @@ export default async function StockPage({
         <SummaryCard label="Consignatie" value={String(consignmentCount)} />
         <SummaryCard label="In bestelling" value={String(onOrderCount)} />
         <SummaryCard
-          label="Marge / commissie"
+          label="Nettomarge / netto commissie"
           value={formatCurrencyFromCents(totalMargin)}
         />
       </section>
@@ -76,6 +76,13 @@ export default async function StockPage({
               Nieuwe stockwagen
             </Link>
 
+            <a
+              href="/api/stock/pdf"
+              className="rounded-2xl border border-black/15 bg-[#fafafa] px-5 py-3 text-sm font-semibold text-black/80 transition hover:bg-[#e7e7e7] hover:text-black"
+            >
+              PDF
+            </a>
+
             <TabLink
               href={"/stock?tab=active" as Route}
               label="Actieve stock"
@@ -99,6 +106,7 @@ export default async function StockPage({
             : "Wagennummer, merk, model, kilometerstand, prijs en dagen in stock in één compact overzicht."
         }
         vehicles={visibleVehicles}
+        currentTab={currentTab}
         emptyText={
           currentTab === "archive"
             ? "Nog geen verkochte wagens in archief."
@@ -113,10 +121,12 @@ function VehicleOverview({
   title,
   description,
   vehicles,
+  currentTab,
   emptyText
 }: {
   title: string;
   description: string;
+  currentTab: "active" | "archive";
   vehicles: Array<{
     id: string;
     stockNumber: string;
@@ -165,7 +175,7 @@ function VehicleOverview({
           <div>Km</div>
           <div>Prijs</div>
           <div>Dagen</div>
-          <div>Marge</div>
+          <div>Nettomarge</div>
           <div className="text-right">Actie</div>
         </div>
 
@@ -174,7 +184,7 @@ function VehicleOverview({
         ) : (
           <div className="divide-y divide-black/10">
             {vehicles.map((vehicle) => (
-              <VehicleRow key={vehicle.id} vehicle={vehicle} />
+              <VehicleRow key={vehicle.id} vehicle={vehicle} currentTab={currentTab} />
             ))}
           </div>
         )}
@@ -184,8 +194,10 @@ function VehicleOverview({
 }
 
 function VehicleRow({
-  vehicle
+  vehicle,
+  currentTab
 }: {
+  currentTab: "active" | "archive";
   vehicle: {
     id: string;
     stockNumber: string;
@@ -256,7 +268,9 @@ function VehicleRow({
 
       <Metric
         label={
-          vehicle.inventoryType === "CONSIGNMENT" ? "Commissie" : "Marge"
+          vehicle.inventoryType === "CONSIGNMENT"
+            ? "Netto commissie"
+            : "Nettomarge"
         }
         value={formatMoney(vehicle.netProfitCents)}
         tone={getNetProfitTone(vehicle.netProfitCents)}
@@ -270,9 +284,7 @@ function VehicleRow({
           Open
         </Link>
 
-        {vehicle.status === "SOLD" ? (
-          <DeleteVehicleButton vehicleId={vehicle.id} />
-        ) : null}
+        <DeleteVehicleButton vehicleId={vehicle.id} tab={currentTab} />
       </div>
     </article>
   );

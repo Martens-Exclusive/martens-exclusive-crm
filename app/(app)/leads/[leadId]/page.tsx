@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { completeTask } from "../actions";
+import { completeFollowUp, completeTask } from "../actions";
 
 import {
   leadPriorityLabels,
@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 import { AppointmentStatusButtons } from "./appointment-status-buttons";
 import { AssignVehicleForm } from "./assign-vehicle-form";
 import { CreateActivityForm } from "./create-activity-form";
+import { EditContactDetailsForm } from "./edit-contact-details-form";
+import { EditInterestForm } from "./edit-interest-form";
 import { CreateAppointmentForm } from "./create-appointment-form";
 import { CreateTaskForm } from "./create-task-form";
 import { DeleteLeadButton } from "./delete-lead-button";
@@ -97,6 +99,11 @@ export default async function LeadDetailPage({
 
   const completedTasks = lead.tasks.filter((task) => task.status === "COMPLETED");
 
+  const isFollowUpOverdue =
+    !!lead.nextFollowUpAt &&
+    lead.nextFollowUpAt < now &&
+    !["WON", "LOST"].includes(lead.status);
+
   const openAppointments = lead.appointments.filter(
     (appointment) =>
       appointment.status !== "COMPLETED" && appointment.status !== "CANCELLED"
@@ -133,24 +140,18 @@ export default async function LeadDetailPage({
             <StatCard label="Open afspraken" value={String(openAppointments.length)} />
           </div>
 
-          <div className="mt-10">
-            <SectionTitle title="Contactgegevens" />
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <InfoRow label="Telefoon" value={lead.phone || "-"} />
-              <InfoRow label="E-mail" value={lead.email || "-"} />
-            </div>
-          </div>
-
-          <div className="mt-10">
-            <SectionTitle title="Adres" />
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <InfoRow label="Straat" value={lead.street || "-"} />
-              <InfoRow label="Huisnummer" value={lead.houseNumber || "-"} />
-              <InfoRow label="Postcode" value={lead.postalCode || "-"} />
-              <InfoRow label="Gemeente" value={lead.city || "-"} />
-              <InfoRow label="Land" value={lead.country || "-"} />
-            </div>
-          </div>
+          <EditContactDetailsForm
+            leadId={lead.id}
+            firstName={lead.firstName}
+            lastName={lead.lastName}
+            phone={lead.phone || ""}
+            email={lead.email || ""}
+            street={lead.street || ""}
+            houseNumber={lead.houseNumber || ""}
+            postalCode={lead.postalCode || ""}
+            city={lead.city || ""}
+            country={lead.country || ""}
+          />
 
           <div className="mt-10">
             <SectionTitle title="Leadinformatie" />
@@ -164,10 +165,37 @@ export default async function LeadDetailPage({
                     : "Niet toegewezen"
                 }
               />
-              <InfoRow
-                label="Volgende opvolging"
-                value={lead.nextFollowUpAt ? dateFormatter.format(lead.nextFollowUpAt) : "-"}
-              />
+              <div className="border-b border-black/8 pb-3">
+                <p className="text-xs uppercase tracking-[0.2em] text-black/45">
+                  Volgende opvolging
+                </p>
+
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+                  <p
+                    className={`text-sm font-medium ${
+                      isFollowUpOverdue ? "text-red-700" : "text-black"
+                    }`}
+                  >
+                    {lead.nextFollowUpAt
+                      ? dateFormatter.format(lead.nextFollowUpAt)
+                      : "-"}
+                    {isFollowUpOverdue ? " • Te laat" : ""}
+                  </p>
+
+                  {lead.nextFollowUpAt ? (
+                    <form action={completeFollowUp}>
+                      <input type="hidden" name="leadId" value={lead.id} />
+
+                      <button
+                        type="submit"
+                        className="rounded-xl border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-[#ececec]"
+                      >
+                        Opvolging voltooid
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              </div>
               <InfoRow
                 label="Laatste contact"
                 value={lead.lastContactedAt ? dateFormatter.format(lead.lastContactedAt) : "-"}
@@ -175,21 +203,14 @@ export default async function LeadDetailPage({
             </div>
           </div>
 
-          <div className="mt-10">
-            <SectionTitle title="Interesse" />
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <InfoRow label="Financiering" value={lead.financeInterest ? "Ja" : "Nee"} />
-              <InfoRow label="Overname" value={lead.tradeInInterest ? "Ja" : "Nee"} />
-              <InfoRow
-                label="Gekoppelde wagen"
-                value={
-                  lead.primaryVehicle
-                    ? `${lead.primaryVehicle.brand} ${lead.primaryVehicle.model}`
-                    : "Geen gekoppelde wagen"
-                }
-              />
-            </div>
-          </div>
+          <EditInterestForm
+            leadId={lead.id}
+            interestedBrand={lead.interestedBrand || ""}
+            interestedModel={lead.interestedModel || ""}
+            financeInterest={lead.financeInterest}
+            tradeInInterest={lead.tradeInInterest}
+            storageInterest={lead.storageInterest}
+          />
 
           {lead.customerMessage ? (
             <TextBlock title="Bericht van klant" text={lead.customerMessage} />

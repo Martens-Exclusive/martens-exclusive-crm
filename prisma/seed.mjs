@@ -34,6 +34,7 @@ async function main() {
     "Bezoek showroom",
     "Autoscout24",
     "Mobile.de",
+    "Social media",
     "Doorverwijzing"
   ];
 

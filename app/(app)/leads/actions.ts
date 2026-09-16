@@ -26,6 +26,8 @@ const createLeadSchema = z.object({
   sourceId: z.string().trim().min(1, "Bron is verplicht."),
   assignedUserId: z.string().trim().min(1, "Verkoper is verplicht."),
   primaryVehicleId: optionalText,
+  interestedBrand: optionalText,
+  interestedModel: optionalText,
   status: z.enum(leadStatuses).default("NEW"),
   priority: z.enum(leadPriorities).default("NORMAL"),
   nextFollowUpAt: z.string().trim().min(1, "Volgende opvolging is verplicht."),
@@ -35,6 +37,9 @@ const createLeadSchema = z.object({
   tradeInInterest: z
     .union([z.literal("on"), z.null(), z.undefined()])
     .transform((value) => value === "on"),
+  storageInterest: z
+    .union([z.literal("on"), z.null(), z.undefined()])
+    .transform((value) => value === "on"),
   customerMessage: optionalText,
   internalNotes: optionalText
 });
@@ -42,7 +47,21 @@ const createLeadSchema = z.object({
 const updateLeadSchema = z.object({
   leadId: z.string().trim().min(1),
   status: z.enum(leadStatuses),
-  internalNotes: optionalText
+  internalNotes: optionalText,
+  nextFollowUpAt: optionalText
+});
+
+const updateLeadDetailsSchema = z.object({
+  leadId: z.string().trim().min(1),
+  firstName: z.string().trim().min(1, "Voornaam is verplicht."),
+  lastName: z.string().trim().min(1, "Achternaam is verplicht."),
+  phone: optionalText,
+  email: z.string().trim().email("Ongeldig e-mailadres.").or(z.literal("")),
+  street: optionalText,
+  houseNumber: optionalText,
+  postalCode: optionalText,
+  city: optionalText,
+  country: optionalText
 });
 
 const createAppointmentSchema = z.object({
@@ -85,6 +104,18 @@ export type CreateLeadState = {
 };
 
 export type UpdateLeadState = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+  success?: boolean;
+};
+
+export type UpdateLeadDetailsState = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+  success?: boolean;
+};
+
+export type UpdateLeadInterestState = {
   errors?: Record<string, string[] | undefined>;
   message?: string;
   success?: boolean;
@@ -135,11 +166,14 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
     sourceId: formData.get("sourceId"),
     assignedUserId: formData.get("assignedUserId"),
     primaryVehicleId: formData.get("primaryVehicleId"),
+    interestedBrand: formData.get("interestedBrand"),
+    interestedModel: formData.get("interestedModel"),
     status: formData.get("status"),
     priority: formData.get("priority"),
     nextFollowUpAt: formData.get("nextFollowUpAt"),
     financeInterest: formData.get("financeInterest"),
     tradeInInterest: formData.get("tradeInInterest"),
+    storageInterest: formData.get("storageInterest"),
     customerMessage: formData.get("customerMessage"),
     internalNotes: formData.get("internalNotes")
   });
@@ -186,11 +220,14 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
       sourceId: parsedLead.data.sourceId,
       assignedUserId: parsedLead.data.assignedUserId,
       primaryVehicleId: parsedLead.data.primaryVehicleId || null,
+      interestedBrand: parsedLead.data.interestedBrand || null,
+      interestedModel: parsedLead.data.interestedModel || null,
       status: parsedLead.data.status,
       priority: parsedLead.data.priority,
       nextFollowUpAt,
       financeInterest: parsedLead.data.financeInterest,
       tradeInInterest: parsedLead.data.tradeInInterest,
+      storageInterest: parsedLead.data.storageInterest,
       customerMessage: parsedLead.data.customerMessage || null,
       internalNotes: parsedLead.data.internalNotes || null,
       activities: {
@@ -231,7 +268,8 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
   const parsedLead = updateLeadSchema.safeParse({
     leadId: formData.get("leadId"),
     status: formData.get("status"),
-    internalNotes: formData.get("internalNotes")
+    internalNotes: formData.get("internalNotes"),
+    nextFollowUpAt: formData.get("nextFollowUpAt")
   });
 
   if (!parsedLead.success) {
@@ -242,12 +280,29 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     };
   }
 
+  let nextFollowUpAt: Date | null = null;
+
+  if (parsedLead.data.nextFollowUpAt) {
+    nextFollowUpAt = new Date(parsedLead.data.nextFollowUpAt);
+
+    if (Number.isNaN(nextFollowUpAt.getTime())) {
+      return {
+        errors: {
+          nextFollowUpAt: ["Ongeldige datum."]
+        },
+        message: "Controleer de ingevulde gegevens.",
+        success: false
+      };
+    }
+  }
+
   const existingLead = await prisma.lead.findUnique({
     where: { id: parsedLead.data.leadId },
     select: {
       id: true,
       status: true,
-      internalNotes: true
+      internalNotes: true,
+      nextFollowUpAt: true
     }
   });
 
@@ -288,11 +343,31 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     });
   }
 
+  const existingFollowUpTime = existingLead.nextFollowUpAt
+    ? existingLead.nextFollowUpAt.getTime()
+    : null;
+  const nextFollowUpTime = nextFollowUpAt ? nextFollowUpAt.getTime() : null;
+
+  if (existingFollowUpTime !== nextFollowUpTime) {
+    activitiesToCreate.push({
+      type: "NOTE",
+      summary: nextFollowUpAt ? "Opvolging aangepast" : "Opvolging voltooid",
+      details: nextFollowUpAt
+        ? `Nieuwe opvolgdatum: ${nextFollowUpAt.toLocaleString("nl-BE")}.`
+        : "Opvolging werd afgerond. Er staat geen nieuwe opvolgdatum ingepland.",
+      occurredAt: new Date(),
+      userId: currentUser.id
+    });
+  }
+
   await prisma.lead.update({
     where: { id: existingLead.id },
     data: {
       status: parsedLead.data.status,
       internalNotes: nextInternalNotes,
+      nextFollowUpAt,
+      lastContactedAt:
+        existingFollowUpTime !== nextFollowUpTime ? new Date() : undefined,
       statusHistory:
         existingLead.status !== parsedLead.data.status
           ? {
@@ -317,6 +392,169 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
 
   return {
     message: "Lead bijgewerkt.",
+    success: true
+  };
+}
+
+export async function updateLeadDetails(
+  _: UpdateLeadDetailsState,
+  formData: FormData
+) {
+  const currentUser = await requireUser();
+
+  const parsed = updateLeadDetailsSchema.safeParse({
+    leadId: formData.get("leadId"),
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
+    phone: formData.get("phone"),
+    email: formData.get("email"),
+    street: formData.get("street"),
+    houseNumber: formData.get("houseNumber"),
+    postalCode: formData.get("postalCode"),
+    city: formData.get("city"),
+    country: formData.get("country")
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  if (!parsed.data.phone && !parsed.data.email) {
+    return {
+      errors: {
+        phone: ["Telefoon of e-mailadres is verplicht."],
+        email: ["Telefoon of e-mailadres is verplicht."]
+      },
+      message: "Een lead heeft minstens één contactmethode nodig.",
+      success: false
+    };
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: parsed.data.leadId },
+    select: { id: true }
+  });
+
+  if (!existingLead) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  await prisma.lead.update({
+    where: { id: existingLead.id },
+    data: {
+      firstName: parsed.data.firstName,
+      lastName: parsed.data.lastName,
+      phone: parsed.data.phone || null,
+      email: parsed.data.email || null,
+      street: parsed.data.street || null,
+      houseNumber: parsed.data.houseNumber || null,
+      postalCode: parsed.data.postalCode || null,
+      city: parsed.data.city || null,
+      country: parsed.data.country || "België",
+      activities: {
+        create: {
+          userId: currentUser.id,
+          type: "NOTE",
+          summary: "Klantgegevens bijgewerkt",
+          details:
+            "Persoonlijke gegevens van de klant werden aangepast of aangevuld.",
+          occurredAt: new Date()
+        }
+      }
+    }
+  });
+
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${existingLead.id}`);
+
+  return {
+    message: "Klantgegevens opgeslagen.",
+    success: true
+  };
+}
+
+const updateLeadInterestSchema = z.object({
+  leadId: z.string().trim().min(1),
+  interestedBrand: optionalText,
+  interestedModel: optionalText,
+  financeInterest: z
+    .union([z.literal("on"), z.null(), z.undefined()])
+    .transform((value) => value === "on"),
+  tradeInInterest: z
+    .union([z.literal("on"), z.null(), z.undefined()])
+    .transform((value) => value === "on"),
+  storageInterest: z
+    .union([z.literal("on"), z.null(), z.undefined()])
+    .transform((value) => value === "on")
+});
+
+export async function updateLeadInterest(
+  _: UpdateLeadInterestState,
+  formData: FormData
+) {
+  const currentUser = await requireUser();
+
+  const parsed = updateLeadInterestSchema.safeParse({
+    leadId: formData.get("leadId"),
+    interestedBrand: formData.get("interestedBrand"),
+    interestedModel: formData.get("interestedModel"),
+    financeInterest: formData.get("financeInterest"),
+    tradeInInterest: formData.get("tradeInInterest"),
+    storageInterest: formData.get("storageInterest")
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: parsed.data.leadId },
+    select: { id: true }
+  });
+
+  if (!existingLead) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  await prisma.lead.update({
+    where: { id: existingLead.id },
+    data: {
+      interestedBrand: parsed.data.interestedBrand || null,
+      interestedModel: parsed.data.interestedModel || null,
+      financeInterest: parsed.data.financeInterest,
+      tradeInInterest: parsed.data.tradeInInterest,
+      storageInterest: parsed.data.storageInterest,
+      activities: {
+        create: {
+          userId: currentUser.id,
+          type: "NOTE",
+          summary: "Interesse bijgewerkt",
+          details: "Interesse van de klant werd aangepast of aangevuld.",
+          occurredAt: new Date()
+        }
+      }
+    }
+  });
+
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${existingLead.id}`);
+
+  return {
+    message: "Interesse opgeslagen.",
     success: true
   };
 }
@@ -748,6 +986,52 @@ export async function assignVehicle(
     message: vehicleId ? "Wagen gekoppeld." : "Wagen ontkoppeld.",
     success: true
   };
+}
+
+export async function completeFollowUp(formData: FormData) {
+  const currentUser = await requireUser();
+
+  const leadId = formData.get("leadId");
+
+  if (typeof leadId !== "string" || leadId.length === 0) {
+    return;
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: {
+      id: true,
+      nextFollowUpAt: true
+    }
+  });
+
+  if (!existingLead || !existingLead.nextFollowUpAt) {
+    return;
+  }
+
+  await prisma.lead.update({
+    where: { id: existingLead.id },
+    data: {
+      nextFollowUpAt: null,
+      lastContactedAt: new Date()
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: existingLead.id,
+      userId: currentUser.id,
+      type: "NOTE",
+      summary: "Opvolging voltooid",
+      details:
+        "Opvolging werd afgerond. Er staat geen nieuwe opvolgdatum ingepland.",
+      occurredAt: new Date()
+    }
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/leads");
+  revalidatePath(`/leads/${existingLead.id}`);
 }
 
 export async function completeTask(formData: FormData) {

@@ -57,19 +57,17 @@ const vehicleSchema = z
     model: requiredTextField("Model is verplicht."),
     vin: textField,
     mileageKm: mileageField,
-
     inventoryType: z.preprocess(
       (value) => toCleanString(value) || "STOCK",
       z.enum(inventoryTypes)
     ),
-
     commissionType: z.preprocess(
       (value) => toCleanString(value) || "PERCENTAGE",
       z.enum(commissionTypes)
     ),
     commissionRate: textField,
     commissionFixed: textField,
-
+    commissionMinimum: textField,
     purchaseVatType: z.preprocess(
       (value) => toCleanString(value) || "BTW_WAGEN",
       z.enum(vatTypes)
@@ -80,11 +78,9 @@ const vehicleSchema = z
     ),
     purchaseVatRate: vatRateField,
     saleVatRate: vatRateField,
-
     purchasePriceExclVat: textField,
     salePriceExclVat: textField,
     costsExclVat: textField,
-
     status: z.preprocess(
       (value) => toCleanString(value) || "AVAILABLE",
       z.enum(vehicleStatuses)
@@ -162,6 +158,14 @@ const vehicleSchema = z
     }
   });
 
+const vehicleCostSchema = z.object({
+  vehicleId: requiredTextField("Wagen niet gevonden."),
+  label: requiredTextField("Omschrijving is verplicht."),
+  amount: requiredTextField("Bedrag is verplicht."),
+  date: textField,
+  notes: textField
+});
+
 export type SaveVehicleState = {
   errors?: Record<string, string[] | undefined>;
   message?: string;
@@ -169,6 +173,12 @@ export type SaveVehicleState = {
 };
 
 export type DeleteVehicleState = {
+  message?: string;
+  success?: boolean;
+};
+
+export type VehicleCostState = {
+  errors?: Record<string, string[] | undefined>;
   message?: string;
   success?: boolean;
 };
@@ -182,6 +192,95 @@ function parseMoneyToCents(value?: string | null) {
   if (!Number.isFinite(amount) || amount < 0) return null;
 
   return Math.round(amount * 100);
+}
+
+function calculateNetProfitCents(vehicle: {
+  inventoryType: string;
+  commissionType: string | null;
+  commissionRate: number | null;
+  commissionFixedExclVatCents: number | null;
+  commissionMinimumExclVatCents: number | null;
+  purchasePriceExclVatCents: number | null;
+  salePriceExclVatCents: number | null;
+  costsExclVatCents: number | null;
+}) {
+  const costs = vehicle.costsExclVatCents ?? 0;
+
+  if (vehicle.inventoryType === "CONSIGNMENT") {
+    let grossCommissionCents: number;
+
+    if (vehicle.commissionType === "FIXED") {
+      grossCommissionCents = vehicle.commissionFixedExclVatCents ?? 0;
+    } else {
+      const percentageAmount = Math.round(
+        (vehicle.salePriceExclVatCents ?? 0) * ((vehicle.commissionRate ?? 0) / 100)
+      );
+
+      grossCommissionCents = Math.max(
+        percentageAmount,
+        vehicle.commissionMinimumExclVatCents ?? 0
+      );
+    }
+
+    // Nettomarge: de brutocommissie min de kosten die effectief op deze wagen
+    // ingegeven zijn (bv. transport, opkuis, keuring bij consignatie).
+    return grossCommissionCents - costs;
+  }
+
+  if (vehicle.inventoryType === "ON_ORDER") {
+    return vehicle.salePriceExclVatCents !== null
+      ? vehicle.salePriceExclVatCents -
+          (vehicle.purchasePriceExclVatCents ?? 0) -
+          costs
+      : null;
+  }
+
+  return (
+    (vehicle.salePriceExclVatCents ?? 0) -
+    (vehicle.purchasePriceExclVatCents ?? 0) -
+    costs
+  );
+}
+
+async function updateVehicleCostTotals(vehicleId: string) {
+  const total = await prisma.vehicleCost.aggregate({
+    where: { vehicleId },
+    _sum: {
+      amountCents: true
+    }
+  });
+
+  const costsExclVatCents = total._sum.amountCents ?? 0;
+
+  const vehicle = await prisma.vehicle.findUnique({
+    where: { id: vehicleId },
+    select: {
+      inventoryType: true,
+      commissionType: true,
+      commissionRate: true,
+      commissionFixedExclVatCents: true,
+      commissionMinimumExclVatCents: true,
+      purchasePriceExclVatCents: true,
+      salePriceExclVatCents: true
+    }
+  });
+
+  if (!vehicle) {
+    return;
+  }
+
+  const netProfitCents = calculateNetProfitCents({
+    ...vehicle,
+    costsExclVatCents
+  });
+
+  await prisma.vehicle.update({
+    where: { id: vehicleId },
+    data: {
+      costsExclVatCents,
+      netProfitCents
+    }
+  });
 }
 
 export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
@@ -199,6 +298,7 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     commissionType: formData.get("commissionType"),
     commissionRate: formData.get("commissionRate"),
     commissionFixed: formData.get("commissionFixed"),
+    commissionMinimum: formData.get("commissionMinimum"),
     purchaseVatType: formData.get("purchaseVatType"),
     saleVatType: formData.get("saleVatType"),
     purchaseVatRate: formData.get("purchaseVatRate"),
@@ -242,7 +342,7 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
   const salePriceExclVatCents = parseMoneyToCents(
     parsedVehicle.data.salePriceExclVat
   );
-  const costsExclVatCents =
+  const manualCostsExclVatCents =
     parseMoneyToCents(parsedVehicle.data.costsExclVat) ?? 0;
 
   if (
@@ -284,29 +384,38 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
       ? parseMoneyToCents(parsedVehicle.data.commissionFixed)
       : null;
 
-  let netProfitCents: number | null = null;
+  const commissionMinimumExclVatCents =
+    parsedVehicle.data.inventoryType === "CONSIGNMENT" &&
+    parsedVehicle.data.commissionType === "PERCENTAGE"
+      ? (parseMoneyToCents(parsedVehicle.data.commissionMinimum) ?? 0)
+      : null;
 
-  if (parsedVehicle.data.inventoryType === "CONSIGNMENT") {
-    if (parsedVehicle.data.commissionType === "FIXED") {
-      netProfitCents = commissionFixedExclVatCents ?? 0;
-    } else {
-      netProfitCents = Math.round(
-        (salePriceExclVatCents ?? 0) * ((commissionRate ?? 0) / 100)
-      );
-    }
-  } else if (parsedVehicle.data.inventoryType === "ON_ORDER") {
-    netProfitCents =
-      salePriceExclVatCents !== null
-        ? salePriceExclVatCents -
-          (purchasePriceExclVatCents ?? 0) -
-          costsExclVatCents
-        : null;
-  } else {
-    netProfitCents =
-      (salePriceExclVatCents ?? 0) -
-      (purchasePriceExclVatCents ?? 0) -
-      costsExclVatCents;
+  let existingCostTotalCents = manualCostsExclVatCents;
+
+  if (parsedVehicle.data.vehicleId) {
+    const total = await prisma.vehicleCost.aggregate({
+      where: { vehicleId: parsedVehicle.data.vehicleId },
+      _sum: {
+        amountCents: true
+      }
+    });
+
+    existingCostTotalCents = total._sum.amountCents ?? manualCostsExclVatCents;
   }
+
+  const netProfitCents = calculateNetProfitCents({
+    inventoryType: parsedVehicle.data.inventoryType,
+    commissionType,
+    commissionRate,
+    commissionFixedExclVatCents,
+    commissionMinimumExclVatCents,
+    purchasePriceExclVatCents:
+      parsedVehicle.data.inventoryType === "CONSIGNMENT"
+        ? null
+        : purchasePriceExclVatCents,
+    salePriceExclVatCents,
+    costsExclVatCents: existingCostTotalCents
+  });
 
   const vehicleData = {
     stockNumber: parsedVehicle.data.stockNumber,
@@ -319,7 +428,7 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
     commissionType,
     commissionRate,
     commissionFixedExclVatCents,
-    commissionMinimumExclVatCents: null,
+    commissionMinimumExclVatCents,
     purchaseVatType: parsedVehicle.data.purchaseVatType,
     saleVatType: parsedVehicle.data.saleVatType,
     purchaseVatRate: parsedVehicle.data.purchaseVatRate,
@@ -329,7 +438,7 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
         ? null
         : purchasePriceExclVatCents,
     salePriceExclVatCents,
-    costsExclVatCents,
+    costsExclVatCents: existingCostTotalCents,
     netProfitCents,
     priceCents: salePriceExclVatCents,
     currency: "EUR",
@@ -377,10 +486,88 @@ export async function saveVehicle(_: SaveVehicleState, formData: FormData) {
   };
 }
 
+export async function addVehicleCost(formData: FormData) {
+  await requireUser();
+
+  const parsedCost = vehicleCostSchema.safeParse({
+    vehicleId: formData.get("vehicleId"),
+    label: formData.get("label"),
+    amount: formData.get("amount"),
+    date: formData.get("date"),
+    notes: formData.get("notes")
+  });
+
+  if (!parsedCost.success) {
+    return;
+  }
+
+  const amountCents = parseMoneyToCents(parsedCost.data.amount);
+
+  if (amountCents === null || amountCents <= 0) {
+    return;
+  }
+
+  const date = parsedCost.data.date ? new Date(parsedCost.data.date) : new Date();
+
+  if (Number.isNaN(date.getTime())) {
+    return;
+  }
+
+  const vehicle = await prisma.vehicle.findUnique({
+    where: { id: parsedCost.data.vehicleId },
+    select: { id: true }
+  });
+
+  if (!vehicle) {
+    return;
+  }
+
+  await prisma.vehicleCost.create({
+    data: {
+      vehicleId: parsedCost.data.vehicleId,
+      label: parsedCost.data.label,
+      amountCents,
+      date,
+      notes: parsedCost.data.notes || null
+    }
+  });
+
+  await updateVehicleCostTotals(parsedCost.data.vehicleId);
+
+  revalidatePath("/stock");
+  revalidatePath(`/stock/${parsedCost.data.vehicleId}/edit`);
+}
+
+export async function deleteVehicleCost(formData: FormData) {
+  await requireUser();
+
+  const costId = formData.get("costId");
+  const vehicleId = formData.get("vehicleId");
+
+  if (
+    typeof costId !== "string" ||
+    costId.length === 0 ||
+    typeof vehicleId !== "string" ||
+    vehicleId.length === 0
+  ) {
+    return;
+  }
+
+  await prisma.vehicleCost.delete({
+    where: { id: costId }
+  });
+
+  await updateVehicleCostTotals(vehicleId);
+
+  revalidatePath("/stock");
+  revalidatePath(`/stock/${vehicleId}/edit`);
+}
+
 export async function deleteVehicle(_: DeleteVehicleState, formData: FormData) {
   await requireUser();
 
   const vehicleId = formData.get("vehicleId");
+  const tab = formData.get("tab") === "archive" ? "archive" : "active";
 
   if (typeof vehicleId !== "string" || vehicleId.length === 0) {
     return { message: "Wagen niet gevonden.", success: false };
@@ -414,5 +601,5 @@ export async function deleteVehicle(_: DeleteVehicleState, formData: FormData) {
   revalidatePath("/stock");
   revalidatePath("/stock/new");
   revalidatePath("/leads/new");
-  redirect("/stock?tab=archive");
+  redirect(`/stock?tab=${tab}`);
 }
