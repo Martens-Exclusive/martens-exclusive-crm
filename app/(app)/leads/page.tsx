@@ -479,6 +479,10 @@ export default async function LeadsPage({
                     lead.nextFollowUpAt < now &&
                     !["WON", "LOST"].includes(lead.status);
 
+                  const interestText = [lead.interestedBrand, lead.interestedModel]
+                    .filter(Boolean)
+                    .join(" ");
+
                   return (
                     <tr
                       key={lead.id}
@@ -502,9 +506,18 @@ export default async function LeadsPage({
                       </td>
 
                       <td className="px-6 py-5">
-                        {lead.primaryVehicle
-                          ? `${lead.primaryVehicle.brand} ${lead.primaryVehicle.model}`
-                          : "Nog niet gekoppeld"}
+                        {lead.primaryVehicle ? (
+                          `${lead.primaryVehicle.brand} ${lead.primaryVehicle.model}`
+                        ) : interestText ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="italic text-black/70">{interestText}</span>
+                            <span className="inline-flex rounded-full border border-black/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-black/45">
+                              Interesse
+                            </span>
+                          </span>
+                        ) : (
+                          "Nog niet gekoppeld"
+                        )}
                       </td>
 
                       <td className="px-6 py-5">
