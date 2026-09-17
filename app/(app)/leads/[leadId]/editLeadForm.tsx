@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { updateLead, type UpdateLeadState } from "../actions";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ type EditLeadFormProps = {
   currentStatus: string;
   currentNextFollowUpAt: string;
   currentInternalNotes: string;
+  currentLostNotes: string;
   statuses: Array<{ value: LeadStatus; label: string }>;
 };
 
@@ -25,9 +26,11 @@ export function EditLeadForm({
   currentStatus,
   currentNextFollowUpAt,
   currentInternalNotes,
+  currentLostNotes,
   statuses
 }: EditLeadFormProps) {
   const [state, formAction, isPending] = useActionState(updateLead, initialState);
+  const [status, setStatus] = useState(currentStatus);
 
   return (
     <form
@@ -44,14 +47,38 @@ export function EditLeadForm({
 
       <div className="mt-6 flex flex-col gap-5">
         <Field label="Status">
-          <Select name="status" defaultValue={currentStatus}>
-            {statuses.map((status) => (
-              <option key={status.value} value={status.value}>
-                {status.label}
+          <Select
+            name="status"
+            defaultValue={currentStatus}
+            onChange={(event) => setStatus(event.target.value)}
+          >
+            {statuses.map((statusOption) => (
+              <option key={statusOption.value} value={statusOption.value}>
+                {statusOption.label}
               </option>
             ))}
           </Select>
         </Field>
+
+        {status === "LOST" ? (
+          <Field
+            label="Reden verloren"
+            hint="Verplicht: waarom is deze lead verloren?"
+          >
+            <Textarea
+              name="lostNotes"
+              rows={3}
+              defaultValue={currentLostNotes}
+              placeholder="Bv. koos voor concurrent, prijs te hoog, geen reactie meer..."
+            />
+
+            {state.errors?.lostNotes ? (
+              <span className="text-xs font-medium text-red-700">
+                {state.errors.lostNotes[0]}
+              </span>
+            ) : null}
+          </Field>
+        ) : null}
 
         <Field
           label="Volgende opvolging"

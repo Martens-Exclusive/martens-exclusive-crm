@@ -44,12 +44,18 @@ const createLeadSchema = z.object({
   internalNotes: optionalText
 });
 
-const updateLeadSchema = z.object({
-  leadId: z.string().trim().min(1),
-  status: z.enum(leadStatuses),
-  internalNotes: optionalText,
-  nextFollowUpAt: optionalText
-});
+const updateLeadSchema = z
+  .object({
+    leadId: z.string().trim().min(1),
+    status: z.enum(leadStatuses),
+    internalNotes: optionalText,
+    nextFollowUpAt: optionalText,
+    lostNotes: optionalText
+  })
+  .refine((data) => data.status !== "LOST" || data.lostNotes.length > 0, {
+    message: "Geef een reden op waarom deze lead verloren is.",
+    path: ["lostNotes"]
+  });
 
 const updateLeadDetailsSchema = z.object({
   leadId: z.string().trim().min(1),
@@ -269,7 +275,8 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     leadId: formData.get("leadId"),
     status: formData.get("status"),
     internalNotes: formData.get("internalNotes"),
-    nextFollowUpAt: formData.get("nextFollowUpAt")
+    nextFollowUpAt: formData.get("nextFollowUpAt"),
+    lostNotes: formData.get("lostNotes")
   });
 
   if (!parsedLead.success) {
@@ -302,7 +309,8 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
       id: true,
       status: true,
       internalNotes: true,
-      nextFollowUpAt: true
+      nextFollowUpAt: true,
+      lostNotes: true
     }
   });
 
@@ -323,11 +331,28 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     userId: string;
   }> = [];
 
+  const nextLostNotes =
+    parsedLead.data.status === "LOST" ? parsedLead.data.lostNotes || null : null;
+
   if (existingLead.status !== parsedLead.data.status) {
     activitiesToCreate.push({
       type: "STATUS_CHANGE",
       summary: "Status gewijzigd",
-      details: `Status gewijzigd naar ${parsedLead.data.status}.`,
+      details:
+        parsedLead.data.status === "LOST"
+          ? `Status gewijzigd naar LOST. Reden: ${nextLostNotes}`
+          : `Status gewijzigd naar ${parsedLead.data.status}.`,
+      occurredAt: new Date(),
+      userId: currentUser.id
+    });
+  } else if (
+    parsedLead.data.status === "LOST" &&
+    (existingLead.lostNotes || null) !== nextLostNotes
+  ) {
+    activitiesToCreate.push({
+      type: "NOTE",
+      summary: "Reden verloren bijgewerkt",
+      details: `Reden: ${nextLostNotes}`,
       occurredAt: new Date(),
       userId: currentUser.id
     });
@@ -366,6 +391,13 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
       status: parsedLead.data.status,
       internalNotes: nextInternalNotes,
       nextFollowUpAt,
+      lostNotes: nextLostNotes,
+      lostAt:
+        parsedLead.data.status === "LOST"
+          ? existingLead.status === "LOST"
+            ? undefined
+            : new Date()
+          : null,
       lastContactedAt:
         existingFollowUpTime !== nextFollowUpTime ? new Date() : undefined,
       statusHistory:

@@ -301,6 +301,7 @@ export default async function LeadDetailPage({
           currentStatus={lead.status}
           currentNextFollowUpAt={toDateTimeLocalValue(lead.nextFollowUpAt)}
           currentInternalNotes={lead.internalNotes || ""}
+          currentLostNotes={lead.lostNotes || ""}
           statuses={statuses}
         />
 
