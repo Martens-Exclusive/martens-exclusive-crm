@@ -770,6 +770,32 @@ export async function cancelAppointment(formData: FormData) {
   revalidatePath("/appointments");
 }
 
+export async function deleteAppointment(formData: FormData) {
+  await requireUser();
+
+  const appointmentId = formData.get("appointmentId");
+
+  if (typeof appointmentId !== "string" || appointmentId.length === 0) {
+    return;
+  }
+
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: { id: true, leadId: true }
+  });
+
+  if (!appointment) {
+    return;
+  }
+
+  await prisma.appointment.delete({
+    where: { id: appointment.id }
+  });
+
+  revalidatePath(`/leads/${appointment.leadId}`);
+  revalidatePath("/appointments");
+}
+
 export async function createTask(_: CreateTaskState, formData: FormData) {
   const currentUser = await requireUser();
 

@@ -1,9 +1,13 @@
 import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
+import { AppointmentActions } from "./appointment-actions";
 
 export default async function AppointmentsPage() {
   const appointments = await prisma.appointment.findMany({
+    where: {
+      status: { not: "COMPLETED" }
+    },
     include: {
       lead: true,
       assignedUser: true
@@ -23,6 +27,7 @@ export default async function AppointmentsPage() {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-black/70">
           Dit overzicht toont echte afspraken die handmatig aan een lead zijn gekoppeld.
+          Voltooide afspraken verdwijnen automatisch uit dit overzicht.
         </p>
       </section>
 
@@ -37,13 +42,14 @@ export default async function AppointmentsPage() {
                 <th className="px-6 py-4">Verkoper</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Notities</th>
+                <th className="px-6 py-4">Acties</th>
               </tr>
             </thead>
             <tbody>
               {appointments.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-12 text-center text-sm text-black/55"
                   >
                     Nog geen afspraken ingepland.
@@ -86,6 +92,13 @@ export default async function AppointmentsPage() {
 
                     <td className="px-6 py-5 text-black/70">
                       {appointment.notes || "-"}
+                    </td>
+
+                    <td className="px-6 py-5">
+                      <AppointmentActions
+                        appointmentId={appointment.id}
+                        status={appointment.status}
+                      />
                     </td>
                   </tr>
                 ))
