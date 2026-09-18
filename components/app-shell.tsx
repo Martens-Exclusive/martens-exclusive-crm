@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -26,11 +27,19 @@ export function AppShell({ children, userName }: AppShellProps) {
     <div className="min-h-screen bg-[#f3f3f3] text-black">
       <header className="sticky top-0 z-50 border-b border-black/10 bg-[#f8f8f8]/95 backdrop-blur">
         <div className="mx-auto flex min-h-[76px] w-full max-w-[1600px] items-center gap-5 px-4 sm:px-6 lg:px-10">
-          <Link href="/dashboard" className="shrink-0">
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-black/45">
-              Martens Exclusive
-            </p>
-            <h1 className="mt-1 text-xl font-bold text-black">CRM</h1>
+          <Link href="/dashboard" className="flex shrink-0 items-center gap-3">
+            <Image
+              src="/logo-dark.svg"
+              alt="Martens Exclusive"
+              width={110}
+              height={27}
+              priority
+              className="h-7 w-auto"
+            />
+
+            <span className="hidden text-xs font-bold uppercase tracking-[0.28em] text-black/40 sm:inline">
+              CRM
+            </span>
           </Link>
 
           <nav className="hidden flex-1 items-center justify-center gap-2 lg:flex">
