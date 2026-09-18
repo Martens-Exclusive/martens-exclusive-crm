@@ -27,17 +27,17 @@ export function AppShell({ children, userName }: AppShellProps) {
     <div className="min-h-screen bg-[#f3f3f3] text-black">
       <header className="sticky top-0 z-50 border-b border-black/10 bg-[#f8f8f8]/95 backdrop-blur">
         <div className="mx-auto flex min-h-[76px] w-full max-w-[1600px] items-center gap-5 px-4 sm:px-6 lg:px-10">
-          <Link href="/dashboard" className="flex shrink-0 items-center gap-3">
+          <Link href="/dashboard" className="flex shrink-0 flex-col items-start gap-1">
             <Image
               src="/logo-dark.svg"
               alt="Martens Exclusive"
-              width={110}
-              height={27}
+              width={132}
+              height={32}
               priority
-              className="h-7 w-auto"
+              className="h-8 w-auto"
             />
 
-            <span className="hidden text-xs font-bold uppercase tracking-[0.28em] text-black/40 sm:inline">
+            <span className="hidden text-[10px] font-bold uppercase tracking-[0.28em] text-black/40 sm:inline">
               CRM
             </span>
           </Link>
