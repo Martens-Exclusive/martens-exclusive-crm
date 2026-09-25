@@ -19,7 +19,8 @@ export default async function DashboardPage() {
     overdueLeads,
     openTasks,
     overdueTasks,
-    appointmentsToday
+    appointmentsToday,
+    platforms
   ] = await Promise.all([
     prisma.lead.count({ where: { status: "NEW" } }),
     prisma.lead.count({
@@ -49,6 +50,9 @@ export default async function DashboardPage() {
           lt: endOfToday
         }
       }
+    }),
+    prisma.platform.findMany({
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
     })
   ]);
 
@@ -95,6 +99,35 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </section>
+
+      {platforms.length > 0 ? (
+        <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-bold text-black">Platformen</h2>
+
+            <Link
+              href="/platforms"
+              className="text-sm font-semibold text-black/55 hover:text-black"
+            >
+              Alles bekijken →
+            </Link>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {platforms.map((platform) => (
+              <a
+                key={platform.id}
+                href={platform.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-2xl border border-black/10 bg-white px-5 py-4 text-sm font-semibold text-black transition hover:border-black/25 hover:bg-[#ececec]"
+              >
+                {platform.name}
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }
