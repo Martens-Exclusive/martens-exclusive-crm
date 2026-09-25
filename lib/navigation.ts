@@ -8,5 +8,6 @@ export const mainNavigation: Array<{
   { href: "/leads", label: "Leads" },
   { href: "/stock", label: "Stock" },
   { href: "/tasks", label: "Taken" },
-  { href: "/appointments", label: "Afspraken" }
+  { href: "/appointments", label: "Afspraken" },
+  { href: "/platforms", label: "Platformen" }
 ];

@@ -266,3 +266,14 @@ model VerificationToken {
 
   @@id([identifier, token])
 }
+
+model Platform {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
