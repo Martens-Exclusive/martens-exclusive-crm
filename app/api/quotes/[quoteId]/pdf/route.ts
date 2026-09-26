@@ -244,11 +244,13 @@ function renderBand(doc: PDFKit.PDFDocument, quote: QuoteRecord, isOfferte: bool
 
   doc.rect(0, 0, PAGE_W, bandHeight).fill(INK);
 
-  const logoPath = path.join(process.cwd(), "public", "logo.svg");
+  // pdfkit kan geen SVG's rasteren (alleen JPEG/PNG), dus gebruiken we een vooraf
+  // gerenderde PNG-versie van het witte logo in plaats van public/logo.svg.
+  const logoPath = path.join(process.cwd(), "public", "logo-white.png");
   try {
     doc.image(logoPath, MARGIN_X + padX, padTop, { width: 128 * PX });
   } catch {
-    // logo.svg kan door pdfkit niet altijd gerenderd worden; PDF blijft geldig zonder logo.
+    // Blijft de PDF geldig, zelfs als het logobestand onverwacht ontbreekt.
   }
 
   doc
@@ -476,15 +478,22 @@ function pricesBlock(
     });
   }
 
+  const rowFontSize = 12 * PX;
+  const rowPadding = 6 * PX;
+
   for (const row of rows) {
     doc
       .font("Regular")
-      .fontSize(12 * PX)
+      .fontSize(rowFontSize)
       .fillColor(row.muted ? GREY : INK)
-      .text(row.label, MARGIN_X, rowY, { continued: true, width: CONTENT_W });
+      .text(row.label, MARGIN_X, rowY + rowPadding, { continued: true, width: CONTENT_W });
     doc.text(row.value, { align: "right" });
-    rowY += 6 * PX * 2;
-    divider(doc, rowY - 4 * PX);
+
+    // Rijhoogte = boven-/onderpadding + de werkelijke teksthoogte, anders overlappen
+    // de prijsregels elkaar (de vaste stap van vroeger was te klein voor dit lettertype).
+    const lineH = doc.heightOfString(row.label, { width: CONTENT_W });
+    rowY += rowPadding * 2 + lineH;
+    divider(doc, rowY);
   }
 
   const barH = 10 * PX * 2 + 4 * PX;
@@ -522,15 +531,6 @@ function renderClosing(doc: PDFKit.PDFDocument, y: number, closingText: string) 
     .fontSize(12 * PX)
     .fillColor(INK)
     .text(closingText || "", MARGIN_X, y + 8 * PX, { width: CONTENT_W * 0.75 });
-
-  doc.moveDown(1);
-  doc.font("Regular").fontSize(12 * PX).fillColor(INK).text("Met vriendelijke groeten,");
-  doc.font("Regular").fontSize(12 * PX).fillColor(INK).text("Jannick Martens");
-  doc
-    .font("Light")
-    .fontSize(12 * PX)
-    .fillColor(GREY)
-    .text("+32 484 28 85 48   ·   jannick@martens-exclusive.be");
 }
 
 function renderAcceptance(doc: PDFKit.PDFDocument, y: number, date: Date): number {
@@ -563,26 +563,39 @@ function renderSignatures(doc: PDFKit.PDFDocument, y: number) {
   });
 }
 
+// Tekent één regel opgebouwd uit meerdere kleuren, gecentreerd als geheel.
+// (pdfkit's combinatie van `continued: true` met `align: "center"` centreert elk
+// tekstfragment apart in plaats van de hele regel als één geheel, waardoor de
+// stukken over elkaar heen worden getekend — vandaar deze eigen implementatie.)
+function centeredMultiColor(
+  doc: PDFKit.PDFDocument,
+  y: number,
+  fontSize: number,
+  parts: Array<{ text: string; color: string; characterSpacing?: number }>
+) {
+  doc.font("Regular").fontSize(fontSize);
+  const widths = parts.map((part) =>
+    doc.widthOfString(part.text, { characterSpacing: part.characterSpacing ?? 0 })
+  );
+  const totalWidth = widths.reduce((sum, w) => sum + w, 0);
+
+  let x = MARGIN_X + Math.max(0, (CONTENT_W - totalWidth) / 2);
+  parts.forEach((part, index) => {
+    doc
+      .fillColor(part.color)
+      .text(part.text, x, y, { lineBreak: false, characterSpacing: part.characterSpacing ?? 0 });
+    x += widths[index];
+  });
+}
+
 function renderFooter(doc: PDFKit.PDFDocument) {
   divider(doc, FOOTER_Y);
 
-  doc
-    .font("Regular")
-    .fontSize(7.3 * PX)
-    .fillColor(INK)
-    .text("MARTENS EXCLUSIVE BV ", MARGIN_X, FOOTER_Y + 7 * PX, {
-      continued: true,
-      characterSpacing: 7.3 * PX * 0.25,
-      width: CONTENT_W,
-      align: "center"
-    });
-  doc
-    .font("Regular")
-    .fillColor(GREY)
-    .text(
-      "Assesteenweg 122/3, 1750 Sint-Kwintens-Lennik · BTW BE 0707.682.405 · RPR Brussel",
-      { align: "center" }
-    );
+  centeredMultiColor(doc, FOOTER_Y + 7 * PX, 7.3 * PX, [
+    { text: "MARTENS EXCLUSIVE BV ", color: INK, characterSpacing: 7.3 * PX * 0.25 },
+    { text: "Assesteenweg 122/3, 1750 Sint-Kwintens-Lennik · BTW BE 0707.682.405 · RPR Brussel", color: GREY }
+  ]);
+
   doc
     .font("Regular")
     .fontSize(7.3 * PX)
