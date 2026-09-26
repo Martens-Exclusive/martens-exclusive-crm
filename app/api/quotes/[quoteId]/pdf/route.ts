@@ -20,7 +20,6 @@ const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const MARGIN_X = 38 * PX;
 const CONTENT_W = PAGE_W - MARGIN_X * 2;
-const FOOTER_Y = PAGE_H - 22 * PX;
 
 const INK = "#1D1D1B";
 const GREY = "#7A7772";
@@ -237,10 +236,29 @@ function renderBand(doc: PDFKit.PDFDocument, quote: QuoteRecord, isOfferte: bool
   const kindText = isOfferte ? "OFFERTE" : "BESTELBON";
   const titleText = quote.vehicleTitle || " ";
 
+  // Logo en het "OFFERTE"/"BESTELBON"-label staan naast elkaar op één regel
+  // (net als in de referentie). De titel ("merk model") mag pas beginnen nadat
+  // de langste van de twee — meestal het logo — helemaal is afgerond, anders
+  // plakt de titel tegen het logo.
+  const logoW = 128 * PX;
+  const logoAspect = 218 / 896; // hoogte/breedte van de logo-PNG (zelfde verhouding als logo.svg)
+  const logoH = logoW * logoAspect;
+  const logoMarginTop = 5 * PX;
+  const logoBottom = padTop + logoMarginTop + logoH;
+
+  doc.font("Light").fontSize(17 * PX);
+  const kindHeight = doc.heightOfString(kindText, { width: CONTENT_W - padX * 2 });
+  const kindBottom = padTop + 4 * PX + kindHeight;
+
+  const titleY = Math.max(logoBottom, kindBottom) + 30 * PX;
+
   doc.font("Regular").fontSize(25 * PX);
   const titleHeight = doc.heightOfString(titleText, { width: CONTENT_W - padX * 2 });
 
-  const bandHeight = padTop + 17 * PX + 1.1 * (30 * PX) + titleHeight * 1.15 + 10 * PX + 1.1 * (10 * PX) + padBottom;
+  const metaY = titleY + titleHeight * 1.15 + 6 * PX;
+  const metaHeight = 10 * PX * 1.1;
+
+  const bandHeight = metaY + metaHeight + padBottom;
 
   doc.rect(0, 0, PAGE_W, bandHeight).fill(INK);
 
@@ -248,7 +266,7 @@ function renderBand(doc: PDFKit.PDFDocument, quote: QuoteRecord, isOfferte: bool
   // gerenderde PNG-versie van het witte logo in plaats van public/logo.svg.
   const logoPath = path.join(process.cwd(), "public", "logo-white.png");
   try {
-    doc.image(logoPath, MARGIN_X + padX, padTop, { width: 128 * PX });
+    doc.image(logoPath, MARGIN_X + padX, padTop + logoMarginTop, { width: logoW });
   } catch {
     // Blijft de PDF geldig, zelfs als het logobestand onverwacht ontbreekt.
   }
@@ -263,7 +281,6 @@ function renderBand(doc: PDFKit.PDFDocument, quote: QuoteRecord, isOfferte: bool
       characterSpacing: 17 * PX * 0.34
     });
 
-  const titleY = padTop + 30 * PX;
   doc
     .font("Regular")
     .fontSize(25 * PX)
@@ -273,7 +290,6 @@ function renderBand(doc: PDFKit.PDFDocument, quote: QuoteRecord, isOfferte: bool
       characterSpacing: 25 * PX * 0.06
     });
 
-  const metaY = titleY + titleHeight * 1.15 + 6 * PX;
   const metaParts = [`DATUM   ${formatDateBE(quote.date)}`];
   if (isOfferte && quote.validUntil) {
     metaParts.push(`GELDIG TOT   ${formatDateBE(quote.validUntil)}`);
@@ -589,23 +605,37 @@ function centeredMultiColor(
 }
 
 function renderFooter(doc: PDFKit.PDFDocument) {
-  divider(doc, FOOTER_Y);
+  // De voettekst wordt vanaf de onderkant van de pagina opgebouwd (net als
+  // "bottom: 22px" in de referentie), zodat er altijd evenveel lucht onder
+  // blijft staan — ongeacht hoe hoog de regels precies uitvallen.
+  const bottomMargin = 22 * PX;
+  const lineGap = 3 * PX;
 
-  centeredMultiColor(doc, FOOTER_Y + 7 * PX, 7.3 * PX, [
-    { text: "MARTENS EXCLUSIVE BV ", color: INK, characterSpacing: 7.3 * PX * 0.25 },
-    { text: "Assesteenweg 122/3, 1750 Sint-Kwintens-Lennik · BTW BE 0707.682.405 · RPR Brussel", color: GREY }
+  const companyText = "MARTENS EXCLUSIVE BV ";
+  const addressText = "Assesteenweg 122/3, 1750 Sint-Kwintens-Lennik · BTW BE 0707.682.405 · RPR Brussel";
+  const bankText =
+    "KBC BE26 7340 7840 7129 (KREDBEBB) · Belfius BE78 0689 4014 9386 (GKCCBEBB) · info@martens-exclusive.be · +32 484 28 85 48 · martens-exclusive.be";
+
+  doc.font("Regular").fontSize(7.3 * PX);
+  const bankHeight = doc.heightOfString(bankText, { width: CONTENT_W });
+  const addressLineHeight = doc.heightOfString(addressText, { width: CONTENT_W });
+
+  const bankTop = PAGE_H - bottomMargin - bankHeight;
+  const addressTop = bankTop - lineGap - addressLineHeight;
+  const dividerY = addressTop - 7 * PX;
+
+  divider(doc, dividerY);
+
+  centeredMultiColor(doc, addressTop, 7.3 * PX, [
+    { text: companyText, color: INK, characterSpacing: 7.3 * PX * 0.25 },
+    { text: addressText, color: GREY }
   ]);
 
   doc
     .font("Regular")
     .fontSize(7.3 * PX)
     .fillColor(GREY)
-    .text(
-      "KBC BE26 7340 7840 7129 (KREDBEBB) · Belfius BE78 0689 4014 9386 (GKCCBEBB) · info@martens-exclusive.be · +32 484 28 85 48 · martens-exclusive.be",
-      MARGIN_X,
-      FOOTER_Y + 14 * PX,
-      { width: CONTENT_W, align: "center" }
-    );
+    .text(bankText, MARGIN_X, bankTop, { width: CONTENT_W, align: "center" });
 }
 
 function pageHeading(doc: PDFKit.PDFDocument, title: string, subtitle: string) {
