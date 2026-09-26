@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { completeFollowUp, completeTask } from "../actions";
+import { createQuote, duplicateAsOrder } from "./quotes/actions";
 
 import {
   leadPriorityLabels,
@@ -10,6 +12,8 @@ import {
   type LeadStatus
 } from "@/lib/lead-status";
 import { formatCurrencyFromCents } from "@/lib/utils";
+import { calcQuotePricing, formatDateBE, formatEuro } from "@/lib/quote-calc";
+import { QUOTE_TYPE_LABELS } from "@/lib/quote-content";
 import { prisma } from "@/lib/prisma";
 
 import { AppointmentStatusButtons } from "./appointment-status-buttons";
@@ -68,7 +72,7 @@ export default async function LeadDetailPage({
     label: leadStatusLabels[value]
   }));
 
-  const [users, vehicles] = await Promise.all([
+  const [users, vehicles, quotes] = await Promise.all([
     prisma.user.findMany({
       where: { isActive: true },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
@@ -83,6 +87,21 @@ export default async function LeadDetailPage({
         model: true,
         variant: true,
         stockNumber: true
+      }
+    }),
+    prisma.quote.findMany({
+      where: { leadId },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        type: true,
+        date: true,
+        vehicleTitle: true,
+        vatType: true,
+        priceIncludesVat: true,
+        salePrice: true,
+        tradeIn: true,
+        deposit: true
       }
     })
   ]);
@@ -144,6 +163,8 @@ export default async function LeadDetailPage({
             leadId={lead.id}
             firstName={lead.firstName}
             lastName={lead.lastName}
+            companyName={lead.companyName || ""}
+            vatNumber={lead.vatNumber || ""}
             phone={lead.phone || ""}
             email={lead.email || ""}
             street={lead.street || ""}
@@ -220,6 +241,88 @@ export default async function LeadDetailPage({
             <TextBlock title="Interne notities" text={lead.internalNotes} />
           ) : null}
         </div>
+
+        <OverviewBlock title="Offertes & bestelbonnen">
+          <div className="flex flex-wrap gap-3">
+            <form action={createQuote}>
+              <input type="hidden" name="leadId" value={lead.id} />
+              <input type="hidden" name="type" value="OFFERTE" />
+              <button
+                type="submit"
+                className="rounded-2xl border border-black/15 bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80"
+              >
+                Offerte maken
+              </button>
+            </form>
+
+            <form action={createQuote}>
+              <input type="hidden" name="leadId" value={lead.id} />
+              <input type="hidden" name="type" value="BESTELBON" />
+              <button
+                type="submit"
+                className="rounded-2xl border border-black/15 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#ececec]"
+              >
+                Bestelbon maken
+              </button>
+            </form>
+          </div>
+
+          {quotes.length === 0 ? (
+            <EmptyState text="Nog geen offertes of bestelbonnen voor deze lead." />
+          ) : (
+            quotes.map((quote) => {
+              const pricing = calcQuotePricing({
+                vatType: quote.vatType,
+                priceIncludesVat: quote.priceIncludesVat,
+                salePrice: quote.salePrice,
+                tradeIn: quote.tradeIn,
+                deposit: quote.deposit
+              });
+
+              return (
+                <div
+                  key={quote.id}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-black/10 bg-[#efefef] p-5"
+                >
+                  <div>
+                    <span className="inline-flex rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+                      {QUOTE_TYPE_LABELS[quote.type] ?? quote.type}
+                    </span>
+
+                    <p className="mt-2 font-semibold text-black">
+                      {quote.vehicleTitle || "Zonder wagen"}
+                    </p>
+
+                    <p className="mt-1 text-xs text-black/45">{formatDateBE(quote.date)}</p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm font-bold text-black">{formatEuro(pricing.total)}</p>
+
+                    <Link
+                      href={`/leads/${lead.id}/quotes/${quote.id}`}
+                      className="rounded-xl border border-black/15 bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-[#e2e2e2]"
+                    >
+                      Openen
+                    </Link>
+
+                    {quote.type === "OFFERTE" ? (
+                      <form action={duplicateAsOrder}>
+                        <input type="hidden" name="quoteId" value={quote.id} />
+                        <button
+                          type="submit"
+                          className="rounded-xl border border-black/15 bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-[#e2e2e2]"
+                        >
+                          Naar bestelbon
+                        </button>
+                      </form>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </OverviewBlock>
 
         <OverviewBlock title="Taken">
           {lead.tasks.length === 0 ? (

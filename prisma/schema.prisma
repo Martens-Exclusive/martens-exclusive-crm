@@ -91,6 +91,8 @@ model Lead {
   id                     String                  @id @default(cuid())
   firstName              String
   lastName               String
+  companyName            String?
+  vatNumber              String?
   phone                  String?
   email                  String?
   street                 String?
@@ -129,6 +131,7 @@ model Lead {
   appointments           Appointment[]
   statusHistory          LeadStatusHistory[]
   assignmentHistory      LeadAssignmentHistory[]
+  quotes                 Quote[]
 
   @@index([status])
   @@index([assignedUserId, status])
@@ -276,4 +279,61 @@ model Platform {
   updatedAt DateTime @updatedAt
 
   @@index([sortOrder])
+}
+
+model Quote {
+  id                String    @id @default(cuid())
+  leadId            String
+  type              String // "OFFERTE" | "BESTELBON"
+  date              DateTime  @default(now())
+  validUntil        DateTime?
+
+  // Wagen
+  vehicleTitle       String  @default("")
+  chassisNumber      String  @default("")
+  mileage            String  @default("")
+  firstRegistration  String  @default("")
+  fuelType           String  @default("")
+  transmission       String  @default("")
+  displacement       String  @default("")
+  power              String  @default("")
+  co2                String  @default("")
+  euroNorm           String  @default("")
+  warranty           String  @default("12 maanden")
+  exterior           String  @default("")
+  interior           String  @default("")
+
+  // Documenten (checklist)
+  docKeys                Boolean @default(true)
+  docMaintenanceBooklet  Boolean @default(true)
+  docCarPass             Boolean @default(true)
+  docRegistration        Boolean @default(true)
+  docCoc                 Boolean @default(true)
+  docWarranty            Boolean @default(true)
+
+  // Opmerkingen
+  remarks String @default("")
+
+  // Prijzen (bewaard als euro's, niet centen, zodat de berekening bit-voor-bit
+  // dezelfde afrondingen geeft als de referentie-implementatie)
+  vatType           Int     @default(21) // 21 of 0 (margeregeling)
+  priceIncludesVat  Boolean @default(true)
+  salePrice         Float   @default(0)
+  tradeIn           Float   @default(0)
+  deposit           Float   @default(0)
+  biv               Float?
+  annualRoadTax     Float?
+
+  // Enkel offerte
+  equipmentText String   @default("")
+  closingText   String   @default("")
+  photoUrls     String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([type])
 }

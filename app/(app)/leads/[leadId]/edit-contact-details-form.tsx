@@ -11,6 +11,8 @@ type EditContactDetailsFormProps = {
   leadId: string;
   firstName: string;
   lastName: string;
+  companyName: string;
+  vatNumber: string;
   phone: string;
   email: string;
   street: string;
@@ -37,6 +39,8 @@ export function EditContactDetailsForm({
   leadId,
   firstName,
   lastName,
+  companyName,
+  vatNumber,
   phone,
   email,
   street,
@@ -78,6 +82,8 @@ export function EditContactDetailsForm({
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <InfoRow label="Voornaam" value={firstName || "-"} />
             <InfoRow label="Achternaam" value={lastName || "-"} />
+            <InfoRow label="Bedrijf" value={companyName || "-"} />
+            <InfoRow label="Btw-nummer" value={vatNumber || "-"} />
             <InfoRow label="Telefoon" value={phone || "-"} />
             <InfoRow label="E-mail" value={email || "-"} />
           </div>
@@ -104,6 +110,14 @@ export function EditContactDetailsForm({
 
             <Field label="Achternaam">
               <Input name="lastName" defaultValue={lastName} required />
+            </Field>
+
+            <Field label="Bedrijf" hint="Optioneel. Leeg = particuliere klant.">
+              <Input name="companyName" defaultValue={companyName} />
+            </Field>
+
+            <Field label="Btw-nummer" hint="Optioneel.">
+              <Input name="vatNumber" defaultValue={vatNumber} />
             </Field>
 
             <Field
