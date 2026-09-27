@@ -359,7 +359,7 @@ function kvBlock(
   if (withDivider) divider(doc, y);
   // Zonder lijntje (het allereerste blok, net onder de zwarte kop) toch
   // voldoende luchtig houden — anders plakt de tekst tegen de band aan.
-  const top = y + (withDivider ? 13 * PX : 51 * PX);
+  const top = y + (withDivider ? 20 * PX : 51 * PX);
   blockLabel(doc, label, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
@@ -385,7 +385,7 @@ function kvBlock(
     rowY += rowHeight;
   }
 
-  return Math.max(rowY, top + 11 * PX) + 11 * PX;
+  return Math.max(rowY, top + 11 * PX) + 18 * PX;
 }
 
 // Tekent het vinkje als vector-lijntjes in plaats van als tekst-glyph: het
@@ -421,7 +421,7 @@ function documentsBlock(
   t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ): number {
   divider(doc, y);
-  const top = y + 13 * PX;
+  const top = y + 20 * PX;
   blockLabel(doc, t.documenten, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
@@ -447,7 +447,7 @@ function documentsBlock(
   });
 
   const rows = Math.ceil(DOC_CHECKLIST.length / 3);
-  return top + rows * rowHeight + 11 * PX;
+  return top + rows * rowHeight + 18 * PX;
 }
 
 function fiscalBlock(
@@ -458,7 +458,7 @@ function fiscalBlock(
   t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ): number {
   divider(doc, y);
-  const top = y + 13 * PX;
+  const top = y + 20 * PX;
   blockLabel(doc, t.fiscaal, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
@@ -496,7 +496,7 @@ function remarksBlock(
   t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ): number {
   divider(doc, y);
-  const top = y + 13 * PX;
+  const top = y + 20 * PX;
   blockLabel(doc, t.opmerkingen, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
@@ -518,7 +518,7 @@ function remarksBlock(
     }
   }
 
-  return rowY + 9 * PX;
+  return rowY + 16 * PX;
 }
 
 function pricesBlock(
