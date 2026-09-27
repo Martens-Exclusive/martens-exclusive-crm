@@ -22,7 +22,11 @@
 .band {
   background: #1d1d1b;
   color: #fff;
-  padding: 26px 28px 24px;
+  /* Loopt helemaal door tot de paginarand (heft de padding van .page zelf op),
+     zodat de kop — net als op de PDF — volledig "bleedt" i.p.v. er als een
+     ingekaderd vlak in te hangen. */
+  margin: -36px -38px 0;
+  padding: 43px 66px 47px;
 }
 .bandTop {
   display: flex;
@@ -38,16 +42,29 @@
   font-size: 17px;
   font-weight: 300;
 }
+.titleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 16px;
+}
 .band h1 {
+  /* Kan krimpen/wrappen naast de datum (zie .meta) i.p.v. eroverheen te lopen
+     bij een lange merk/model-titel. */
+  flex: 1 1 auto;
+  min-width: 0;
   font-weight: 400;
   font-size: 25px;
   letter-spacing: 0.06em;
-  margin: 26px 0 6px;
+  margin: 0;
   line-height: 1.2;
 }
 .meta {
+  flex: 0 0 auto;
+  padding-left: 20px;
   font-size: 10px;
   color: #d9d5ce;
+  white-space: nowrap;
 }
 .meta b {
   font-weight: 300;
@@ -70,7 +87,7 @@
    plakt de tekst tegen de donkere band aan. */
 .blk.first {
   border-top: none;
-  padding-top: 26px;
+  padding-top: 51px;
 }
 .blk > .lab {
   font-weight: 400;

@@ -756,18 +756,20 @@ function QuoteDocument({
               <img src="/logo.svg" alt="Martens Exclusive" />
               <div className={styles.kind}>{isOfferte ? t.kind.OFFERTE : t.kind.BESTELBON}</div>
             </div>
-            <h1>{q.vehicleTitle || " "}</h1>
-            <div className={styles.meta}>
-              <span>
-                <b>{t.datum}</b>
-                {formatDateBE(q.date)}
-              </span>
-              {isOfferte && q.validUntil ? (
+            <div className={styles.titleRow}>
+              <h1>{q.vehicleTitle || " "}</h1>
+              <div className={styles.meta}>
                 <span>
-                  <b>{t.geldigTot}</b>
-                  {formatDateBE(q.validUntil)}
+                  <b>{t.datum}</b>
+                  {formatDateBE(q.date)}
                 </span>
-              ) : null}
+                {isOfferte && q.validUntil ? (
+                  <span>
+                    <b>{t.geldigTot}</b>
+                    {formatDateBE(q.validUntil)}
+                  </span>
+                ) : null}
+              </div>
             </div>
           </div>
 

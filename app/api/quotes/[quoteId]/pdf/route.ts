@@ -240,16 +240,17 @@ function renderBand(
   t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ): number {
   const padX = 28 * PX;
-  const padTop = 26 * PX;
-  const padBottom = 24 * PX;
+  const padTop = 43 * PX;
+  const padBottom = 47 * PX;
+  const rowGap = 16 * PX; // ruimte tussen de logo/label-regel en de titel/datum-regel eronder
 
   const kindText = isOfferte ? t.kind.OFFERTE : t.kind.BESTELBON;
   const titleText = quote.vehicleTitle || " ";
 
   // Logo linksboven, met het "OFFERTE"/"BESTELBON"-label ernaast rechts op
-  // dezelfde regel (verticaal op elkaar gecentreerd). De titel ("Merk Model")
-  // komt daaronder, op dezelfde linkermarge als het logo — dus links mooi
-  // uitgelijnd met elkaar, niet ernaast.
+  // dezelfde regel (verticaal op elkaar gecentreerd). Daaronder, op dezelfde
+  // linkermarge als het logo, de titel ("Merk Model") met de datum ernaast
+  // rechts uitgelijnd — allebei op dezelfde regel.
   const logoW = 128 * PX;
   const logoAspect = 218 / 896; // hoogte/breedte van de logo-PNG (zelfde verhouding als logo.svg)
   const logoH = logoW * logoAspect;
@@ -261,15 +262,30 @@ function renderBand(
   const logoY = padTop + (topRowH - logoH) / 2;
   const kindY = padTop + (topRowH - kindHeight) / 2;
 
-  const titleY = padTop + topRowH + 26 * PX; // ruimte tussen logo/label-regel en de titel eronder
+  const titleY = padTop + topRowH + rowGap;
+
+  const metaParts = [`${t.datum}   ${formatDateBE(quote.date)}`];
+  if (isOfferte && quote.validUntil) {
+    metaParts.push(`${t.geldigTot}   ${formatDateBE(quote.validUntil)}`);
+  }
+  const metaText = metaParts.join("        ");
+
+  doc.font("Light").fontSize(10 * PX);
+  const metaWidth = doc.widthOfString(metaText);
+
+  // De titel deelt zijn regel met de datum rechts ernaast — houd daarom ruimte
+  // vrij aan de rechterkant, zodat een langere titel ernaast doorloopt naar een
+  // tweede regel in plaats van over de datum heen te lopen (net als de flexbox
+  // in de live preview, die de titel laat krimpen/wrappen naast de datum).
+  const titleGap = 20 * PX;
+  const fullTitleW = CONTENT_W - padX * 2;
+  const titleW = Math.max(fullTitleW * 0.5, fullTitleW - metaWidth - titleGap);
 
   doc.font("Regular").fontSize(25 * PX);
-  const titleHeight = doc.heightOfString(titleText, { width: CONTENT_W - padX * 2 });
+  const titleHeight = doc.heightOfString(titleText, { width: titleW });
+  const singleLineHeight = 25 * PX;
 
-  const metaY = titleY + titleHeight * 1.15 + 6 * PX;
-  const metaHeight = 10 * PX * 1.1;
-
-  const bandHeight = metaY + metaHeight + padBottom;
+  const bandHeight = titleY + titleHeight + padBottom;
 
   doc.rect(0, 0, PAGE_W, bandHeight).fill(INK);
 
@@ -292,26 +308,25 @@ function renderBand(
       characterSpacing: 17 * PX * 0.34
     });
 
+  // Datum rechts uitgelijnd, op dezelfde regel als (de eerste regel van) de
+  // titel — onderaan tegen de titel uitgelijnd, ongeacht of de titel zelf
+  // naar een tweede regel doorloopt.
+  doc
+    .font("Light")
+    .fontSize(10 * PX)
+    .fillColor("#D9D5CE")
+    .text(metaText, MARGIN_X, titleY + singleLineHeight - 10 * PX, {
+      width: CONTENT_W - padX,
+      align: "right"
+    });
+
   doc
     .font("Regular")
     .fontSize(25 * PX)
     .fillColor(WHITE)
     .text(titleText, MARGIN_X + padX, titleY, {
-      width: CONTENT_W - padX * 2,
+      width: titleW,
       characterSpacing: 25 * PX * 0.06
-    });
-
-  const metaParts = [`${t.datum}   ${formatDateBE(quote.date)}`];
-  if (isOfferte && quote.validUntil) {
-    metaParts.push(`${t.geldigTot}   ${formatDateBE(quote.validUntil)}`);
-  }
-
-  doc
-    .font("Light")
-    .fontSize(10 * PX)
-    .fillColor("#D9D5CE")
-    .text(metaParts.join("        "), MARGIN_X + padX, metaY, {
-      width: CONTENT_W - padX * 2
     });
 
   return bandHeight + 10 * PX;
@@ -344,7 +359,7 @@ function kvBlock(
   if (withDivider) divider(doc, y);
   // Zonder lijntje (het allereerste blok, net onder de zwarte kop) toch
   // voldoende luchtig houden — anders plakt de tekst tegen de band aan.
-  const top = y + (withDivider ? 13 * PX : 26 * PX);
+  const top = y + (withDivider ? 13 * PX : 51 * PX);
   blockLabel(doc, label, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
