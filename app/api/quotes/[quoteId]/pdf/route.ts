@@ -546,7 +546,7 @@ function pricesBlock(
   }
 
   const rowFontSize = 12 * PX;
-  const rowPadding = 6 * PX;
+  const rowPadding = 10 * PX;
 
   for (const row of rows) {
     doc
