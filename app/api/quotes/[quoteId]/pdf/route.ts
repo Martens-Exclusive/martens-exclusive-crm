@@ -246,32 +246,27 @@ function renderBand(
   const kindText = isOfferte ? t.kind.OFFERTE : t.kind.BESTELBON;
   const titleText = quote.vehicleTitle || " ";
 
-  // Het "OFFERTE"/"BESTELBON"-label staat als eigen, korte regel bovenaan.
-  // Het logo staat op dezelfde regel als "Merk Model" (de titel), verticaal
-  // op elkaar gecentreerd — dat is waar het logo van nature bij hoort, niet
-  // bij het kleine label erboven.
+  // Logo linksboven, met het "OFFERTE"/"BESTELBON"-label ernaast rechts op
+  // dezelfde regel (verticaal op elkaar gecentreerd). De titel ("Merk Model")
+  // komt daaronder, op dezelfde linkermarge als het logo — dus links mooi
+  // uitgelijnd met elkaar, niet ernaast.
   const logoW = 128 * PX;
   const logoAspect = 218 / 896; // hoogte/breedte van de logo-PNG (zelfde verhouding als logo.svg)
   const logoH = logoW * logoAspect;
-  const titleGap = 18 * PX; // ruimte tussen logo en titeltekst
 
   doc.font("Light").fontSize(17 * PX);
   const kindHeight = doc.heightOfString(kindText, { width: CONTENT_W - padX * 2 });
-  const kindY = padTop;
 
-  const rowGap = 16 * PX; // ruimte tussen de OFFERTE/BESTELBON-regel en de logo+titel-regel
-  const titleX = MARGIN_X + padX + logoW + titleGap;
-  const titleWidth = CONTENT_W - padX * 2 - logoW - titleGap;
+  const topRowH = Math.max(logoH, kindHeight);
+  const logoY = padTop + (topRowH - logoH) / 2;
+  const kindY = padTop + (topRowH - kindHeight) / 2;
+
+  const titleY = padTop + topRowH + 26 * PX; // ruimte tussen logo/label-regel en de titel eronder
 
   doc.font("Regular").fontSize(25 * PX);
-  const titleHeight = doc.heightOfString(titleText, { width: titleWidth });
+  const titleHeight = doc.heightOfString(titleText, { width: CONTENT_W - padX * 2 });
 
-  const row2Top = kindY + kindHeight + rowGap;
-  const row2H = Math.max(logoH, titleHeight);
-  const logoY = row2Top + (row2H - logoH) / 2;
-  const titleY = row2Top + (row2H - titleHeight) / 2;
-
-  const metaY = row2Top + row2H + 20 * PX;
+  const metaY = titleY + titleHeight * 1.15 + 6 * PX;
   const metaHeight = 10 * PX * 1.1;
 
   const bandHeight = metaY + metaHeight + padBottom;
@@ -301,8 +296,8 @@ function renderBand(
     .font("Regular")
     .fontSize(25 * PX)
     .fillColor(WHITE)
-    .text(titleText, titleX, titleY, {
-      width: titleWidth,
+    .text(titleText, MARGIN_X + padX, titleY, {
+      width: CONTENT_W - padX * 2,
       characterSpacing: 25 * PX * 0.06
     });
 
@@ -553,7 +548,9 @@ function pricesBlock(
     divider(doc, rowY);
   }
 
-  const barH = 10 * PX * 2 + 4 * PX;
+  // Iets steviger/hoger vak dan de rest van de prijsregels, zodat het saldo
+  // duidelijk de nadruk krijgt — ook zichtbaar bij afdrukken.
+  const barH = 16 * PX * 2 + 4 * PX;
   doc.rect(MARGIN_X, rowY, CONTENT_W, barH).fill(INK);
   doc
     .font("Regular")

@@ -24,20 +24,14 @@
   color: #fff;
   padding: 26px 28px 24px;
 }
-.kindRow {
+.bandTop {
   display: flex;
-  justify-content: flex-end;
-}
-.titleRow {
-  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 18px;
-  margin-top: 16px;
 }
 .band img {
   width: 128px;
   display: block;
-  flex-shrink: 0;
 }
 .kind {
   letter-spacing: 0.34em;
@@ -48,13 +42,12 @@
   font-weight: 400;
   font-size: 25px;
   letter-spacing: 0.06em;
-  margin: 0;
+  margin: 26px 0 6px;
   line-height: 1.2;
 }
 .meta {
   font-size: 10px;
   color: #d9d5ce;
-  margin-top: 20px;
 }
 .meta b {
   font-weight: 300;
@@ -160,7 +153,7 @@
   align-items: center;
   background: #1d1d1b;
   color: #fff;
-  padding: 10px 14px;
+  padding: 16px 14px;
   margin-top: 0;
 }
 .prices .t .l {
