@@ -14,6 +14,7 @@ import { addQuotePhoto, deleteQuote, moveQuotePhoto, removeQuotePhoto, saveQuote
 import { calcQuotePricing, formatDateBE, formatEuro, parseAmount } from "@/lib/quote-calc";
 import {
   DOC_CHECKLIST,
+  DOCUMENT_LABELS,
   FINANCING_CLAUSE,
   ORDER_ACCEPTANCE_TEXT,
   QUOTE_TYPE_LABELS,
@@ -35,6 +36,7 @@ export type QuoteEditorInitial = {
   id: string;
   leadId: string;
   type: "OFFERTE" | "BESTELBON";
+  language: "NL" | "FR" | "EN";
   date: string;
   validUntil: string;
   vehicleTitle: string;
@@ -119,6 +121,7 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
 
     saveTimer.current = setTimeout(async () => {
       const result = await saveQuote(q.id, {
+        language: q.language,
         date: q.date,
         validUntil: q.validUntil || null,
         vehicleTitle: q.vehicleTitle,
@@ -188,6 +191,10 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
     setQ((prev) => ({ ...prev, vatType }));
   }
 
+  function setLanguage(language: "NL" | "FR" | "EN") {
+    setQ((prev) => ({ ...prev, language }));
+  }
+
   function setPriceIncludesVat(nextIncl: boolean) {
     setQ((prev) => {
       const current = calcQuotePricing({
@@ -208,10 +215,10 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
 
   function addFinancingClause() {
     setQ((prev) => {
-      if (prev.remarks.includes("Financiering:")) return prev;
+      if (prev.remarks.includes("Financiering:") || prev.remarks.includes("Financement :")) return prev;
       return {
         ...prev,
-        remarks: (prev.remarks ? prev.remarks.trim() + "\n" : "") + FINANCING_CLAUSE
+        remarks: (prev.remarks ? prev.remarks.trim() + "\n" : "") + FINANCING_CLAUSE[prev.language]
       };
     });
   }
@@ -334,7 +341,7 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
           warranty: q.warranty,
           exterior: q.exterior,
           interior: q.interior
-        })
+        }, q.language)
       ),
     [q]
   );
@@ -378,6 +385,21 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
         <div className="flex flex-col gap-6 px-6 py-6">
           <section className="flex flex-col gap-4">
             <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-black/45">Algemeen</h4>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs text-black/55">Taal van het document</span>
+              <Segmented
+                options={[
+                  { value: "NL", label: "Nederlands" },
+                  { value: "FR", label: "Frans" },
+                  { value: "EN", label: "Engels" }
+                ]}
+                value={q.language}
+                onChange={setLanguage}
+              />
+              <span className="text-xs text-black/40">
+                Op elk moment aanpasbaar — ook nadat de offerte/bestelbon al is aangemaakt.
+              </span>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <LabeledInput label="Datum" type="date" {...field("date")} />
               {isOfferte ? <LabeledInput label="Geldig tot" type="date" {...field("validUntil")} /> : null}
@@ -391,7 +413,7 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
               {VEHICLE_SPECS.map((spec) => (
                 <LabeledInput
                   key={spec.key}
-                  label={spec.label}
+                  label={spec.label.NL}
                   placeholder={spec.placeholder}
                   {...field(spec.key as StringKey)}
                 />
@@ -410,7 +432,7 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
                     onChange={() => toggleDoc(doc.key as BoolKey)}
                     className="h-4 w-4 accent-black"
                   />
-                  {doc.label}
+                  {doc.label.NL}
                 </label>
               ))}
             </div>
@@ -659,7 +681,7 @@ function LabeledTextarea({
   );
 }
 
-function Segmented<T extends number>({
+function Segmented<T extends number | string>({
   options,
   value,
   onChange
@@ -721,7 +743,8 @@ function QuoteDocument({
   const isOfferte = q.type === "OFFERTE";
   const equipmentLines = equipmentEntries.length > 0;
   const photoLines = q.photoUrls.length > 0;
-  const acceptanceText = ORDER_ACCEPTANCE_TEXT.replace("{datum}", formatDateBE(q.date) || "…");
+  const t = DOCUMENT_LABELS[q.language];
+  const acceptanceText = ORDER_ACCEPTANCE_TEXT[q.language].replace("{datum}", formatDateBE(q.date) || "…");
 
   return (
     <>
@@ -731,17 +754,17 @@ function QuoteDocument({
             <div className={styles.bandTop}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.svg" alt="Martens Exclusive" />
-              <div className={styles.kind}>{isOfferte ? "OFFERTE" : "BESTELBON"}</div>
+              <div className={styles.kind}>{isOfferte ? t.kind.OFFERTE : t.kind.BESTELBON}</div>
             </div>
             <h1>{q.vehicleTitle || " "}</h1>
             <div className={styles.meta}>
               <span>
-                <b>DATUM</b>
+                <b>{t.datum}</b>
                 {formatDateBE(q.date)}
               </span>
               {isOfferte && q.validUntil ? (
                 <span>
-                  <b>GELDIG TOT</b>
+                  <b>{t.geldigTot}</b>
                   {formatDateBE(q.validUntil)}
                 </span>
               ) : null}
@@ -750,29 +773,29 @@ function QuoteDocument({
 
           <div style={{ height: 10 }} />
 
-          <KvBlock label={isOfferte ? "VOOR" : "KOPER"}>
+          <KvBlock label={isOfferte ? t.voor : t.koper} noDivider>
             <KvGrid
               rows={[
-                ["Naam", buyer.name, "Bedrijf", buyer.companyName || "–"],
-                ["Adres", buyer.address, "Btw-nummer", buyer.vatNumber || "–"],
-                ["E-mail", buyer.email, "Telefoon", buyer.phone]
+                [t.naam, buyer.name, t.bedrijf, buyer.companyName || "–"],
+                [t.adres, buyer.address, t.btwNummer, buyer.vatNumber || "–"],
+                [t.email, buyer.email, t.telefoon, buyer.phone]
               ]}
             />
           </KvBlock>
 
-          <KvBlock label="VOERTUIG">
+          <KvBlock label={t.voertuig}>
             <KvGrid rows={specRows} />
           </KvBlock>
 
           <div className={styles.blk}>
-            <div className={styles.lab}>DOCUMENTEN</div>
+            <div className={styles.lab}>{t.documenten}</div>
             <div className={styles.docs}>
               {DOC_CHECKLIST.map((doc) => {
                 const checked = Boolean(q[doc.key as keyof QuoteState]);
                 return (
                   <span key={doc.key} className={checked ? "" : styles.no}>
                     <i>{checked ? "✓" : ""}</i>
-                    {doc.label}
+                    {doc.label[q.language]}
                   </span>
                 );
               })}
@@ -781,33 +804,33 @@ function QuoteDocument({
 
           {hasFiscal ? (
             <div className={styles.blk}>
-              <div className={styles.lab}>FISCAAL</div>
+              <div className={styles.lab}>{t.fiscaal}</div>
               <div>
                 <div className={styles.kv}>
                   {parseAmount(q.biv) > 0 ? (
                     <>
                       <span className={styles.k} style={{ gridColumn: "span 1" }}>
-                        BIV
+                        {t.biv}
                       </span>
                       <span className={styles.v}>{formatEuro(parseAmount(q.biv))}</span>
                     </>
                   ) : null}
                   {parseAmount(q.annualRoadTax) > 0 ? (
                     <>
-                      <span className={styles.k}>Verkeersbel.</span>
-                      <span className={styles.v}>{formatEuro(parseAmount(q.annualRoadTax))} / jaar</span>
+                      <span className={styles.k}>{t.verkeersbelasting}</span>
+                      <span className={styles.v}>
+                        {formatEuro(parseAmount(q.annualRoadTax))} / {t.perJaar}
+                      </span>
                     </>
                   ) : null}
                 </div>
-                <div className={styles.note}>
-                  Indicatief, niet inbegrepen in de prijs. Afhankelijk van gewest en situatie van de koper.
-                </div>
+                <div className={styles.note}>{t.fiscaalNote}</div>
               </div>
             </div>
           ) : null}
 
           {remarkParagraphs.length > 0 ? (
-            <KvBlock label="OPMERKINGEN">
+            <KvBlock label={t.opmerkingen}>
               <div className={styles.opm}>
                 {remarkParagraphs.map((p, i) => (
                   <p key={i}>
@@ -822,36 +845,44 @@ function QuoteDocument({
 
           <div className={styles.prices}>
             <div className={styles.r}>
-              <span>Verkoopprijs{pricing.pct ? " excl. btw" : ""}</span>
+              <span>
+                {t.verkoopprijs}
+                {pricing.pct ? ` ${t.exclBtw}` : ""}
+              </span>
               <span className={styles.a}>{formatEuro(pricing.excl)}</span>
             </div>
             <div className={styles.r}>
-              <span>Btw {pricing.pct}%</span>
+              <span>
+                {t.btw} {pricing.pct}%
+              </span>
               <span className={styles.a}>{formatEuro(pricing.vat)}</span>
             </div>
             <div className={styles.r}>
-              <span>Totaal{pricing.pct ? " incl. btw" : ""}</span>
+              <span>
+                {t.totaal}
+                {pricing.pct ? ` ${t.inclBtw}` : ""}
+              </span>
               <span className={styles.a}>{formatEuro(pricing.total)}</span>
             </div>
             {pricing.tradeIn ? (
               <div className={`${styles.r} ${styles.g}`}>
-                <span>Overname</span>
+                <span>{t.overname}</span>
                 <span className={styles.a}>– {formatEuro(pricing.tradeIn)}</span>
               </div>
             ) : null}
             {pricing.deposit ? (
               <div className={`${styles.r} ${styles.g}`}>
-                <span>Voorschot{isOfferte ? " bij bestelling" : ""}</span>
+                <span>{isOfferte ? t.voorschotBijBestelling : t.voorschot}</span>
                 <span className={styles.a}>– {formatEuro(pricing.deposit)}</span>
               </div>
             ) : null}
             <div className={styles.t}>
-              <span className={styles.l}>SALDO BIJ LEVERING</span>
+              <span className={styles.l}>{t.saldoBijLevering}</span>
               <span className={styles.a}>{formatEuro(pricing.balance)}</span>
             </div>
             <div className={styles.note}>
-              {!pricing.pct ? "Bijzondere regeling tweedehandse goederen (winstmarge). " : ""}
-              {!isOfferte ? "Saldo te betalen vóór of bij levering." : ""}
+              {!pricing.pct ? t.margeregelingNote : ""}
+              {!isOfferte ? t.saldoNote : ""}
             </div>
           </div>
 
@@ -863,19 +894,13 @@ function QuoteDocument({
                   <br />
                 </span>
               ))}
-              <br />
-              Met vriendelijke groeten,
-              <br />
-              <span style={{ fontWeight: 400 }}>Jannick Martens</span>
-              <br />
-              <span style={{ color: "#7A7772" }}>+32 484 28 85 48 &nbsp;·&nbsp; jannick@martens-exclusive.be</span>
             </div>
           ) : (
             <>
               <div className={styles.accept}>{acceptanceText}</div>
               <div className={styles.sigs}>
-                <div>HANDTEKENING VERKOPER</div>
-                <div>HANDTEKENING KOPER — VOOR AKKOORD</div>
+                <div>{t.handtekeningVerkoper}</div>
+                <div>{t.handtekeningKoper}</div>
               </div>
             </>
           )}
@@ -887,7 +912,7 @@ function QuoteDocument({
       {isOfferte && equipmentLines ? (
         <div className={styles.pw}>
           <div className={styles.page}>
-            <div className={styles.ph}>UITRUSTING</div>
+            <div className={styles.ph}>{t.uitrusting}</div>
             <small>{q.vehicleTitle}</small>
             <div className={`${styles.cols} ${styles.opt}`}>
               {equipmentEntries.map((entry, i) =>
@@ -902,7 +927,7 @@ function QuoteDocument({
       {isOfferte && photoLines ? (
         <div className={styles.pw}>
           <div className={styles.page}>
-            <div className={styles.ph}>FOTO&apos;S</div>
+            <div className={styles.ph}>{t.fotos}</div>
             <small>{q.vehicleTitle}</small>
             <div className={styles.fgrid}>
               {q.photoUrls.map((url, i) => (
@@ -917,23 +942,22 @@ function QuoteDocument({
         </div>
       ) : null}
 
-      {!isOfferte ? (
-        <>
-          <TermsPage title="ALGEMENE VERKOOP- EN WAARBORGVOORWAARDEN" subtitle="Verkoopovereenkomst tweedehandsvoertuig" sections={TERMS.NL} />
-          <TermsPage
-            title="CONDITIONS GÉNÉRALES DE VENTE ET DE GARANTIE"
-            subtitle="Contrat de vente de véhicule d’occasion"
-            sections={TERMS.FR}
-          />
-        </>
-      ) : null}
+      <TermsPage title={t.termsTitle} subtitle={t.termsSubtitle} sections={TERMS[q.language]} />
     </>
   );
 }
 
-function KvBlock({ label, children }: { label: string; children: ReactNode }) {
+function KvBlock({
+  label,
+  children,
+  noDivider
+}: {
+  label: string;
+  children: ReactNode;
+  noDivider?: boolean;
+}) {
   return (
-    <div className={styles.blk}>
+    <div className={noDivider ? `${styles.blk} ${styles.first}` : styles.blk}>
       <div className={styles.lab}>{label}</div>
       {children}
     </div>

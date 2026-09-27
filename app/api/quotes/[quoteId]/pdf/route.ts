@@ -6,7 +6,7 @@ import PDFDocument from "pdfkit";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calcQuotePricing, formatDateBE, formatEuro, parseAmount } from "@/lib/quote-calc";
-import { DOC_CHECKLIST, ORDER_ACCEPTANCE_TEXT } from "@/lib/quote-content";
+import { DOC_CHECKLIST, DOCUMENT_LABELS, ORDER_ACCEPTANCE_TEXT, type QuoteLanguage } from "@/lib/quote-content";
 import { pairSpecRows, parseEquipment, parseRemarks, vehicleSpecRows } from "@/lib/quote-view";
 import { TERMS, type TermsSection } from "@/lib/quote-terms";
 
@@ -128,6 +128,9 @@ function buildQuotePdf(quote: QuoteRecord, buyer: Buyer): Promise<Buffer> {
 
 function renderDocument(doc: PDFKit.PDFDocument, quote: QuoteRecord, buyer: Buyer) {
   const isOfferte = quote.type === "OFFERTE";
+  const language: QuoteLanguage =
+    quote.language === "FR" ? "FR" : quote.language === "EN" ? "EN" : "NL";
+  const t = DOCUMENT_LABELS[language];
 
   const pricing = calcQuotePricing({
     vatType: quote.vatType,
@@ -137,36 +140,25 @@ function renderDocument(doc: PDFKit.PDFDocument, quote: QuoteRecord, buyer: Buye
     deposit: quote.deposit
   });
 
-  renderPage1(doc, quote, buyer, pricing, isOfferte);
+  renderPage1(doc, quote, buyer, pricing, isOfferte, language, t);
 
   if (isOfferte) {
     const equipment = parseEquipment(quote.equipmentText);
     if (equipment.length > 0) {
       doc.addPage({ size: "A4", margin: 0 });
-      renderEquipmentPage(doc, quote, equipment);
+      renderEquipmentPage(doc, quote, equipment, t);
     }
 
     if (quote.photoUrls.length > 0) {
       doc.addPage({ size: "A4", margin: 0 });
-      renderPhotosPage(doc, quote);
+      renderPhotosPage(doc, quote, t);
     }
-  } else {
-    doc.addPage({ size: "A4", margin: 0 });
-    renderTermsPage(
-      doc,
-      "ALGEMENE VERKOOP- EN WAARBORGVOORWAARDEN",
-      "Verkoopovereenkomst tweedehandsvoertuig",
-      TERMS.NL
-    );
-
-    doc.addPage({ size: "A4", margin: 0 });
-    renderTermsPage(
-      doc,
-      "CONDITIONS GÉNÉRALES DE VENTE ET DE GARANTIE",
-      "Contrat de vente de véhicule d’occasion",
-      TERMS.FR
-    );
   }
+
+  // Eén pagina algemene voorwaarden, in de taal van het document — zowel op
+  // de offerte als op de bestelbon.
+  doc.addPage({ size: "A4", margin: 0 });
+  renderTermsPage(doc, t.termsTitle, t.termsSubtitle, TERMS[language]);
 }
 
 function renderPage1(
@@ -174,83 +166,104 @@ function renderPage1(
   quote: QuoteRecord,
   buyer: Buyer,
   pricing: ReturnType<typeof calcQuotePricing>,
-  isOfferte: boolean
+  isOfferte: boolean,
+  language: QuoteLanguage,
+  t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ) {
-  let y = renderBand(doc, quote, isOfferte);
+  let y = renderBand(doc, quote, isOfferte, t);
 
-  y = kvBlock(doc, y, isOfferte ? "VOOR" : "KOPER", [
-    ["Naam", buyer.name, "Bedrijf", buyer.companyName || "–"],
-    ["Adres", buyer.address, "Btw-nummer", buyer.vatNumber || "–"],
-    ["E-mail", buyer.email, "Telefoon", buyer.phone]
-  ]);
-
-  const specRows = pairSpecRows(
-    vehicleSpecRows({
-      chassisNumber: quote.chassisNumber,
-      mileage: quote.mileage,
-      firstRegistration: quote.firstRegistration,
-      fuelType: quote.fuelType,
-      transmission: quote.transmission,
-      displacement: quote.displacement,
-      power: quote.power,
-      co2: quote.co2,
-      euroNorm: quote.euroNorm,
-      warranty: quote.warranty,
-      exterior: quote.exterior,
-      interior: quote.interior
-    })
+  // Geen lijntje boven dit allereerste blok: het staat er verloren zo dicht
+  // onder de donkere kop, die zorgt zelf al voor voldoende scheiding.
+  y = kvBlock(
+    doc,
+    y,
+    isOfferte ? t.voor : t.koper,
+    [
+      [t.naam, buyer.name, t.bedrijf, buyer.companyName || "–"],
+      [t.adres, buyer.address, t.btwNummer, buyer.vatNumber || "–"],
+      [t.email, buyer.email, t.telefoon, buyer.phone]
+    ],
+    false
   );
 
-  y = kvBlock(doc, y, "VOERTUIG", specRows);
-  y = documentsBlock(doc, y, quote);
+  const specRows = pairSpecRows(
+    vehicleSpecRows(
+      {
+        chassisNumber: quote.chassisNumber,
+        mileage: quote.mileage,
+        firstRegistration: quote.firstRegistration,
+        fuelType: quote.fuelType,
+        transmission: quote.transmission,
+        displacement: quote.displacement,
+        power: quote.power,
+        co2: quote.co2,
+        euroNorm: quote.euroNorm,
+        warranty: quote.warranty,
+        exterior: quote.exterior,
+        interior: quote.interior
+      },
+      language
+    )
+  );
+
+  y = kvBlock(doc, y, t.voertuig, specRows);
+  y = documentsBlock(doc, y, quote, language, t);
 
   const biv = parseAmount(quote.biv ?? "");
   const roadTax = parseAmount(quote.annualRoadTax ?? "");
 
   if (isOfferte && (biv > 0 || roadTax > 0)) {
-    y = fiscalBlock(doc, y, biv, roadTax);
+    y = fiscalBlock(doc, y, biv, roadTax, t);
   }
 
   const remarks = parseRemarks(quote.remarks);
   if (remarks.length > 0) {
-    y = remarksBlock(doc, y, remarks);
+    y = remarksBlock(doc, y, remarks, t);
   }
 
-  y = pricesBlock(doc, y, pricing, isOfferte);
+  y = pricesBlock(doc, y, pricing, isOfferte, t);
 
   if (isOfferte) {
     renderClosing(doc, y, quote.closingText);
   } else {
-    y = renderAcceptance(doc, y, quote.date);
-    renderSignatures(doc, y);
+    y = renderAcceptance(doc, y, quote.date, language);
+    renderSignatures(doc, y, t);
   }
 
   renderFooter(doc);
 }
 
-function renderBand(doc: PDFKit.PDFDocument, quote: QuoteRecord, isOfferte: boolean): number {
+function renderBand(
+  doc: PDFKit.PDFDocument,
+  quote: QuoteRecord,
+  isOfferte: boolean,
+  t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
+): number {
   const padX = 28 * PX;
   const padTop = 26 * PX;
   const padBottom = 24 * PX;
 
-  const kindText = isOfferte ? "OFFERTE" : "BESTELBON";
+  const kindText = isOfferte ? t.kind.OFFERTE : t.kind.BESTELBON;
   const titleText = quote.vehicleTitle || " ";
 
   // Logo en het "OFFERTE"/"BESTELBON"-label staan naast elkaar op één regel
-  // (net als in de referentie). De titel ("merk model") mag pas beginnen nadat
-  // de langste van de twee — meestal het logo — helemaal is afgerond, anders
-  // plakt de titel tegen het logo.
+  // (net als in de referentie) en worden nu verticaal op elkaar gecentreerd:
+  // voorheen kregen ze elk een eigen vaste boven-marge, waardoor het logo net
+  // iets lager en groter uitkwam dan het label en de rij niet mooi uitgelijnd
+  // stond. De titel ("merk model") mag pas beginnen nadat deze rij helemaal is
+  // afgerond, anders plakt de titel tegen het logo.
   const logoW = 128 * PX;
   const logoAspect = 218 / 896; // hoogte/breedte van de logo-PNG (zelfde verhouding als logo.svg)
   const logoH = logoW * logoAspect;
-  const logoMarginTop = 5 * PX;
-  const logoBottom = padTop + logoMarginTop + logoH;
 
   doc.font("Light").fontSize(17 * PX);
   const kindHeight = doc.heightOfString(kindText, { width: CONTENT_W - padX * 2 });
-  const kindBottom = padTop + 4 * PX + kindHeight;
 
-  const titleY = Math.max(logoBottom, kindBottom) + 30 * PX;
+  const topRowH = Math.max(logoH, kindHeight);
+  const logoY = padTop + (topRowH - logoH) / 2;
+  const kindY = padTop + (topRowH - kindHeight) / 2;
+
+  const titleY = padTop + topRowH + 30 * PX;
 
   doc.font("Regular").fontSize(25 * PX);
   const titleHeight = doc.heightOfString(titleText, { width: CONTENT_W - padX * 2 });
@@ -266,7 +279,7 @@ function renderBand(doc: PDFKit.PDFDocument, quote: QuoteRecord, isOfferte: bool
   // gerenderde PNG-versie van het witte logo in plaats van public/logo.svg.
   const logoPath = path.join(process.cwd(), "public", "logo-white.png");
   try {
-    doc.image(logoPath, MARGIN_X + padX, padTop + logoMarginTop, { width: logoW });
+    doc.image(logoPath, MARGIN_X + padX, logoY, { width: logoW });
   } catch {
     // Blijft de PDF geldig, zelfs als het logobestand onverwacht ontbreekt.
   }
@@ -275,7 +288,7 @@ function renderBand(doc: PDFKit.PDFDocument, quote: QuoteRecord, isOfferte: bool
     .font("Light")
     .fontSize(17 * PX)
     .fillColor(WHITE)
-    .text(kindText, MARGIN_X, padTop + 4 * PX, {
+    .text(kindText, MARGIN_X, kindY, {
       width: CONTENT_W - padX * 2,
       align: "right",
       characterSpacing: 17 * PX * 0.34
@@ -290,9 +303,9 @@ function renderBand(doc: PDFKit.PDFDocument, quote: QuoteRecord, isOfferte: bool
       characterSpacing: 25 * PX * 0.06
     });
 
-  const metaParts = [`DATUM   ${formatDateBE(quote.date)}`];
+  const metaParts = [`${t.datum}   ${formatDateBE(quote.date)}`];
   if (isOfferte && quote.validUntil) {
-    metaParts.push(`GELDIG TOT   ${formatDateBE(quote.validUntil)}`);
+    metaParts.push(`${t.geldigTot}   ${formatDateBE(quote.validUntil)}`);
   }
 
   doc
@@ -327,10 +340,11 @@ function kvBlock(
   doc: PDFKit.PDFDocument,
   y: number,
   label: string,
-  rows: Array<[string, string, string?, string?]>
+  rows: Array<[string, string, string?, string?]>,
+  withDivider: boolean = true
 ): number {
-  divider(doc, y);
-  const top = y + 13 * PX;
+  if (withDivider) divider(doc, y);
+  const top = y + (withDivider ? 13 * PX : 3 * PX);
   blockLabel(doc, label, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
@@ -359,10 +373,41 @@ function kvBlock(
   return Math.max(rowY, top + 11 * PX) + 11 * PX;
 }
 
-function documentsBlock(doc: PDFKit.PDFDocument, y: number, quote: QuoteRecord): number {
+// Tekent het vinkje als vector-lijntjes in plaats van als tekst-glyph: het
+// ingesloten Josefin Sans-lettertype bevat geen "✓"-teken, waardoor dat
+// eerder gewoon onzichtbaar bleef op de PDF (in de browser-preview valt dit
+// niet op, omdat de browser daar automatisch een systeemlettertype voor
+// invult — pdfkit doet dat niet voor ingesloten fonts).
+function drawCheckSquare(doc: PDFKit.PDFDocument, x: number, y: number, size: number, checked: boolean) {
+  doc
+    .rect(x, y, size, size)
+    .strokeColor(checked ? INK : "#C9C4BB")
+    .lineWidth(1)
+    .stroke();
+
+  if (checked) {
+    doc
+      .save()
+      .strokeColor(INK)
+      .lineWidth(1.1 * PX)
+      .moveTo(x + size * 0.18, y + size * 0.55)
+      .lineTo(x + size * 0.42, y + size * 0.78)
+      .lineTo(x + size * 0.84, y + size * 0.2)
+      .stroke()
+      .restore();
+  }
+}
+
+function documentsBlock(
+  doc: PDFKit.PDFDocument,
+  y: number,
+  quote: QuoteRecord,
+  language: QuoteLanguage,
+  t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
+): number {
   divider(doc, y);
   const top = y + 13 * PX;
-  blockLabel(doc, "DOCUMENTEN", top);
+  blockLabel(doc, t.documenten, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
   const kvW = CONTENT_W - LABEL_COL_W;
@@ -377,41 +422,35 @@ function documentsBlock(doc: PDFKit.PDFDocument, y: number, quote: QuoteRecord):
     const x = kvX + col * colW;
     const rowY = top + row * rowHeight;
 
-    doc
-      .rect(x, rowY + 1 * PX, box, box)
-      .strokeColor(checked ? INK : "#C9C4BB")
-      .lineWidth(1)
-      .stroke();
-
-    if (checked) {
-      doc
-        .font("Regular")
-        .fontSize(9 * PX)
-        .fillColor(INK)
-        .text("✓", x + 1 * PX, rowY, { width: box, align: "center" });
-    }
+    drawCheckSquare(doc, x, rowY + 1 * PX, box, checked);
 
     doc
       .font("Regular")
       .fontSize(11 * PX)
       .fillColor(checked ? INK : "#B3AEA6")
-      .text(item.label, x + box + 8 * PX, rowY, { width: colW - box - 8 * PX, lineBreak: false });
+      .text(item.label[language], x + box + 8 * PX, rowY, { width: colW - box - 8 * PX, lineBreak: false });
   });
 
   const rows = Math.ceil(DOC_CHECKLIST.length / 3);
   return top + rows * rowHeight + 11 * PX;
 }
 
-function fiscalBlock(doc: PDFKit.PDFDocument, y: number, biv: number, roadTax: number): number {
+function fiscalBlock(
+  doc: PDFKit.PDFDocument,
+  y: number,
+  biv: number,
+  roadTax: number,
+  t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
+): number {
   divider(doc, y);
   const top = y + 13 * PX;
-  blockLabel(doc, "FISCAAL", top);
+  blockLabel(doc, t.fiscaal, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
   let rowY = top;
 
   if (biv > 0) {
-    doc.font("Regular").fontSize(11 * PX).fillColor(GREY).text("BIV", kvX, rowY, { lineBreak: false });
+    doc.font("Regular").fontSize(11 * PX).fillColor(GREY).text(t.biv, kvX, rowY, { lineBreak: false });
     doc.fillColor(INK).text(formatEuro(biv), kvX + 96 * PX, rowY, { lineBreak: false });
     rowY += 15 * PX;
   }
@@ -421,8 +460,8 @@ function fiscalBlock(doc: PDFKit.PDFDocument, y: number, biv: number, roadTax: n
       .font("Regular")
       .fontSize(11 * PX)
       .fillColor(GREY)
-      .text("Verkeersbel.", kvX, rowY, { lineBreak: false });
-    doc.fillColor(INK).text(`${formatEuro(roadTax)} / jaar`, kvX + 96 * PX, rowY, { lineBreak: false });
+      .text(t.verkeersbelasting, kvX, rowY, { lineBreak: false });
+    doc.fillColor(INK).text(`${formatEuro(roadTax)} / ${t.perJaar}`, kvX + 96 * PX, rowY, { lineBreak: false });
     rowY += 15 * PX;
   }
 
@@ -430,12 +469,7 @@ function fiscalBlock(doc: PDFKit.PDFDocument, y: number, biv: number, roadTax: n
     .font("Regular")
     .fontSize(8.5 * PX)
     .fillColor(GREY)
-    .text(
-      "Indicatief, niet inbegrepen in de prijs. Afhankelijk van gewest en situatie van de koper.",
-      kvX,
-      rowY + 2 * PX,
-      { width: CONTENT_W - LABEL_COL_W }
-    );
+    .text(t.fiscaalNote, kvX, rowY + 2 * PX, { width: CONTENT_W - LABEL_COL_W });
 
   return rowY + 2 * PX + doc.heightOfString("x", { width: 10 }) + 10 * PX;
 }
@@ -443,11 +477,12 @@ function fiscalBlock(doc: PDFKit.PDFDocument, y: number, biv: number, roadTax: n
 function remarksBlock(
   doc: PDFKit.PDFDocument,
   y: number,
-  remarks: Array<{ title: string | null; text: string }>
+  remarks: Array<{ title: string | null; text: string }>,
+  t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ): number {
   divider(doc, y);
   const top = y + 13 * PX;
-  blockLabel(doc, "OPMERKINGEN", top);
+  blockLabel(doc, t.opmerkingen, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
   const kvW = CONTENT_W - LABEL_COL_W;
@@ -475,20 +510,21 @@ function pricesBlock(
   doc: PDFKit.PDFDocument,
   y: number,
   pricing: ReturnType<typeof calcQuotePricing>,
-  isOfferte: boolean
+  isOfferte: boolean,
+  t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ): number {
   divider(doc, y);
   let rowY = y + 8 * PX;
 
   const rows: Array<{ label: string; value: string; muted?: boolean }> = [
-    { label: `Verkoopprijs${pricing.pct ? " excl. btw" : ""}`, value: formatEuro(pricing.excl) },
-    { label: `Btw ${pricing.pct}%`, value: formatEuro(pricing.vat) },
-    { label: `Totaal${pricing.pct ? " incl. btw" : ""}`, value: formatEuro(pricing.total) }
+    { label: `${t.verkoopprijs}${pricing.pct ? ` ${t.exclBtw}` : ""}`, value: formatEuro(pricing.excl) },
+    { label: `${t.btw} ${pricing.pct}%`, value: formatEuro(pricing.vat) },
+    { label: `${t.totaal}${pricing.pct ? ` ${t.inclBtw}` : ""}`, value: formatEuro(pricing.total) }
   ];
-  if (pricing.tradeIn) rows.push({ label: "Overname", value: `– ${formatEuro(pricing.tradeIn)}`, muted: true });
+  if (pricing.tradeIn) rows.push({ label: t.overname, value: `– ${formatEuro(pricing.tradeIn)}`, muted: true });
   if (pricing.deposit) {
     rows.push({
-      label: `Voorschot${isOfferte ? " bij bestelling" : ""}`,
+      label: isOfferte ? t.voorschotBijBestelling : t.voorschot,
       value: `– ${formatEuro(pricing.deposit)}`,
       muted: true
     });
@@ -518,7 +554,7 @@ function pricesBlock(
     .font("Regular")
     .fontSize(9.5 * PX)
     .fillColor(WHITE)
-    .text("SALDO BIJ LEVERING", MARGIN_X + 14 * PX, rowY + barH / 2 - 5 * PX, {
+    .text(t.saldoBijLevering, MARGIN_X + 14 * PX, rowY + barH / 2 - 5 * PX, {
       characterSpacing: 9.5 * PX * 0.3,
       continued: true,
       width: CONTENT_W - 28 * PX
@@ -527,11 +563,7 @@ function pricesBlock(
 
   rowY += barH + 5 * PX;
 
-  const note = !pricing.pct
-    ? "Bijzondere regeling tweedehandse goederen (winstmarge). "
-    : !isOfferte
-      ? "Saldo te betalen vóór of bij levering."
-      : "";
+  const note = !pricing.pct ? t.margeregelingNote : !isOfferte ? t.saldoNote : "";
 
   if (note) {
     doc.font("Regular").fontSize(8.5 * PX).fillColor(GREY).text(note, MARGIN_X, rowY, { width: CONTENT_W });
@@ -549,14 +581,14 @@ function renderClosing(doc: PDFKit.PDFDocument, y: number, closingText: string) 
     .text(closingText || "", MARGIN_X, y + 8 * PX, { width: CONTENT_W * 0.75 });
 }
 
-function renderAcceptance(doc: PDFKit.PDFDocument, y: number, date: Date): number {
-  const text = ORDER_ACCEPTANCE_TEXT.replace("{datum}", formatDateBE(date));
+function renderAcceptance(doc: PDFKit.PDFDocument, y: number, date: Date, language: QuoteLanguage): number {
+  const text = ORDER_ACCEPTANCE_TEXT[language].replace("{datum}", formatDateBE(date));
   doc.font("Regular").fontSize(9 * PX).fillColor(GREY).text(text, MARGIN_X, y + 14 * PX, { width: CONTENT_W });
   const h = doc.heightOfString(text, { width: CONTENT_W });
   return y + 14 * PX + h + 12 * PX;
 }
 
-function renderSignatures(doc: PDFKit.PDFDocument, y: number) {
+function renderSignatures(doc: PDFKit.PDFDocument, y: number, t: (typeof DOCUMENT_LABELS)[QuoteLanguage]) {
   const colW = (CONTENT_W - 34 * PX) / 2;
   const lineY = y + 74 * PX;
 
@@ -572,8 +604,8 @@ function renderSignatures(doc: PDFKit.PDFDocument, y: number) {
     .font("Regular")
     .fontSize(8 * PX)
     .fillColor(GREY)
-    .text("HANDTEKENING VERKOPER", MARGIN_X, lineY + 4 * PX, { characterSpacing: 8 * PX * 0.25, width: colW });
-  doc.text("HANDTEKENING KOPER — VOOR AKKOORD", MARGIN_X + colW + 34 * PX, lineY + 4 * PX, {
+    .text(t.handtekeningVerkoper, MARGIN_X, lineY + 4 * PX, { characterSpacing: 8 * PX * 0.25, width: colW });
+  doc.text(t.handtekeningKoper, MARGIN_X + colW + 34 * PX, lineY + 4 * PX, {
     characterSpacing: 8 * PX * 0.25,
     width: colW
   });
@@ -657,29 +689,42 @@ function pageHeading(doc: PDFKit.PDFDocument, title: string, subtitle: string) {
 function renderEquipmentPage(
   doc: PDFKit.PDFDocument,
   quote: QuoteRecord,
-  equipment: Array<{ kind: "category" | "item"; label: string }>
+  equipment: Array<{ kind: "category" | "item"; label: string }>,
+  t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ) {
-  const top = pageHeading(doc, "UITRUSTING", quote.vehicleTitle);
+  const top = pageHeading(doc, t.uitrusting, quote.vehicleTitle);
 
   const colGap = 34 * PX;
   const colW = (CONTENT_W - colGap) / 2;
-  const heights = equipment.map((entry) =>
-    entry.kind === "category" ? 20 * PX : doc.heightOfString(entry.label, { width: colW - 12 * PX }) + 4 * PX
+  const categoryGap = 12 * PX; // extra lucht boven een categorie, behalve de allereerste
+  const itemGap = 4 * PX;
+
+  // Elk item krijgt zijn globale positie mee, zodat de kolomsplitsing hieronder
+  // en het tekenen verderop exact dezelfde hoogtes gebruiken.
+  const tagged = equipment.map((entry, i) => ({ ...entry, i }));
+
+  const heights = tagged.map((entry) =>
+    entry.kind === "category"
+      ? 20 * PX + (entry.i > 0 ? categoryGap : 0)
+      : doc.heightOfString(entry.label, { width: colW - 12 * PX }) + itemGap
   );
   const total = heights.reduce((sum, h) => sum + h, 0);
 
-  let colIndex = 0;
+  // Splits enkel vóór een categorie, nooit halverwege een categorie en zijn
+  // eigen items: anders komt een kopje verweesd onderaan een kolom te staan
+  // terwijl zijn items in de volgende kolom belanden.
   let running = 0;
-  const splitAt = heights.findIndex((h, i) => {
-    running += h;
-    return running >= total / 2 && i < equipment.length - 1;
-  });
+  let splitAt = tagged.length;
+  for (let i = 0; i < tagged.length; i++) {
+    running += heights[i];
+    const next = tagged[i + 1];
+    if (running >= total / 2 && next && next.kind === "category") {
+      splitAt = i + 1;
+      break;
+    }
+  }
 
-  const columns: Array<typeof equipment> = [[], []];
-  equipment.forEach((entry, i) => {
-    colIndex = splitAt >= 0 && i > splitAt ? 1 : 0;
-    columns[colIndex].push(entry);
-  });
+  const columns: Array<typeof tagged> = [tagged.slice(0, splitAt), tagged.slice(splitAt)];
 
   columns.forEach((entries, col) => {
     let y = top;
@@ -687,20 +732,21 @@ function renderEquipmentPage(
 
     entries.forEach((entry) => {
       if (entry.kind === "category") {
+        if (entry.i > 0) y += categoryGap;
         doc
-          .font("Regular")
+          .font("SemiBold")
           .fontSize(9 * PX)
           .fillColor(INK)
           .text(entry.label, x, y, { characterSpacing: 9 * PX * 0.28, width: colW });
         y += 20 * PX;
       } else {
-        doc.font("Regular").fontSize(10.5 * PX).fillColor(GREY).text("–", x, y, { width: 10 * PX });
+        doc.font("Regular").fontSize(10.5 * PX).fillColor(GREY).text("–", x, y, { width: 10 * PX, lineBreak: false });
         doc
           .font("Regular")
           .fontSize(10.5 * PX)
           .fillColor(INK)
           .text(entry.label, x + 12 * PX, y, { width: colW - 12 * PX });
-        y += doc.heightOfString(entry.label, { width: colW - 12 * PX }) + 4 * PX;
+        y += doc.heightOfString(entry.label, { width: colW - 12 * PX }) + itemGap;
       }
     });
   });
@@ -708,8 +754,8 @@ function renderEquipmentPage(
   renderFooter(doc);
 }
 
-function renderPhotosPage(doc: PDFKit.PDFDocument, quote: QuoteRecord) {
-  const top = pageHeading(doc, "FOTO'S", quote.vehicleTitle);
+function renderPhotosPage(doc: PDFKit.PDFDocument, quote: QuoteRecord, t: (typeof DOCUMENT_LABELS)[QuoteLanguage]) {
+  const top = pageHeading(doc, t.fotos, quote.vehicleTitle);
 
   const gap = 14 * PX;
   const cellW = (CONTENT_W - gap) / 2;

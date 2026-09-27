@@ -49,6 +49,7 @@ export default async function QuoteEditorPage({
     id: quote.id,
     leadId: lead.id,
     type: quote.type as "OFFERTE" | "BESTELBON",
+    language: quote.language as "NL" | "FR" | "EN",
     date: toDateInputValue(quote.date),
     validUntil: toDateInputValue(quote.validUntil),
     vehicleTitle: quote.vehicleTitle,

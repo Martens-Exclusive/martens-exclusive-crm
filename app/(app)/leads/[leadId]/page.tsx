@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { completeFollowUp, completeTask } from "../actions";
 import { createQuote, duplicateAsOrder } from "./quotes/actions";
+import { DeleteQuoteButton } from "./quotes/delete-quote-button";
 
 import {
   leadPriorityLabels,
@@ -317,6 +318,12 @@ export default async function LeadDetailPage({
                         </button>
                       </form>
                     ) : null}
+
+                    <DeleteQuoteButton
+                      quoteId={quote.id}
+                      leadId={lead.id}
+                      typeLabel={QUOTE_TYPE_LABELS[quote.type] ?? quote.type}
+                    />
                   </div>
                 </div>
               );

@@ -3,7 +3,7 @@
 // zodat beide altijd exact hetzelfde tonen. Overgenomen uit de referentie-
 // implementatie (https://claude.ai/artifact/QPs4hpAuCF5odwjjPpcmh5).
 
-import { DOC_CHECKLIST, VEHICLE_SPECS } from "./quote-content";
+import { DOC_CHECKLIST, VEHICLE_SPECS, type QuoteLanguage } from "./quote-content";
 
 export type RemarkParagraph = { title: string | null; text: string };
 
@@ -56,10 +56,10 @@ export type VehicleFields = {
 };
 
 /** Specificatielabels + waarden; exterieur/interieur enkel als ze ingevuld zijn. */
-export function vehicleSpecRows(vehicle: VehicleFields): Array<[string, string]> {
+export function vehicleSpecRows(vehicle: VehicleFields, language: QuoteLanguage): Array<[string, string]> {
   return VEHICLE_SPECS.filter(
     ({ key }) => vehicle[key as keyof VehicleFields] || !["exterior", "interior"].includes(key)
-  ).map(({ key, label }) => [label, vehicle[key as keyof VehicleFields] || ""]);
+  ).map(({ key, label }) => [label[language], vehicle[key as keyof VehicleFields] || ""]);
 }
 
 /** Groepeert specificatierijen twee-aan-twee, voor een layout met 4 kolommen. */
@@ -83,10 +83,11 @@ export type DocChecklistFields = {
 };
 
 export function documentChecklistRows(
-  fields: DocChecklistFields
+  fields: DocChecklistFields,
+  language: QuoteLanguage
 ): Array<{ label: string; checked: boolean }> {
   return DOC_CHECKLIST.map(({ key, label }) => ({
-    label,
+    label: label[language],
     checked: Boolean(fields[key as keyof DocChecklistFields])
   }));
 }

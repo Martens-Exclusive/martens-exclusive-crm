@@ -27,12 +27,11 @@
 .bandTop {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
 }
 .band img {
   width: 128px;
   display: block;
-  margin-top: 5px;
 }
 .kind {
   letter-spacing: 0.34em;
@@ -65,6 +64,12 @@
   grid-template-columns: 130px 1fr;
   border-top: 1px solid #d8d4cc;
   padding: 13px 0 11px;
+}
+/* Eerste blok direct onder de kop: geen eigen lijntje, die staat er verloren
+   bij zo dicht onder de donkere band (die zorgt zelf al voor de scheiding). */
+.blk.first {
+  border-top: none;
+  padding-top: 3px;
 }
 .blk > .lab {
   font-weight: 400;
@@ -227,8 +232,8 @@
 .opt h5 {
   font-size: 9px;
   letter-spacing: 0.28em;
-  font-weight: 400;
-  margin: 12px 0 5px;
+  font-weight: 600;
+  margin: 14px 0 6px;
   break-after: avoid;
 }
 .opt h5:first-child {

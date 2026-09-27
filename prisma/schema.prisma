@@ -285,6 +285,7 @@ model Quote {
   id                String    @id @default(cuid())
   leadId            String
   type              String // "OFFERTE" | "BESTELBON"
+  language          String    @default("NL") // "NL" | "FR" | "EN" — taal waarin het document wordt opgesteld
   date              DateTime  @default(now())
   validUntil        DateTime?
 
