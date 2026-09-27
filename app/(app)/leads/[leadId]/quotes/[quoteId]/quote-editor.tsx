@@ -751,12 +751,14 @@ function QuoteDocument({
       <div className={styles.pw}>
         <div className={styles.page}>
           <div className={styles.band}>
-            <div className={styles.bandTop}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.svg" alt="Martens Exclusive" />
+            <div className={styles.kindRow}>
               <div className={styles.kind}>{isOfferte ? t.kind.OFFERTE : t.kind.BESTELBON}</div>
             </div>
-            <h1>{q.vehicleTitle || " "}</h1>
+            <div className={styles.titleRow}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.svg" alt="Martens Exclusive" />
+              <h1>{q.vehicleTitle || " "}</h1>
+            </div>
             <div className={styles.meta}>
               <span>
                 <b>{t.datum}</b>

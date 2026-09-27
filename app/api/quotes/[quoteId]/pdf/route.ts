@@ -246,29 +246,32 @@ function renderBand(
   const kindText = isOfferte ? t.kind.OFFERTE : t.kind.BESTELBON;
   const titleText = quote.vehicleTitle || " ";
 
-  // Logo en het "OFFERTE"/"BESTELBON"-label staan naast elkaar op één regel
-  // (net als in de referentie) en worden nu verticaal op elkaar gecentreerd:
-  // voorheen kregen ze elk een eigen vaste boven-marge, waardoor het logo net
-  // iets lager en groter uitkwam dan het label en de rij niet mooi uitgelijnd
-  // stond. De titel ("merk model") mag pas beginnen nadat deze rij helemaal is
-  // afgerond, anders plakt de titel tegen het logo.
+  // Het "OFFERTE"/"BESTELBON"-label staat als eigen, korte regel bovenaan.
+  // Het logo staat op dezelfde regel als "Merk Model" (de titel), verticaal
+  // op elkaar gecentreerd — dat is waar het logo van nature bij hoort, niet
+  // bij het kleine label erboven.
   const logoW = 128 * PX;
   const logoAspect = 218 / 896; // hoogte/breedte van de logo-PNG (zelfde verhouding als logo.svg)
   const logoH = logoW * logoAspect;
+  const titleGap = 18 * PX; // ruimte tussen logo en titeltekst
 
   doc.font("Light").fontSize(17 * PX);
   const kindHeight = doc.heightOfString(kindText, { width: CONTENT_W - padX * 2 });
+  const kindY = padTop;
 
-  const topRowH = Math.max(logoH, kindHeight);
-  const logoY = padTop + (topRowH - logoH) / 2;
-  const kindY = padTop + (topRowH - kindHeight) / 2;
-
-  const titleY = padTop + topRowH + 30 * PX;
+  const rowGap = 16 * PX; // ruimte tussen de OFFERTE/BESTELBON-regel en de logo+titel-regel
+  const titleX = MARGIN_X + padX + logoW + titleGap;
+  const titleWidth = CONTENT_W - padX * 2 - logoW - titleGap;
 
   doc.font("Regular").fontSize(25 * PX);
-  const titleHeight = doc.heightOfString(titleText, { width: CONTENT_W - padX * 2 });
+  const titleHeight = doc.heightOfString(titleText, { width: titleWidth });
 
-  const metaY = titleY + titleHeight * 1.15 + 6 * PX;
+  const row2Top = kindY + kindHeight + rowGap;
+  const row2H = Math.max(logoH, titleHeight);
+  const logoY = row2Top + (row2H - logoH) / 2;
+  const titleY = row2Top + (row2H - titleHeight) / 2;
+
+  const metaY = row2Top + row2H + 20 * PX;
   const metaHeight = 10 * PX * 1.1;
 
   const bandHeight = metaY + metaHeight + padBottom;
@@ -298,8 +301,8 @@ function renderBand(
     .font("Regular")
     .fontSize(25 * PX)
     .fillColor(WHITE)
-    .text(titleText, MARGIN_X + padX, titleY, {
-      width: CONTENT_W - padX * 2,
+    .text(titleText, titleX, titleY, {
+      width: titleWidth,
       characterSpacing: 25 * PX * 0.06
     });
 
@@ -344,7 +347,9 @@ function kvBlock(
   withDivider: boolean = true
 ): number {
   if (withDivider) divider(doc, y);
-  const top = y + (withDivider ? 13 * PX : 3 * PX);
+  // Zonder lijntje (het allereerste blok, net onder de zwarte kop) toch
+  // voldoende luchtig houden — anders plakt de tekst tegen de band aan.
+  const top = y + (withDivider ? 13 * PX : 26 * PX);
   blockLabel(doc, label, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
