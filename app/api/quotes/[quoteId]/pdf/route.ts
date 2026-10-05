@@ -369,20 +369,36 @@ function kvBlock(
   const colC = 96 * PX;
   const rowHeight = 15 * PX;
 
+  const colD = kvW - colA - colB - colC;
+  const labelGap = 4 * PX; // kleine adem tussen een label en de waarde ernaast
+
   let rowY = top;
   for (const [labelA, valueA, labelB, valueB] of rows) {
     doc.font("Regular").fontSize(11 * PX);
-    doc.fillColor(GREY).text(labelA, kvX, rowY, { width: colA, lineBreak: false });
-    doc.fillColor(INK).text(valueA || "–", kvX + colA, rowY, { width: colB, lineBreak: false });
+
+    const textA = valueA || "–";
+    const textB = labelB ? valueB || "–" : "";
+
+    // Een lang adres, e-mailadres of label (zeker in het Frans) mag over twee
+    // regels lopen: de rij wordt dan hoger i.p.v. over de volgende rij heen te
+    // drukken. Net als de grid in de live preview, waar rijen vanzelf meegroeien.
+    const heights = [
+      doc.heightOfString(labelA, { width: colA - labelGap }),
+      doc.heightOfString(textA, { width: colB - labelGap }),
+      labelB ? doc.heightOfString(labelB, { width: colC - labelGap }) : 0,
+      labelB ? doc.heightOfString(textB, { width: colD }) : 0
+    ];
+    const rowH = Math.max(rowHeight, Math.max(...heights) + 4 * PX);
+
+    doc.fillColor(GREY).text(labelA, kvX, rowY, { width: colA - labelGap });
+    doc.fillColor(INK).text(textA, kvX + colA, rowY, { width: colB - labelGap });
 
     if (labelB) {
-      doc.fillColor(GREY).text(labelB, kvX + colA + colB, rowY, { width: colC, lineBreak: false });
-      doc
-        .fillColor(INK)
-        .text(valueB || "–", kvX + colA + colB + colC, rowY, { width: kvW - colA - colB - colC, lineBreak: false });
+      doc.fillColor(GREY).text(labelB, kvX + colA + colB, rowY, { width: colC - labelGap });
+      doc.fillColor(INK).text(textB, kvX + colA + colB + colC, rowY, { width: colD });
     }
 
-    rowY += rowHeight;
+    rowY += rowH;
   }
 
   return Math.max(rowY, top + 11 * PX) + 18 * PX;
