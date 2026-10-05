@@ -38,6 +38,9 @@
   display: block;
 }
 .kind {
+  /* De letterspatiëring na de laatste letter hoort niet mee te tellen in de uitlijning,
+     anders staat "OFFERTE" ruimer van de rechterrand dan de datum eronder. */
+  margin-right: -0.34em;
   letter-spacing: 0.34em;
   font-size: 17px;
   font-weight: 300;
@@ -75,6 +78,9 @@
 }
 .meta span {
   margin-right: 22px;
+}
+.meta span:last-child {
+  margin-right: 0;
 }
 .blk {
   display: grid;

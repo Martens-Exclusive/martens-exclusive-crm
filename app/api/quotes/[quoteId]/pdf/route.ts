@@ -256,7 +256,7 @@ function renderBand(
   const logoH = logoW * logoAspect;
 
   doc.font("Light").fontSize(17 * PX);
-  const kindHeight = doc.heightOfString(kindText, { width: CONTENT_W - padX * 2 });
+  const kindHeight = doc.heightOfString(kindText, { width: CONTENT_W - padX });
 
   const topRowH = Math.max(logoH, kindHeight);
   const logoY = padTop + (topRowH - logoH) / 2;
@@ -303,7 +303,9 @@ function renderBand(
     .fontSize(17 * PX)
     .fillColor(WHITE)
     .text(kindText, MARGIN_X, kindY, {
-      width: CONTENT_W - padX * 2,
+      // pdfkit telt de letterspatiëring na de laatste letter mee; die trekken we
+      // er weer af zodat de rand van "DEVIS" op dezelfde lijn valt als de datum.
+      width: CONTENT_W - padX + 17 * PX * 0.34,
       align: "right",
       characterSpacing: 17 * PX * 0.34
     });
@@ -337,7 +339,8 @@ function blockLabel(doc: PDFKit.PDFDocument, label: string, y: number) {
     .font("Regular")
     .fontSize(9 * PX)
     .fillColor(INK)
-    .text(label, MARGIN_X, y, { width: LABEL_COL_W, characterSpacing: 9 * PX * 0.3 });
+    // 3px lager getekend zodat het label op dezelfde hoogte staat als de eerste regel ernaast.
+    .text(label, MARGIN_X, y + 3 * PX, { width: LABEL_COL_W, characterSpacing: 9 * PX * 0.3 });
 }
 
 function divider(doc: PDFKit.PDFDocument, y: number) {
@@ -359,7 +362,7 @@ function kvBlock(
   if (withDivider) divider(doc, y);
   // Zonder lijntje (het allereerste blok, net onder de zwarte kop) toch
   // voldoende luchtig houden — anders plakt de tekst tegen de band aan.
-  const top = y + (withDivider ? 20 * PX : 51 * PX);
+  const top = y + (withDivider ? 13 * PX : 49 * PX);
   blockLabel(doc, label, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
@@ -367,41 +370,56 @@ function kvBlock(
   const colA = 96 * PX;
   const colB = 190 * PX;
   const colC = 96 * PX;
-  const rowHeight = 15 * PX;
 
   const colD = kvW - colA - colB - colC;
-  const labelGap = 4 * PX; // kleine adem tussen een label en de waarde ernaast
+  const labelGap = 1 * PX; // net als in de preview: label en waarde sluiten direct aan
+
+  // Zelfde regelhoogte als de preview (11px tekst op line-height 1.5 = 16.5px,
+  // plus 2,5px tussen de rijen), zodat rijen even luchtig staan als op het scherm.
+  const lineH = 16.5 * PX;
+  const rowGap = 2.5 * PX;
+  doc.font("Regular").fontSize(11 * PX);
+  const naturalLine = doc.currentLineHeight();
+  const lineGap = lineH - naturalLine;
+  const textTop = (lineH - 11 * PX) / 2; // halve regelruimte boven de tekst, zoals CSS
+
+  const countLines = (font: string, text: string, width: number) => {
+    doc.font(font).fontSize(11 * PX);
+    return Math.max(1, Math.round(doc.heightOfString(text, { width }) / naturalLine));
+  };
 
   let rowY = top;
-  for (const [labelA, valueA, labelB, valueB] of rows) {
-    doc.font("Regular").fontSize(11 * PX);
-
+  for (const [rawLabelA, valueA, rawLabelB, valueB] of rows) {
+    // Het ingesloten lettertype heeft geen subscript-2 ("CO₂" werd "CO"); met een gewone 2 blijft het leesbaar.
+    const labelA = rawLabelA.replace(/₂/g, "2");
+    const labelB = rawLabelB?.replace(/₂/g, "2");
     const textA = valueA || "–";
     const textB = labelB ? valueB || "–" : "";
 
     // Een lang adres, e-mailadres of label (zeker in het Frans) mag over twee
     // regels lopen: de rij wordt dan hoger i.p.v. over de volgende rij heen te
     // drukken. Net als de grid in de live preview, waar rijen vanzelf meegroeien.
-    const heights = [
-      doc.heightOfString(labelA, { width: colA - labelGap }),
-      doc.heightOfString(textA, { width: colB - labelGap }),
-      labelB ? doc.heightOfString(labelB, { width: colC - labelGap }) : 0,
-      labelB ? doc.heightOfString(textB, { width: colD }) : 0
-    ];
-    const rowH = Math.max(rowHeight, Math.max(...heights) + 4 * PX);
+    const lineCount = Math.max(
+      countLines("Light", labelA, colA - labelGap),
+      countLines("Regular", textA, colB - labelGap),
+      labelB ? countLines("Light", labelB, colC - labelGap) : 1,
+      labelB ? countLines("Regular", textB, colD) : 1
+    );
+    const rowH = lineCount * lineH + rowGap;
+    const textY = rowY + textTop;
 
-    doc.fillColor(GREY).text(labelA, kvX, rowY, { width: colA - labelGap });
-    doc.fillColor(INK).text(textA, kvX + colA, rowY, { width: colB - labelGap });
+    doc.font("Light").fontSize(11 * PX).fillColor(GREY).text(labelA, kvX, textY, { width: colA - labelGap, lineGap });
+    doc.font("Regular").fillColor(INK).text(textA, kvX + colA, textY, { width: colB - labelGap, lineGap });
 
     if (labelB) {
-      doc.fillColor(GREY).text(labelB, kvX + colA + colB, rowY, { width: colC - labelGap });
-      doc.fillColor(INK).text(textB, kvX + colA + colB + colC, rowY, { width: colD });
+      doc.font("Light").fillColor(GREY).text(labelB, kvX + colA + colB, textY, { width: colC - labelGap, lineGap });
+      doc.font("Regular").fillColor(INK).text(textB, kvX + colA + colB + colC, textY, { width: colD, lineGap });
     }
 
     rowY += rowH;
   }
 
-  return Math.max(rowY, top + 11 * PX) + 18 * PX;
+  return Math.max(rowY, top + 11 * PX) + 10 * PX;
 }
 
 // Tekent het vinkje als vector-lijntjes in plaats van als tekst-glyph: het
@@ -437,14 +455,15 @@ function documentsBlock(
   t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ): number {
   divider(doc, y);
-  const top = y + 20 * PX;
+  const top = y + 13 * PX;
   blockLabel(doc, t.documenten, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
   const kvW = CONTENT_W - LABEL_COL_W;
   const colW = kvW / 3;
-  const rowHeight = 15 * PX;
+  const rowHeight = 22.5 * PX; // 16.5px regel + 6px tussen de rijen, zoals de preview
   const box = 11 * PX;
+  const textTop = (16.5 * PX - 11 * PX) / 2;
 
   DOC_CHECKLIST.forEach((item, index) => {
     const checked = Boolean((quote as unknown as Record<string, boolean>)[item.key]);
@@ -453,17 +472,20 @@ function documentsBlock(
     const x = kvX + col * colW;
     const rowY = top + row * rowHeight;
 
-    drawCheckSquare(doc, x, rowY + 1 * PX, box, checked);
+    drawCheckSquare(doc, x, rowY + (16.5 * PX - box) / 2, box, checked);
 
     doc
-      .font("Regular")
+      .font("Light")
       .fontSize(11 * PX)
       .fillColor(checked ? INK : "#B3AEA6")
-      .text(item.label[language], x + box + 8 * PX, rowY, { width: colW - box - 8 * PX, lineBreak: false });
+      .text(item.label[language], x + box + 8 * PX, rowY + textTop, {
+        width: colW - box - 8 * PX,
+        lineBreak: false
+      });
   });
 
   const rows = Math.ceil(DOC_CHECKLIST.length / 3);
-  return top + rows * rowHeight + 18 * PX;
+  return top + rows * rowHeight - 6 * PX + 10 * PX;
 }
 
 function fiscalBlock(
@@ -474,11 +496,11 @@ function fiscalBlock(
   t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ): number {
   divider(doc, y);
-  const top = y + 20 * PX;
+  const top = y + 13 * PX;
   blockLabel(doc, t.fiscaal, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
-  let rowY = top;
+  let rowY = top + 2.75 * PX;
 
   if (biv > 0) {
     doc.font("Regular").fontSize(11 * PX).fillColor(GREY).text(t.biv, kvX, rowY, { lineBreak: false });
@@ -512,12 +534,12 @@ function remarksBlock(
   t: (typeof DOCUMENT_LABELS)[QuoteLanguage]
 ): number {
   divider(doc, y);
-  const top = y + 20 * PX;
+  const top = y + 13 * PX;
   blockLabel(doc, t.opmerkingen, top);
 
   const kvX = MARGIN_X + LABEL_COL_W;
   const kvW = CONTENT_W - LABEL_COL_W;
-  let rowY = top;
+  let rowY = top + 2.75 * PX;
 
   for (const paragraph of remarks) {
     doc.font("Regular").fontSize(11 * PX).fillColor(INK);
@@ -534,7 +556,7 @@ function remarksBlock(
     }
   }
 
-  return rowY + 16 * PX;
+  return rowY + 10 * PX;
 }
 
 function pricesBlock(
@@ -565,34 +587,49 @@ function pricesBlock(
   const rowPadding = 10 * PX;
 
   for (const row of rows) {
+    // Label in Light, bedrag in Regular (de grijze aftrekregels blijven Light) — zoals de preview.
     doc
-      .font("Regular")
+      .font("Light")
       .fontSize(rowFontSize)
       .fillColor(row.muted ? GREY : INK)
-      .text(row.label, MARGIN_X, rowY + rowPadding, { continued: true, width: CONTENT_W });
-    doc.text(row.value, { align: "right" });
+      .text(row.label, MARGIN_X, rowY + rowPadding, { width: CONTENT_W, lineBreak: false });
+    doc
+      .font(row.muted ? "Light" : "Regular")
+      .text(row.value, MARGIN_X, rowY + rowPadding, { width: CONTENT_W, align: "right", lineBreak: false });
 
     // Rijhoogte = boven-/onderpadding + de werkelijke teksthoogte, anders overlappen
     // de prijsregels elkaar (de vaste stap van vroeger was te klein voor dit lettertype).
+    doc.font("Light").fontSize(rowFontSize);
     const lineH = doc.heightOfString(row.label, { width: CONTENT_W });
     rowY += rowPadding * 2 + lineH;
     divider(doc, rowY);
   }
 
-  // Iets steviger/hoger vak dan de rest van de prijsregels, zodat het saldo
-  // duidelijk de nadruk krijgt — ook zichtbaar bij afdrukken.
-  const barH = 16 * PX * 2 + 4 * PX;
+  // Zelfde hoogte als het zwarte vak in de preview (2 x 16px padding + 18px
+  // bedrag op regelhoogte 1.5), zodat het "totaal te betalen" duidelijk de
+  // nadruk krijgt — ook zichtbaar bij afdrukken.
+  const barH = (16 * 2 + 28.6) * PX;
   doc.rect(MARGIN_X, rowY, CONTENT_W, barH).fill(INK);
   doc
     .font("Regular")
     .fontSize(9.5 * PX)
     .fillColor(WHITE)
-    .text(t.saldoBijLevering, MARGIN_X + 14 * PX, rowY + barH / 2 - 5 * PX, {
+    .text(t.saldoBijLevering, MARGIN_X + 14 * PX, rowY + barH / 2 - 9.5 * PX * 0.4, {
       characterSpacing: 9.5 * PX * 0.3,
-      continued: true,
-      width: CONTENT_W - 28 * PX
+      width: CONTENT_W - 28 * PX,
+      lineBreak: false
     });
-  doc.font("Regular").fontSize(18 * PX).text(formatEuro(pricing.balance), { align: "right" });
+  // Bedrag apart tekenen: de letterspatiëring van het label hierboven mag niet
+  // doorlopen in het bedrag (dat was de reden dat het bedrag op de PDF uit elkaar stond).
+  doc
+    .font("Regular")
+    .fontSize(18 * PX)
+    .text(formatEuro(pricing.balance), MARGIN_X + 14 * PX, rowY + barH / 2 - 18 * PX * 0.4, {
+      characterSpacing: 0,
+      width: CONTENT_W - 28 * PX,
+      align: "right",
+      lineBreak: false
+    });
 
   rowY += barH + 5 * PX;
 
