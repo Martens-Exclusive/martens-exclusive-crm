@@ -840,7 +840,13 @@ function renderPhotosPage(doc: PDFKit.PDFDocument, quote: QuoteRecord, t: (typeo
     try {
       const base64 = dataUrl.split(",")[1] ?? "";
       const buffer = Buffer.from(base64, "base64");
-      doc.image(buffer, x, y, { width: cellW, height: cellH });
+      // "cover" = vult het 3:2-vak op en snijdt het overschot weg, net als
+      // object-fit: cover in de preview. Met enkel width + height werd een foto
+      // met een andere verhouding (bv. 2:1) platgedrukt/uitgerekt.
+      doc.save();
+      doc.rect(x, y, cellW, cellH).clip(); // pdfkit schaalt bij "cover" wel, maar knipt zelf niets af
+      doc.image(buffer, x, y, { cover: [cellW, cellH], align: "center", valign: "center" });
+      doc.restore();
     } catch {
       doc.rect(x, y, cellW, cellH).fill(STONE);
     }
