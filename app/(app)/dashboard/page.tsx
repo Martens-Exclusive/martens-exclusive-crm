@@ -51,6 +51,7 @@ export default async function DashboardPage() {
     overdueTasks,
     appointmentsToday,
     platforms,
+    tasksDue,
     followUpsDue,
     todaysAppointments,
     expiringQuotes,
@@ -87,6 +88,21 @@ export default async function DashboardPage() {
     }),
     prisma.platform.findMany({
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+    }),
+    // Vandaag: open taken die vandaag of al eerder verwacht werden.
+    prisma.task.findMany({
+      where: {
+        status: "OPEN",
+        dueAt: { lte: endOfToday }
+      },
+      orderBy: { dueAt: "asc" },
+      take: 50,
+      select: {
+        id: true,
+        title: true,
+        dueAt: true,
+        lead: { select: { id: true, firstName: true, lastName: true } }
+      }
     }),
     // Vandaag: opvolgingen die vandaag of al eerder gepland stonden.
     prisma.lead.findMany({
@@ -185,6 +201,38 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <TodayCard
+            title="Taken"
+            count={tasksDue.length}
+            href="/tasks"
+            emptyText="Geen open taken voor vandaag of achterstallig."
+          >
+            {tasksDue.slice(0, TODAY_LIST_LIMIT).map((task) => {
+              const diff = daysFromToday(task.dueAt, today);
+
+              return (
+                <Link
+                  key={task.id}
+                  href={`/leads/${task.lead.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-black/5"
+                >
+                  <span className="min-w-0 truncate">
+                    <span className="font-semibold text-black">{task.title}</span>
+                    <span className="text-black/55">
+                      {" "}
+                      · {task.lead.firstName} {task.lead.lastName}
+                    </span>
+                  </span>
+
+                  <span className={`shrink-0 text-xs font-semibold ${diff < 0 ? "text-red-600" : "text-black/55"}`}>
+                    {diff < 0 ? `${pluralDays(-diff)} te laat` : "Vandaag"}
+                  </span>
+                </Link>
+              );
+            })}
+            <MoreRow total={tasksDue.length} />
+          </TodayCard>
+
           <TodayCard
             title="Opvolging"
             count={followUpsDue.length}
