@@ -184,6 +184,13 @@ export default async function LeadsPage({
   }
   const overviewPdfHref = `/api/leads/pdf?${overviewPdfParams.toString()}`;
 
+  // Zoek of filter je? Dan komen filters en resultaten direct onder de titel,
+  // zodat je niet langs de statistieken en grafieken moet scrollen.
+  const hasFilters = Boolean(query || status || priority || assignedUserId || openOnly);
+  const filterOrder = hasFilters ? " order-1" : "";
+  const resultsOrder = hasFilters ? " order-2" : "";
+  const laterOrder = hasFilters ? " order-3" : "";
+
   return (
     <main className="flex flex-col gap-6">
       <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
@@ -219,7 +226,7 @@ export default async function LeadsPage({
 </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-5">
+      <section className={`grid gap-4 md:grid-cols-5${laterOrder}`}>
         <StatCard label="Totaal leads" value={String(totalLeads)} />
         <StatCard label="Open leads" value={String(openLeads)} />
         <StatCard label="Te late opvolging" value={String(overdueLeads)} />
@@ -227,7 +234,7 @@ export default async function LeadsPage({
         <StatCard label="Conversie" value={`${conversionRate}%`} />
       </section>
 
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className={`rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]${laterOrder}`}>
         <div className="mb-5">
           <h2 className="text-lg font-bold text-black">Funnel fases</h2>
           <p className="mt-1 text-sm text-black/60">
@@ -252,7 +259,7 @@ export default async function LeadsPage({
         </div>
       </section>
 
-      <section className="grid gap-6 md:grid-cols-2">
+      <section className={`grid gap-6 md:grid-cols-2${laterOrder}`}>
         <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
@@ -338,7 +345,7 @@ export default async function LeadsPage({
         </div>
       </section>
 
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className={`rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]${filterOrder}`}>
         <form className="grid gap-4 xl:grid-cols-[1fr_0.35fr_0.35fr_0.35fr_auto]">
           <input
             name="q"
@@ -429,7 +436,7 @@ export default async function LeadsPage({
         ) : null}
       </section>
 
-      <section className="overflow-hidden rounded-[28px] border border-black/10 bg-[#f5f5f5] shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className={`overflow-hidden rounded-[28px] border border-black/10 bg-[#f5f5f5] shadow-[0_20px_60px_rgba(0,0,0,0.08)]${resultsOrder}`}>
         <div className="flex items-start justify-between gap-4 px-6 pt-6">
           <div>
             <h2 className="text-lg font-bold text-black">Overzicht leads</h2>
