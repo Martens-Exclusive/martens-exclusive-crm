@@ -343,7 +343,7 @@ export default async function LeadsPage({
           <input
             name="q"
             defaultValue={query}
-            placeholder="Zoek op naam, telefoon of e-mail..."
+            placeholder="Zoek op naam, e-mail, gsm, adres, notities..."
             className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black outline-none transition placeholder:text-black/35 focus:border-black/30"
           />
 

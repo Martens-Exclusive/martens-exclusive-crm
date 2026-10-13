@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { FormEvent } from "react";
 import { signOut } from "next-auth/react";
 
 import { mainNavigation } from "@/lib/navigation";
@@ -22,6 +23,17 @@ function isActivePath(pathname: string, href: string) {
 
 export function AppShell({ children, userName }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  // Zoekbalk bovenaan: Enter opent de leadlijst met de ingetypte zoekterm
+  // (zelfde zoekfunctie als het zoekveld op de leadpagina).
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const value = String(new FormData(event.currentTarget).get("q") ?? "").trim();
+
+    router.push(value ? `/leads?q=${encodeURIComponent(value)}` : "/leads");
+  }
 
   return (
     <div className="min-h-screen bg-[#f3f3f3] text-black">
@@ -58,13 +70,15 @@ export function AppShell({ children, userName }: AppShellProps) {
             })}
           </nav>
 
-          <div className="hidden w-full max-w-sm lg:block">
+          <form onSubmit={handleSearch} className="hidden w-full max-w-sm lg:block">
             <input
               type="search"
-              placeholder="Zoeken..."
+              name="q"
+              aria-label="Zoek een lead"
+              placeholder="Zoek lead op naam, gsm, e-mail, adres..."
               className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black outline-none transition placeholder:text-black/35 focus:border-black/25"
             />
-          </div>
+          </form>
 
           <div className="hidden min-w-0 text-right xl:block">
             <p className="text-xs uppercase tracking-[0.18em] text-black/40">
