@@ -7,6 +7,11 @@ import { z } from "zod";
 
 import { requireUser } from "@/lib/auth";
 import { leadPriorities, leadStatuses } from "@/lib/lead-status";
+import {
+  hasNeedsAnalysisContent,
+  needsAnalysisToData,
+  readNeedsAnalysisFromForm
+} from "@/lib/needs-analysis";
 import { prisma } from "@/lib/prisma";
 
 const optionalText = z
@@ -129,6 +134,12 @@ export type UpdateLeadInterestState = {
   success?: boolean;
 };
 
+export type UpdateNeedsAnalysisState = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+  success?: boolean;
+};
+
 export type CreateAppointmentState = {
   errors?: Record<string, string[] | undefined>;
   message?: string;
@@ -214,6 +225,9 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
     };
   }
 
+  // Optionele behoefteanalyse uit hetzelfde formulier: enkel opslaan als er iets ingevuld is.
+  const needsAnalysis = readNeedsAnalysisFromForm(formData);
+
   const lead = await prisma.lead.create({
     data: {
       firstName: parsedLead.data.firstName,
@@ -238,6 +252,9 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
       storageInterest: parsedLead.data.storageInterest,
       customerMessage: parsedLead.data.customerMessage || null,
       internalNotes: parsedLead.data.internalNotes || null,
+      ...(hasNeedsAnalysisContent(needsAnalysis)
+        ? { needsAnalysis: { create: needsAnalysisToData(needsAnalysis) } }
+        : {}),
       activities: {
         create: {
           userId: currentUser.id,
@@ -593,6 +610,71 @@ export async function updateLeadInterest(
 
   return {
     message: "Interesse opgeslagen.",
+    success: true
+  };
+}
+
+const updateNeedsAnalysisSchema = z.object({
+  leadId: z.string().trim().min(1)
+});
+
+export async function updateNeedsAnalysis(
+  _: UpdateNeedsAnalysisState,
+  formData: FormData
+) {
+  const currentUser = await requireUser();
+
+  const parsed = updateNeedsAnalysisSchema.safeParse({
+    leadId: formData.get("leadId")
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  const existingLead = await prisma.lead.findUnique({
+    where: { id: parsed.data.leadId },
+    select: { id: true }
+  });
+
+  if (!existingLead) {
+    return {
+      message: "Lead niet gevonden.",
+      success: false
+    };
+  }
+
+  const data = needsAnalysisToData(readNeedsAnalysisFromForm(formData));
+
+  await prisma.lead.update({
+    where: { id: existingLead.id },
+    data: {
+      needsAnalysis: {
+        upsert: {
+          create: data,
+          update: data
+        }
+      },
+      activities: {
+        create: {
+          userId: currentUser.id,
+          type: "NOTE",
+          summary: "Behoefteanalyse bijgewerkt",
+          details: "De behoefteanalyse van de klant werd ingevuld of aangepast.",
+          occurredAt: new Date()
+        }
+      }
+    }
+  });
+
+  revalidatePath(`/leads/${existingLead.id}`);
+
+  return {
+    message: "Behoefteanalyse opgeslagen.",
     success: true
   };
 }

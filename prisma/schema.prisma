@@ -132,6 +132,7 @@ model Lead {
   statusHistory          LeadStatusHistory[]
   assignmentHistory      LeadAssignmentHistory[]
   quotes                 Quote[]
+  needsAnalysis          LeadNeedsAnalysis?
 
   @@index([status])
   @@index([assignedUserId, status])
@@ -337,4 +338,23 @@ model Quote {
 
   @@index([leadId])
   @@index([type])
+}
+
+// Behoefteanalyse bij een lead: korte vragen uit het eerste gesprek (één per lead).
+model LeadNeedsAnalysis {
+  id                  String   @id @default(cuid())
+  leadId              String   @unique
+  reasonAndCurrentCar String?
+  usage               String?
+  ownership           String? // PRIVATE | SELF_EMPLOYED | COMPANY | COMPANY_CAR
+  budget              String?
+  mustHaves           String?
+  noGos               String?
+  timeline            String? // ASAP | WITHIN_MONTH | ONE_TO_THREE_MONTHS | LATER | UNKNOWN
+  decision            String?
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 }

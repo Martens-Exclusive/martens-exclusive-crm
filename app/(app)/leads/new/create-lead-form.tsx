@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { createLead, type CreateLeadState } from "../actions";
+import { NeedsAnalysisFields } from "../needs-analysis-fields";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ export function CreateLeadForm({
   priorities
 }: CreateLeadFormProps) {
   const [state, formAction, isPending] = useActionState(createLead, initialState);
+  const [showNeeds, setShowNeeds] = useState(false);
 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
@@ -103,6 +105,34 @@ export function CreateLeadForm({
           <Field label="Interne notities">
             <Textarea name="internalNotes" rows={4} />
           </Field>
+        </div>
+
+        <div className="mt-8 border-t border-black/10 pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-[0.25em] text-black/45">
+                Behoefteanalyse
+              </h3>
+              <p className="mt-1 text-xs text-black/50">
+                Optioneel. Wordt mee opgeslagen met de lead. Je kan ze ook later invullen op de
+                leadfiche.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              aria-expanded={showNeeds}
+              onClick={() => setShowNeeds((value) => !value)}
+              className="rounded-2xl border border-black/15 bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80"
+            >
+              {showNeeds ? "– Behoefteanalyse inklappen" : "+ Behoefteanalyse invullen"}
+            </button>
+          </div>
+
+          {/* Blijft altijd in het formulier staan (alleen verborgen), zodat wat je al typte niet verdwijnt bij inklappen. */}
+          <div className={showNeeds ? "mt-6" : "hidden"}>
+            <NeedsAnalysisFields />
+          </div>
         </div>
       </section>
 

@@ -15,6 +15,7 @@ import {
 import { formatCurrencyFromCents } from "@/lib/utils";
 import { calcQuotePricing, formatDateBE, formatEuro } from "@/lib/quote-calc";
 import { QUOTE_TYPE_LABELS } from "@/lib/quote-content";
+import { toNeedsAnalysisValues } from "@/lib/needs-analysis";
 import { prisma } from "@/lib/prisma";
 
 import { AppointmentStatusButtons } from "./appointment-status-buttons";
@@ -26,6 +27,9 @@ import { CreateAppointmentForm } from "./create-appointment-form";
 import { CreateTaskForm } from "./create-task-form";
 import { DeleteLeadButton } from "./delete-lead-button";
 import { EditLeadForm } from "./editLeadForm";
+import { NeedsAnalysisCard } from "./needs-analysis-card";
+
+const needsDateFormatter = new Intl.DateTimeFormat("nl-BE", { dateStyle: "long" });
 
 const dateFormatter = new Intl.DateTimeFormat("nl-BE", {
   dateStyle: "medium",
@@ -46,6 +50,7 @@ export default async function LeadDetailPage({
       assignedUser: true,
       primaryVehicle: true,
       lostReason: true,
+      needsAnalysis: true,
       tasks: {
         orderBy: [{ status: "asc" }, { dueAt: "asc" }],
         take: 8,
@@ -242,6 +247,16 @@ export default async function LeadDetailPage({
             <TextBlock title="Interne notities" text={lead.internalNotes} />
           ) : null}
         </div>
+
+        <NeedsAnalysisCard
+          leadId={lead.id}
+          values={toNeedsAnalysisValues(lead.needsAnalysis)}
+          savedLabel={
+            lead.needsAnalysis
+              ? `Ingevuld op ${needsDateFormatter.format(lead.needsAnalysis.createdAt)} · laatst gewijzigd ${needsDateFormatter.format(lead.needsAnalysis.updatedAt)}`
+              : ""
+          }
+        />
 
         <OverviewBlock title="Offertes & bestelbonnen">
           <div className="flex flex-wrap gap-3">
