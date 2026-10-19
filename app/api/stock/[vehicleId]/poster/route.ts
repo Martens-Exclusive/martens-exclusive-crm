@@ -2,16 +2,12 @@ import { NextResponse } from "next/server";
 
 import { requireUser } from "@/lib/auth";
 import { buildPricePosterPdf, type PricePosterData } from "@/lib/price-poster-pdf";
+import { readPosterValuesFromForm } from "@/lib/price-poster-fields";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-function text(formData: FormData, name: string, max = 200): string {
-  const value = formData.get(name);
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
 
 // Accepteert "25995", "25.995", "€ 25.995,-" of "25.995,50".
 function parseEuro(value: string): number | null {
@@ -53,26 +49,39 @@ export async function POST(
   }
 
   const formData = await request.formData();
+  const values = readPosterValuesFromForm(formData);
+
+  // Onthoud de ingevulde gegevens voor de volgende affiche van deze wagen.
+  // Lukt dat niet, dan wordt de PDF toch gemaakt.
+  try {
+    await prisma.vehiclePoster.upsert({
+      where: { vehicleId },
+      create: { vehicleId, data: values },
+      update: { data: values }
+    });
+  } catch (error) {
+    console.error("Prijsaffiche-gegevens niet opgeslagen", error);
+  }
 
   const data: PricePosterData = {
-    title: text(formData, "title") || `${vehicle.brand} ${vehicle.model}`,
-    subtitle: text(formData, "subtitle"),
-    priceEuro: parseEuro(text(formData, "price")),
-    firstRegistration: text(formData, "firstRegistration"),
-    mileage: text(formData, "mileage"),
-    fuel: text(formData, "fuel"),
-    power: text(formData, "power"),
-    displacement: text(formData, "displacement"),
-    transmission: text(formData, "transmission"),
-    warranty: text(formData, "warranty"),
-    consumption: text(formData, "consumption"),
-    consumptionNote: text(formData, "consumptionNote"),
-    co2: text(formData, "co2"),
-    euroNorm: text(formData, "euroNorm"),
-    options: text(formData, "options", 4000),
-    adUrl: webUrl(text(formData, "adUrl", 500)),
-    carPassUrl: webUrl(text(formData, "carPassUrl", 500)),
-    adNumber: text(formData, "adNumber", 30)
+    title: values.title || `${vehicle.brand} ${vehicle.model}`,
+    subtitle: values.subtitle,
+    priceEuro: parseEuro(values.price),
+    firstRegistration: values.firstRegistration,
+    mileage: values.mileage,
+    fuel: values.fuel,
+    power: values.power,
+    displacement: values.displacement,
+    transmission: values.transmission,
+    warranty: values.warranty,
+    consumption: values.consumption,
+    consumptionNote: values.consumptionNote,
+    co2: values.co2,
+    euroNorm: values.euroNorm,
+    options: values.options,
+    adUrl: webUrl(values.adUrl),
+    carPassUrl: webUrl(values.carPassUrl),
+    adNumber: values.adNumber
   };
 
   const pdf = await buildPricePosterPdf(data);

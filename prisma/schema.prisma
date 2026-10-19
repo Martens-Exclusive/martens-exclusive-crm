@@ -71,6 +71,7 @@ model Vehicle {
   updatedAt                     DateTime      @updatedAt
   interestedLeads               Lead[]
   costItems                     VehicleCost[]
+  poster                        VehiclePoster?
 }
 
 model VehicleCost {
@@ -357,4 +358,16 @@ model LeadNeedsAnalysis {
   updatedAt           DateTime @updatedAt
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+// Laatst gebruikte gegevens van de prijsaffiche per wagen, zodat je bij een nieuwe
+// affiche (bv. na een prijsverlaging) enkel nog moet aanpassen wat veranderd is.
+model VehiclePoster {
+  id        String   @id @default(cuid())
+  vehicleId String   @unique
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 }
