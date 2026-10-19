@@ -284,6 +284,13 @@ function VehicleRow({
           Open
         </Link>
 
+        <Link
+          href={`/stock/${vehicle.id}/affiche` as Route}
+          className="rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-[#e2e2e2] hover:text-black"
+        >
+          Affiche
+        </Link>
+
         <DeleteVehicleButton vehicleId={vehicle.id} tab={currentTab} />
       </div>
     </article>

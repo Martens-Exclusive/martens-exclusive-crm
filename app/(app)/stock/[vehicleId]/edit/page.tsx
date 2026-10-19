@@ -1,3 +1,5 @@
+import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -39,7 +41,15 @@ export default async function EditStockVehiclePage({
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Stock
         </p>
-        <h1 className="mt-3 text-2xl font-bold text-black">Stockwagen bewerken</h1>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-black">Stockwagen bewerken</h1>
+          <Link
+            href={`/stock/${vehicle.id}/affiche` as Route}
+            className="rounded-2xl border border-black/15 bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80"
+          >
+            Prijsaffiche maken
+          </Link>
+        </div>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-black/70">
           Werk de gegevens van deze stockwagen bij en beheer alle individuele kosten
           op voertuigniveau.

@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
   // op, waardoor ze ontbraken in de gedeployde serverless functie op Vercel. Dit
   // dwingt Next.js om die bestanden alsnog mee te pakken voor alle API-routes.
   outputFileTracingIncludes: {
-    "/api/**/*": ["./node_modules/pdfkit/js/**/*", "./fonts/**/*"]
+    "/api/**/*": ["./node_modules/pdfkit/js/**/*", "./fonts/**/*", "./assets/**/*"]
   },
   experimental: {
     serverActions: {
