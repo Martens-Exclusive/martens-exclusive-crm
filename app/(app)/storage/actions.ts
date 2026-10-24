@@ -68,6 +68,7 @@ export async function saveStorageContract(
   }
 
   const data = {
+    isPresent: formData.get("isPresent") === "on",
     firstName: input.firstName,
     lastName: input.lastName,
     phone: input.phone,
@@ -93,6 +94,20 @@ export async function saveStorageContract(
 
   revalidatePath("/storage");
   redirect("/storage");
+}
+
+export async function setPresence(formData: FormData) {
+  await requireUser();
+
+  const contractId = clean(formData.get("contractId"));
+  if (!contractId) return;
+
+  await prisma.storageContract.update({
+    where: { id: contractId },
+    data: { isPresent: clean(formData.get("present")) === "1" }
+  });
+
+  revalidatePath("/storage");
 }
 
 export async function markBatteryChecked(formData: FormData) {

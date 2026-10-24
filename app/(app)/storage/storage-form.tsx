@@ -6,7 +6,7 @@ import { useActionState, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { STORAGE_PLANS, getPlanPriceCents } from "@/lib/storage";
+import { STORAGE_PLANS, getPlanPriceCents, hasBatteryCheck } from "@/lib/storage";
 import { saveStorageContract, type SaveStorageState } from "./actions";
 
 export type StorageFormValues = {
@@ -15,6 +15,7 @@ export type StorageFormValues = {
   lastName: string;
   phone: string;
   email: string;
+  isPresent: boolean;
   plan: string;
   monthlyPrice: string; // in euro, bv. "200"
   vehicleLabel: string;
@@ -34,6 +35,7 @@ const emptyValues: StorageFormValues = {
   lastName: "",
   phone: "",
   email: "",
+  isPresent: true,
   plan: "PREMIUM",
   monthlyPrice: "200",
   vehicleLabel: "",
@@ -133,9 +135,12 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
           <FormField label="Chassisnummer">
             <Input name="chassisNumber" defaultValue={values.chassisNumber} placeholder="Bv. WP0ZZZ99ZNS000000" />
           </FormField>
-          <FormField label="Laatste batterij-check">
-            <Input name="batteryCheckedAt" type="date" defaultValue={values.batteryCheckedAt} />
-          </FormField>
+          {/* Blijft in het formulier staan (verborgen bij Basic) zodat een bestaande datum niet verdwijnt. */}
+          <div className={hasBatteryCheck(plan) ? undefined : "hidden"}>
+            <FormField label="Laatste batterij-check">
+              <Input name="batteryCheckedAt" type="date" defaultValue={values.batteryCheckedAt} />
+            </FormField>
+          </div>
           <FormField label="Banden">
             <Input
               name="tires"
@@ -162,6 +167,20 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
             />
           </FormField>
         </div>
+        <label className="mt-4 flex w-fit cursor-pointer items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black">
+          <input
+            type="checkbox"
+            name="isPresent"
+            defaultChecked={values.isPresent}
+            className="h-5 w-5 accent-black"
+          />
+          Wagen staat nu in de storage (aanwezig)
+        </label>
+        {!hasBatteryCheck(plan) ? (
+          <p className="mt-3 text-xs text-black/50">
+            Batterij-check zit niet in het Basic-pakket en wordt voor deze klant niet opgevolgd.
+          </p>
+        ) : null}
         <div className="mt-4">
           <FormField label="Opmerkingen">
             <Textarea

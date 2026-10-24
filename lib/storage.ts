@@ -29,6 +29,11 @@ export function normalizePlan(plan: string): StoragePlanValue {
   return (LEGACY_PLANS[plan] ?? plan) as StoragePlanValue;
 }
 
+// Batterij-check zit enkel in Premium en Exclusive, niet in Basic.
+export function hasBatteryCheck(plan: string): boolean {
+  return normalizePlan(plan) !== "BASIC";
+}
+
 export function getPlanLabel(plan: string): string {
   return STORAGE_PLANS.find((item) => item.value === normalizePlan(plan))?.label ?? plan;
 }

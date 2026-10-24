@@ -9,10 +9,11 @@ import {
   formatTirePressure,
   getBatteryStatus,
   getPlanLabel,
+  hasBatteryCheck,
   normalizePlan
 } from "@/lib/storage";
 import { formatCurrencyFromCents } from "@/lib/utils";
-import { markBatteryChecked } from "./actions";
+import { markBatteryChecked, setPresence } from "./actions";
 
 type Contract = Awaited<ReturnType<typeof prisma.storageContract.findMany>>[number];
 
@@ -59,7 +60,14 @@ export default async function StoragePage({
 
   const monthlyRevenueCents = active.reduce((total, contract) => total + contract.monthlyPriceCents, 0);
   const free = STORAGE_CAPACITY - active.length;
-  const batteryDue = active.filter((contract) => getBatteryStatus(contract.batteryCheckedAt).tone !== "ok").length;
+  const present = active.filter((contract) => contract.isPresent).length;
+  // Enkel Premium/Exclusive, en enkel wagens die er nu staan (een afwezige wagen kan je niet controleren).
+  const batteryDue = active.filter(
+    (contract) =>
+      contract.isPresent &&
+      hasBatteryCheck(contract.plan) &&
+      getBatteryStatus(contract.batteryCheckedAt).tone !== "ok"
+  ).length;
 
   return (
     <main className="flex flex-col gap-6">
@@ -91,7 +99,7 @@ export default async function StoragePage({
         <Stat
           label="Bezet"
           value={`${active.length} / ${STORAGE_CAPACITY}`}
-          note={free >= 0 ? `${free} ${free === 1 ? "plaats" : "plaatsen"} vrij` : `${-free} boven de capaciteit`}
+          note={`${free >= 0 ? `${free} ${free === 1 ? "plaats" : "plaatsen"} vrij` : `${-free} boven de capaciteit`} · ${present} aanwezig`}
           tone={free < 0 ? "bad" : "neutral"}
         />
         <Stat
@@ -107,7 +115,7 @@ export default async function StoragePage({
         <Stat
           label="Batterij-check"
           value={String(batteryDue)}
-          note={batteryDue === 0 ? "Alles in orde" : "wagens met check nodig of zonder check"}
+          note={batteryDue === 0 ? "Alles in orde (Premium en Exclusive)" : "aanwezige wagens met check nodig of zonder check"}
           tone={batteryDue > 0 ? "warn" : "good"}
         />
       </section>
@@ -154,6 +162,7 @@ export default async function StoragePage({
                   <th className="px-4 pb-1">Wagen</th>
                   <th className="px-4 pb-1">Pakket</th>
                   <th className="px-4 pb-1">Plaats</th>
+                  {currentTab === "active" ? <th className="px-4 pb-1">Aanwezig</th> : null}
                   <th className="px-4 pb-1">Batterij</th>
                   <th className="px-4 pb-1">Banden</th>
                   <th className="px-4 pb-1" />
@@ -196,8 +205,38 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
         <p className="mt-1 whitespace-nowrap text-xs text-black/50">{formatCurrencyFromCents(contract.monthlyPriceCents)} per maand</p>
       </td>
       <td className={cell}>{contract.spot || "-"}</td>
+      {showBattery ? (
+        <td className={cell}>
+          <form action={setPresence}>
+            <input type="hidden" name="contractId" value={contract.id} />
+            <input type="hidden" name="present" value={contract.isPresent ? "0" : "1"} />
+            <button
+              type="submit"
+              title={contract.isPresent ? "Klik als de wagen weg is" : "Klik als de wagen terug is"}
+              className="flex items-center gap-2"
+            >
+              <span
+                className={`relative inline-block h-6 w-11 rounded-full transition ${
+                  contract.isPresent ? "bg-emerald-500" : "bg-black/20"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                    contract.isPresent ? "left-[1.375rem]" : "left-0.5"
+                  }`}
+                />
+              </span>
+              <span className={`text-xs font-semibold ${contract.isPresent ? "text-emerald-700" : "text-black/50"}`}>
+                {contract.isPresent ? "Aanwezig" : "Weg"}
+              </span>
+            </button>
+          </form>
+        </td>
+      ) : null}
       <td className={cell}>
-        {showBattery ? (
+        {showBattery && !hasBatteryCheck(contract.plan) ? (
+          <span className="text-xs text-black/40">Niet in Basic</span>
+        ) : showBattery ? (
           <div className="flex flex-col items-start gap-2">
             <span
               className={

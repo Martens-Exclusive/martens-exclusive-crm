@@ -48,6 +48,7 @@ export default async function EditStorageContractPage({
           lastName: contract.lastName,
           phone: contract.phone ?? "",
           email: contract.email ?? "",
+          isPresent: contract.isPresent,
           plan: normalizePlan(contract.plan),
           monthlyPrice: String(contract.monthlyPriceCents / 100),
           vehicleLabel: contract.vehicleLabel ?? "",

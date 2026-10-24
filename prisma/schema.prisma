@@ -386,6 +386,7 @@ model StorageContract {
   spot              String? // plaats, bv. "7"
   startDate         DateTime?
   status            String    @default("ACTIVE") // ACTIVE | ENDED
+  isPresent         Boolean   @default(true) // staat de wagen nu in de storage?
   endedAt           DateTime?
   batteryCheckedAt  DateTime?
   tires             String?
