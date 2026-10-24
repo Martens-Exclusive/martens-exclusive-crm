@@ -17,6 +17,7 @@ import { calcQuotePricing, formatDateBE, formatEuro } from "@/lib/quote-calc";
 import { QUOTE_TYPE_LABELS } from "@/lib/quote-content";
 import { toNeedsAnalysisValues } from "@/lib/needs-analysis";
 import { prisma } from "@/lib/prisma";
+import { getAppointmentVehicleLabel } from "@/lib/appointment-calendar";
 import { getRequestOrigin } from "@/lib/request-origin";
 
 import { AddToCalendar } from "../../appointments/add-to-calendar";
@@ -67,7 +68,7 @@ export default async function LeadDetailPage({
       appointments: {
         orderBy: { scheduledAt: "asc" },
         take: 8,
-        include: { assignedUser: true }
+        include: { assignedUser: true, vehicle: true }
       }
     }
   });
@@ -372,6 +373,11 @@ export default async function LeadDetailPage({
                     <p className="font-semibold text-black">
                       {formatAppointmentType(appointment.type)}
                     </p>
+                    {getAppointmentVehicleLabel({ ...appointment, lead }) ? (
+                      <p className="mt-1 text-sm font-semibold text-black/80">
+                        {getAppointmentVehicleLabel({ ...appointment, lead })}
+                      </p>
+                    ) : null}
                     <p className="mt-1 text-sm text-black/60">
                       {appointment.assignedUser.firstName} {appointment.assignedUser.lastName}
                     </p>
@@ -452,7 +458,11 @@ export default async function LeadDetailPage({
 
         {lead.status === "LOST" ? <DeleteLeadButton leadId={lead.id} /> : null}
 
-        <CreateAppointmentForm leadId={lead.id} />
+        <CreateAppointmentForm
+          leadId={lead.id}
+          defaultVehicleId={lead.primaryVehicleId}
+          vehicles={vehicles}
+        />
 
         <CreateTaskForm
           leadId={lead.id}

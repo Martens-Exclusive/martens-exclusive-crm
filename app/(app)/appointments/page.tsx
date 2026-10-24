@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { getAppointmentVehicleLabel } from "@/lib/appointment-calendar";
 import { getRequestOrigin } from "@/lib/request-origin";
 import { prisma } from "@/lib/prisma";
 import { AddToCalendar } from "./add-to-calendar";
@@ -12,8 +13,9 @@ export default async function AppointmentsPage() {
       status: { not: "COMPLETED" }
     },
     include: {
-      lead: true,
-      assignedUser: true
+      lead: { include: { primaryVehicle: true } },
+      assignedUser: true,
+      vehicle: true
     },
     orderBy: { scheduledAt: "asc" },
     take: 100
@@ -75,7 +77,12 @@ export default async function AppointmentsPage() {
                     </td>
 
                     <td className="px-6 py-5">
-                      {getAppointmentTypeLabel(appointment.type)}
+                      <p>{getAppointmentTypeLabel(appointment.type)}</p>
+                      {getAppointmentVehicleLabel(appointment) ? (
+                        <p className="mt-1 text-xs font-semibold text-black/60">
+                          {getAppointmentVehicleLabel(appointment)}
+                        </p>
+                      ) : null}
                     </td>
 
                     <td className="px-6 py-5">

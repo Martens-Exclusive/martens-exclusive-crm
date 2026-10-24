@@ -81,6 +81,7 @@ const createAppointmentSchema = z.object({
   leadId: z.string().trim().min(1),
   type: z.enum(["SHOWROOM_VISIT", "TEST_DRIVE", "PHONE_CALL"]),
   scheduledAt: z.string().trim().min(1, "Datum en tijd zijn verplicht."),
+  vehicleId: optionalText,
   notes: optionalText
 });
 
@@ -689,6 +690,7 @@ export async function createAppointment(
     leadId: formData.get("leadId"),
     type: formData.get("type"),
     scheduledAt: formData.get("scheduledAt"),
+    vehicleId: formData.get("vehicleId"),
     notes: formData.get("notes")
   });
 
@@ -722,6 +724,24 @@ export async function createAppointment(
     };
   }
 
+  let vehicleId: string | null = null;
+
+  if (parsedAppointment.data.vehicleId) {
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: parsedAppointment.data.vehicleId },
+      select: { id: true }
+    });
+
+    if (!vehicle) {
+      return {
+        message: "Deze wagen bestaat niet meer.",
+        success: false
+      };
+    }
+
+    vehicleId = vehicle.id;
+  }
+
   const scheduledAt = new Date(parsedAppointment.data.scheduledAt);
 
   if (Number.isNaN(scheduledAt.getTime())) {
@@ -738,6 +758,7 @@ export async function createAppointment(
     data: {
       leadId: existingLead.id,
       assignedUserId: existingLead.assignedUserId,
+      vehicleId,
       type: parsedAppointment.data.type,
       scheduledAt,
       notes: parsedAppointment.data.notes || null

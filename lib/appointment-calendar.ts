@@ -4,19 +4,48 @@
 // en de pagina toont ze met dezelfde klok. Daarom gebruiken we hier ook die "muurklok" en sturen we
 // een tijd zonder tijdzone mee. De agenda zet die automatisch om naar de tijdzone van de gebruiker.
 
+type VehicleInfo = {
+  brand: string;
+  model: string;
+  variant: string | null;
+  stockNumber: string;
+};
+
 export type CalendarAppointment = {
   id: string;
   type: string;
   scheduledAt: Date;
   notes: string | null;
+  vehicle?: VehicleInfo | null;
   lead: {
     id: string;
     firstName: string;
     lastName: string;
     phone: string | null;
     email: string | null;
+    primaryVehicle?: VehicleInfo | null;
+    interestedBrand?: string | null;
+    interestedModel?: string | null;
   };
 };
+
+function formatVehicle(vehicle: VehicleInfo) {
+  return [vehicle.brand, vehicle.model, vehicle.variant].filter(Boolean).join(" ");
+}
+
+// Wagen van de afspraak; zonder gekozen wagen valt dit terug op de wagen of het merk/model van de lead.
+export function getAppointmentVehicleLabel(appointment: CalendarAppointment) {
+  const vehicle = appointment.vehicle ?? appointment.lead.primaryVehicle;
+  if (vehicle) return formatVehicle(vehicle);
+
+  return [appointment.lead.interestedBrand, appointment.lead.interestedModel]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function getAppointmentStockNumber(appointment: CalendarAppointment) {
+  return (appointment.vehicle ?? appointment.lead.primaryVehicle)?.stockNumber ?? "";
+}
 
 export type CalendarEvent = {
   uid: string;
@@ -46,7 +75,11 @@ export function getCalendarEvent(appointment: CalendarAppointment, origin: strin
   const start = appointment.scheduledAt;
   const end = new Date(start.getTime() + getDurationMinutes(appointment.type) * 60_000);
 
+  const vehicleLabel = getAppointmentVehicleLabel(appointment);
+  const stockNumber = getAppointmentStockNumber(appointment);
+
   const lines = [
+    vehicleLabel ? `Wagen: ${vehicleLabel}${stockNumber ? ` (stocknr. ${stockNumber})` : ""}` : "",
     lead.phone ? `Gsm: ${lead.phone}` : "",
     lead.email ? `E-mail: ${lead.email}` : "",
     appointment.notes ? `Notities: ${appointment.notes}` : "",
@@ -55,7 +88,7 @@ export function getCalendarEvent(appointment: CalendarAppointment, origin: strin
 
   return {
     uid: `${appointment.id}@martens-exclusive.be`,
-    title: `${getAppointmentTypeLabel(appointment.type)} - ${name}`,
+    title: `${getAppointmentTypeLabel(appointment.type)}${vehicleLabel ? ` ${vehicleLabel}` : ""} - ${name}`,
     start,
     end,
     description: lines.join("\n"),

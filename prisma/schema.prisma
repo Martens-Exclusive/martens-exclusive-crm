@@ -70,6 +70,7 @@ model Vehicle {
   createdAt                     DateTime      @default(now())
   updatedAt                     DateTime      @updatedAt
   interestedLeads               Lead[]
+  appointments                  Appointment[]
   costItems                     VehicleCost[]
   poster                        VehiclePoster?
 }
@@ -183,6 +184,7 @@ model Appointment {
   id             String   @id @default(cuid())
   leadId         String
   assignedUserId String
+  vehicleId      String?
   type           String
   scheduledAt    DateTime
   status         String   @default("SCHEDULED")
@@ -192,6 +194,7 @@ model Appointment {
   updatedAt      DateTime @updatedAt
   lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   assignedUser   User     @relation(fields: [assignedUserId], references: [id])
+  vehicle        Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
 
   @@index([assignedUserId, scheduledAt])
   @@index([leadId])
