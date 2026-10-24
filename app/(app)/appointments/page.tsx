@@ -1,9 +1,12 @@
 import Link from "next/link";
 
+import { getRequestOrigin } from "@/lib/request-origin";
 import { prisma } from "@/lib/prisma";
+import { AddToCalendar } from "./add-to-calendar";
 import { AppointmentActions } from "./appointment-actions";
 
 export default async function AppointmentsPage() {
+  const origin = await getRequestOrigin();
   const appointments = await prisma.appointment.findMany({
     where: {
       status: { not: "COMPLETED" }
@@ -42,6 +45,7 @@ export default async function AppointmentsPage() {
                 <th className="px-6 py-4">Verkoper</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Notities</th>
+                <th className="px-6 py-4">Agenda</th>
                 <th className="px-6 py-4">Acties</th>
               </tr>
             </thead>
@@ -49,7 +53,7 @@ export default async function AppointmentsPage() {
               {appointments.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-12 text-center text-sm text-black/55"
                   >
                     Nog geen afspraken ingepland.
@@ -92,6 +96,10 @@ export default async function AppointmentsPage() {
 
                     <td className="px-6 py-5 text-black/70">
                       {appointment.notes || "-"}
+                    </td>
+
+                    <td className="px-6 py-5">
+                      <AddToCalendar appointment={appointment} origin={origin} />
                     </td>
 
                     <td className="px-6 py-5">

@@ -17,7 +17,9 @@ import { calcQuotePricing, formatDateBE, formatEuro } from "@/lib/quote-calc";
 import { QUOTE_TYPE_LABELS } from "@/lib/quote-content";
 import { toNeedsAnalysisValues } from "@/lib/needs-analysis";
 import { prisma } from "@/lib/prisma";
+import { getRequestOrigin } from "@/lib/request-origin";
 
+import { AddToCalendar } from "../../appointments/add-to-calendar";
 import { AppointmentStatusButtons } from "./appointment-status-buttons";
 import { AssignVehicleForm } from "./assign-vehicle-form";
 import { CreateActivityForm } from "./create-activity-form";
@@ -42,6 +44,7 @@ export default async function LeadDetailPage({
   params: Promise<{ leadId: string }>;
 }) {
   const { leadId } = await params;
+  const origin = await getRequestOrigin();
 
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
@@ -388,6 +391,15 @@ export default async function LeadDetailPage({
                 <p className="mt-3 text-xs text-black/45">
                   {dateFormatter.format(appointment.scheduledAt)}
                 </p>
+
+                {appointment.status !== "COMPLETED" && appointment.status !== "CANCELLED" ? (
+                  <div className="mt-4">
+                    <AddToCalendar
+                      appointment={{ ...appointment, lead }}
+                      origin={origin}
+                    />
+                  </div>
+                ) : null}
 
                 <AppointmentStatusButtons
                   appointmentId={appointment.id}
