@@ -371,3 +371,29 @@ model VehiclePoster {
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 }
+
+// Car Storage: één contract per klant en wagen (vervangt het Excel-bestand).
+model StorageContract {
+  id                String    @id @default(cuid())
+  firstName         String
+  lastName          String
+  phone             String?
+  email             String?
+  plan              String // BASIC | PREMIUM | EXCLUSIVE
+  monthlyPriceCents Int // standaard volgens pakket, aanpasbaar per klant
+  vehicleLabel      String? // bv. "Porsche 911 GT3"
+  chassisNumber     String?
+  spot              String? // plaats, bv. "7"
+  startDate         DateTime?
+  status            String    @default("ACTIVE") // ACTIVE | ENDED
+  endedAt           DateTime?
+  batteryCheckedAt  DateTime?
+  tires             String?
+  tirePressureFrontBar Float? // bandenspanning voor, in bar
+  tirePressureRearBar  Float? // bandenspanning achter, in bar
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status])
+}
