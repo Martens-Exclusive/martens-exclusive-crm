@@ -79,7 +79,7 @@ export function NeedsAnalysisCard({ leadId, values, savedLabel }: NeedsAnalysisC
   const ownershipLabel = getOwnershipLabel(values.ownership);
 
   return (
-    <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+    <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-black">Behoefteanalyse</h2>

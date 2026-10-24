@@ -193,7 +193,7 @@ export default async function LeadsPage({
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
+      <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
             Pipeline
@@ -226,7 +226,7 @@ export default async function LeadsPage({
 </div>
       </section>
 
-      <section className={`grid gap-4 md:grid-cols-5${laterOrder}`}>
+      <section className={`grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4${laterOrder}`}>
         <StatCard label="Totaal leads" value={String(totalLeads)} />
         <StatCard label="Open leads" value={String(openLeads)} />
         <StatCard label="Te late opvolging" value={String(overdueLeads)} />
@@ -242,7 +242,7 @@ export default async function LeadsPage({
           </p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
           {leadStatuses.map((pipelineStatus) => (
             <Link
               key={pipelineStatus}
@@ -455,7 +455,7 @@ export default async function LeadsPage({
           <div className="h-4" />
         )}
 
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto lg:block">
           <table className="min-w-full border-collapse">
             <thead>
               <tr className="border-b border-black/10 bg-[#ececec] text-left text-xs uppercase tracking-[0.2em] text-black/45">
@@ -565,6 +565,69 @@ export default async function LeadsPage({
             </tbody>
           </table>
         </div>
+
+        <div className="grid gap-3 px-4 pb-4 md:grid-cols-2 lg:hidden">
+          {leads.length === 0 ? (
+            <p className="px-2 py-8 text-center text-sm text-black/55 md:col-span-2">
+              Geen leads gevonden.
+            </p>
+          ) : (
+            leads.map((lead) => {
+              const isOverdue =
+                lead.nextFollowUpAt &&
+                lead.nextFollowUpAt < now &&
+                !["WON", "LOST"].includes(lead.status);
+
+              const interestText = [lead.interestedBrand, lead.interestedModel]
+                .filter(Boolean)
+                .join(" ");
+
+              const vehicleText = lead.primaryVehicle
+                ? `${lead.primaryVehicle.brand} ${lead.primaryVehicle.model}`
+                : interestText
+                  ? `${interestText} (interesse)`
+                  : "Nog geen wagen gekoppeld";
+
+              return (
+                <Link
+                  key={lead.id}
+                  href={`/leads/${lead.id}`}
+                  className="block rounded-2xl border border-black/10 bg-white p-4 transition active:bg-[#ececec]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-black">
+                        {lead.firstName} {lead.lastName}
+                      </p>
+                      <p className="mt-0.5 break-words text-xs text-black/50">
+                        {lead.phone || lead.email || "Geen contactgegevens"}
+                      </p>
+                    </div>
+                    <StatusBadge status={lead.status} />
+                  </div>
+
+                  <p className="mt-3 text-sm text-black/80">{vehicleText}</p>
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-black/10 pt-3 text-xs">
+                    <span className={isOverdue ? "font-semibold text-red-700" : "text-black/60"}>
+                      {lead.nextFollowUpAt
+                        ? `Opvolging ${dateFormatter.format(lead.nextFollowUpAt)}${isOverdue ? " · te laat" : ""}`
+                        : "Opvolging nog niet ingepland"}
+                    </span>
+                    <PriorityBadge priority={lead.priority} />
+                  </div>
+
+                  <p className="mt-2 text-xs text-black/45">
+                    {lead.assignedUser
+                      ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}`
+                      : "Niet toegewezen"}{" "}
+                    · {lead.source.name}
+                  </p>
+                </Link>
+              );
+            })
+          )}
+        </div>
       </section>
     </main>
   );
@@ -616,9 +679,9 @@ function getPriorityClassName(priority: string) {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
+    <div className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.06)] sm:p-6">
       <p className="text-sm font-semibold text-black/55">{label}</p>
-      <p className="mt-4 text-4xl font-bold text-black">{value}</p>
+      <p className="mt-3 text-3xl font-bold text-black sm:mt-4 sm:text-4xl">{value}</p>
     </div>
   );
 }

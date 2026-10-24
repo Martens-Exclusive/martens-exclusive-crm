@@ -37,8 +37,8 @@ export function AppShell({ children, userName }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-[#f3f3f3] text-black">
-      <header className="sticky top-0 z-50 border-b border-black/10 bg-[#f8f8f8]/95 backdrop-blur">
-        <div className="mx-auto flex min-h-[76px] w-full max-w-[1600px] items-center gap-5 px-4 sm:px-6 lg:px-10">
+      <header className="z-50 border-b border-black/10 bg-[#f8f8f8]/95 backdrop-blur lg:sticky lg:top-0">
+        <div className="mx-auto flex min-h-[64px] w-full max-w-[1600px] items-center justify-between gap-5 px-4 sm:px-6 lg:px-10">
           <Link href="/dashboard" className="flex shrink-0 items-center">
             <Image
               src="/logo-dark.svg"
@@ -98,7 +98,7 @@ export function AppShell({ children, userName }: AppShellProps) {
           </button>
         </div>
 
-        <nav className="mx-auto flex w-full max-w-[1600px] gap-2 overflow-x-auto px-4 pb-3 sm:px-6 lg:hidden">
+        <nav className="mx-auto flex w-full max-w-[1600px] gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:px-6 lg:hidden [&::-webkit-scrollbar]:hidden">
           {mainNavigation.map((item) => {
             const active = isActivePath(pathname, item.href);
 
@@ -117,6 +117,19 @@ export function AppShell({ children, userName }: AppShellProps) {
             );
           })}
         </nav>
+
+        <form
+          onSubmit={handleSearch}
+          className="mx-auto w-full max-w-[1600px] px-4 pb-3 sm:px-6 lg:hidden"
+        >
+          <input
+            type="search"
+            name="q"
+            aria-label="Zoek een lead"
+            placeholder="Zoek lead op naam, gsm, e-mail..."
+            className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black outline-none transition placeholder:text-black/35 focus:border-black/25"
+          />
+        </form>
       </header>
 
       <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10 lg:py-10">

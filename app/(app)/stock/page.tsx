@@ -55,7 +55,7 @@ export default async function StockPage({
         />
       </section>
 
-      <section className="rounded-[30px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[30px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/50">
@@ -151,7 +151,7 @@ function VehicleOverview({
   emptyText: string;
 }) {
   return (
-    <section className="rounded-[30px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+    <section className="rounded-[30px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/50">
@@ -180,7 +180,7 @@ function VehicleOverview({
         </div>
 
         {vehicles.length === 0 ? (
-          <div className="p-8 text-center text-sm text-black/50">{emptyText}</div>
+          <div className="p-5 sm:p-8 text-center text-sm text-black/50">{emptyText}</div>
         ) : (
           <div className="divide-y divide-black/10">
             {vehicles.map((vehicle) => (

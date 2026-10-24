@@ -93,7 +93,7 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
   return (
     <form
       action={formAction}
-      className="flex flex-col gap-8 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
+      className="flex flex-col gap-8 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
     >
       <input type="hidden" name="contractId" value={values.id} />
 

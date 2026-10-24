@@ -181,7 +181,7 @@ export function VehicleForm({
   return (
     <form
       action={formAction}
-      className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
+      className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
     >
       <input type="hidden" name="vehicleId" value={vehicle?.id ?? ""} />
 

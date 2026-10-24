@@ -49,7 +49,7 @@ export default async function PosterPage({
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">Stock</p>
         <h1 className="mt-3 text-2xl font-bold text-black">
           Prijsaffiche — {vehicle.brand} {vehicle.model}
@@ -76,7 +76,7 @@ export default async function PosterPage({
         method="post"
         action={`/api/stock/${vehicle.id}/poster`}
         target="_blank"
-        className="flex flex-col gap-8 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
+        className="flex flex-col gap-8 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
       >
         <div>
           <h2 className="text-lg font-bold text-black">Titel en prijs</h2>

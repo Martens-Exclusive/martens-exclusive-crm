@@ -44,7 +44,7 @@ export function CreateLeadForm({
 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
-      <section className="rounded-[32px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
+      <section className="rounded-[32px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
         <h2 className="text-lg font-semibold text-black">Klantgegevens</h2>
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
@@ -136,7 +136,7 @@ export function CreateLeadForm({
         </div>
       </section>
 
-      <section className="rounded-[32px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
+      <section className="rounded-[32px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(33,32,29,0.08)]">
         <h2 className="text-lg font-semibold text-black">Leadinformatie</h2>
 
         <div className="mt-6 flex flex-col gap-5">

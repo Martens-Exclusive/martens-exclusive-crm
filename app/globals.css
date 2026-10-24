@@ -6,9 +6,16 @@
   color-scheme: dark;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: clip;
   background:
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.05), transparent 20%),
     linear-gradient(180deg, #000000 0%, #0f0f10 50%, #151515 100%);
@@ -28,4 +35,19 @@ a {
 ::selection {
   background: rgba(192, 192, 192, 0.25);
   color: #ffffff;
+}
+
+/* Mobiel: blokken in een grid mogen krimpen onder hun inhoud (lange namen),
+   anders rekt de hele pagina breder dan het scherm. */
+.grid > * {
+  min-width: 0;
+}
+
+/* Mobiel: invoervelden op 16px, anders zoomt Safari op iPhone in bij het typen. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }

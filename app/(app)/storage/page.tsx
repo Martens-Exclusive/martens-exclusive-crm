@@ -80,7 +80,7 @@ export default async function StoragePage({
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/50">Car Storage</p>
@@ -104,7 +104,7 @@ export default async function StoragePage({
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
         <Stat
           label="Bezet"
           value={`${active.length} / ${STORAGE_CAPACITY}`}
@@ -179,7 +179,8 @@ export default async function StoragePage({
                 : "Nog geen storageklanten. Voeg de eerste toe met 'Nieuwe storageklant'."}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-[64rem] border-separate border-spacing-y-2 text-left text-sm">
               <thead>
                 <tr className="text-xs font-bold uppercase tracking-[0.18em] text-black/40">
@@ -200,6 +201,13 @@ export default async function StoragePage({
               </tbody>
             </table>
           </div>
+
+          <div className="grid gap-3 md:grid-cols-2 lg:hidden">
+            {visible.map((contract) => (
+              <ContractCard key={contract.id} contract={contract} showActive={currentTab === "active"} />
+            ))}
+          </div>
+          </>
         )}
       </section>
     </main>
@@ -324,6 +332,134 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
   );
 }
 
+const cardButton =
+  "rounded-xl border border-black/15 bg-[#f8f8f8] px-3 py-2 text-xs font-semibold text-black/80 transition active:bg-[#e2e2e2]";
+
+// Telefoon en tablet: elke storageklant als kaartje in plaats van een brede tabel.
+function ContractCard({ contract, showActive }: { contract: Contract; showActive: boolean }) {
+  const battery = getBatteryStatus(contract.batteryCheckedAt);
+  const tires = getTireStatus(contract.tiresCheckedAt);
+  const invoice = getInvoiceStatus(contract.nextInvoiceAt);
+  const checks = hasChecks(contract.plan);
+  const pressure = formatTirePressure(contract.tirePressureFrontBar, contract.tirePressureRearBar);
+
+  return (
+    <div className="rounded-2xl border border-black/10 bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link href={`/storage/${contract.id}` as Route} className="font-bold text-black">
+            {contract.firstName} {contract.lastName}
+          </Link>
+          <p className="mt-0.5 break-words text-xs text-black/50">
+            {[contract.phone, contract.email].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-[#f0f0f0] px-3 py-1 text-xs font-semibold text-black/75">
+          {getPlanLabel(contract.plan)}
+        </span>
+      </div>
+
+      <div className="mt-3">
+        <p className="font-semibold text-black">{contract.vehicleLabel || "-"}</p>
+        {contract.chassisNumber ? (
+          <p className="mt-0.5 break-all text-xs text-black/50">{contract.chassisNumber}</p>
+        ) : null}
+        <p className="mt-0.5 text-xs text-black/50">
+          {contract.spot ? `Plaats ${contract.spot} · ` : ""}
+          {formatCurrencyFromCents(contract.monthlyPriceCents)} per maand ·{" "}
+          {getBillingLabel(contract.billingPeriod).toLowerCase()} gefactureerd
+        </p>
+      </div>
+
+      {showActive ? (
+        <form action={setPresence} className="mt-3 border-t border-black/10 pt-3">
+          <input type="hidden" name="contractId" value={contract.id} />
+          <input type="hidden" name="present" value={contract.isPresent ? "0" : "1"} />
+          <button type="submit" className="flex items-center gap-3">
+            <span
+              className={`relative inline-block h-7 w-12 rounded-full transition ${
+                contract.isPresent ? "bg-emerald-500" : "bg-black/20"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${
+                  contract.isPresent ? "left-[1.375rem]" : "left-0.5"
+                }`}
+              />
+            </span>
+            <span className={`text-sm font-semibold ${contract.isPresent ? "text-emerald-700" : "text-black/50"}`}>
+              {contract.isPresent ? "Aanwezig" : "Weg"}
+            </span>
+          </button>
+        </form>
+      ) : null}
+
+      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-black/10 pt-3">
+        <div className="flex min-w-0 flex-col items-start gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-black/40">Batterij</p>
+          {showActive && !checks ? (
+            <span className="text-xs text-black/40">Niet in Basic</span>
+          ) : showActive ? (
+            <>
+              <CheckPill status={battery} date={contract.batteryCheckedAt} />
+              <form action={markChecked}>
+                <input type="hidden" name="contractId" value={contract.id} />
+                <input type="hidden" name="kind" value="battery" />
+                <button type="submit" className={cardButton}>
+                  Check gedaan
+                </button>
+              </form>
+            </>
+          ) : (
+            <span className="text-sm text-black/60">{formatStorageDate(contract.batteryCheckedAt) || "-"}</span>
+          )}
+        </div>
+
+        <div className="flex min-w-0 flex-col items-start gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-black/40">Banden</p>
+          <p className="text-sm font-semibold text-black/75">{pressure || "-"}</p>
+          {showActive && checks ? (
+            <>
+              <CheckPill status={tires} date={contract.tiresCheckedAt} />
+              <form action={markChecked}>
+                <input type="hidden" name="contractId" value={contract.id} />
+                <input type="hidden" name="kind" value="tires" />
+                <button type="submit" className={cardButton}>
+                  Check gedaan
+                </button>
+              </form>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      {showActive ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-black/10 pt-3">
+          <InvoicePill status={invoice} />
+          <span className="text-xs text-black/50">
+            {formatCurrencyFromCents(
+              getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod, contract.invoiceAmountCents)
+            )}
+          </span>
+          <form action={markInvoiced} className="ml-auto">
+            <input type="hidden" name="contractId" value={contract.id} />
+            <button type="submit" className={cardButton}>
+              Gefactureerd
+            </button>
+          </form>
+        </div>
+      ) : null}
+
+      <Link
+        href={`/storage/${contract.id}` as Route}
+        className="mt-4 block rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-3 text-center text-sm font-semibold text-black/85 transition active:bg-[#e2e2e2]"
+      >
+        Open
+      </Link>
+    </div>
+  );
+}
+
 function InvoicePill({ status }: { status: ReturnType<typeof getInvoiceStatus> }) {
   const color =
     status.tone === "due"
@@ -372,9 +508,9 @@ function Stat({
     tone === "bad" ? "text-red-700" : tone === "warn" ? "text-amber-700" : tone === "good" ? "text-emerald-700" : "text-black";
 
   return (
-    <div className="rounded-3xl border border-black/10 bg-[#f5f5f5] p-6 shadow-sm">
+    <div className="rounded-3xl border border-black/10 bg-[#f5f5f5] p-4 shadow-sm sm:p-6">
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-black/45">{label}</p>
-      <p className={`mt-3 text-3xl font-bold ${color}`}>{value}</p>
+      <p className={`mt-3 text-2xl font-bold sm:text-3xl ${color}`}>{value}</p>
       <p className="mt-1 text-xs text-black/55">{note}</p>
     </div>
   );

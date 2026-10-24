@@ -141,7 +141,7 @@ export default async function LeadDetailPage({
   return (
     <main className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <section className="flex flex-col gap-6">
-        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
@@ -162,7 +162,7 @@ export default async function LeadDetailPage({
             </div>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-4">
+          <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
             <StatCard label="Status" value={getLeadStatusLabel(lead.status)} />
             <StatCard label="Prioriteit" value={getLeadPriorityLabel(lead.priority)} />
             <StatCard label="Open taken" value={String(openTasks.length + overdueTasks.length)} />
@@ -316,7 +316,7 @@ export default async function LeadDetailPage({
                     <p className="mt-1 text-xs text-black/45">{formatDateBE(quote.date)}</p>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm font-bold text-black">{formatEuro(pricing.total)}</p>
 
                     <Link
@@ -470,7 +470,7 @@ export default async function LeadDetailPage({
           defaultAssignedUserId={lead.assignedUserId || users[0]?.id || ""}
         />
 
-        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
           <h2 className="text-xl font-bold text-black">Wagen</h2>
 
           {lead.primaryVehicle ? (
@@ -660,7 +660,7 @@ function OverviewBlock({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+    <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
       <h2 className="text-xl font-bold text-black">{title}</h2>
       <div className="mt-6 flex flex-col gap-4">{children}</div>
     </div>

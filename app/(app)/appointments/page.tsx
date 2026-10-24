@@ -23,7 +23,7 @@ export default async function AppointmentsPage() {
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Afspraken
         </p>
@@ -37,7 +37,7 @@ export default async function AppointmentsPage() {
       </section>
 
       <section className="overflow-hidden rounded-[28px] border border-black/10 bg-[#f5f5f5] shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto lg:block">
           <table className="min-w-full border-collapse">
             <thead>
               <tr className="border-b border-black/10 bg-[#ececec] text-left text-xs uppercase tracking-[0.2em] text-black/45">
@@ -120,6 +120,66 @@ export default async function AppointmentsPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="grid gap-3 p-4 md:grid-cols-2 lg:hidden">
+          {appointments.length === 0 ? (
+            <p className="px-2 py-8 text-center text-sm text-black/55 md:col-span-2">
+              Nog geen afspraken ingepland.
+            </p>
+          ) : (
+            appointments.map((appointment) => (
+              <div
+                key={appointment.id}
+                className="rounded-2xl border border-black/10 bg-white p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/leads/${appointment.leadId}`}
+                      className="font-semibold text-black"
+                    >
+                      {appointment.lead.firstName} {appointment.lead.lastName}
+                    </Link>
+                    <p className="mt-1 text-sm text-black/70">
+                      {getAppointmentTypeLabel(appointment.type)}
+                    </p>
+                    {getAppointmentVehicleLabel(appointment) ? (
+                      <p className="mt-0.5 text-xs font-semibold text-black/60">
+                        {getAppointmentVehicleLabel(appointment)}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <span className="shrink-0 rounded-full bg-[#ececec] px-3 py-1 text-xs font-semibold text-black/70">
+                    {getAppointmentStatusLabel(appointment.status)}
+                  </span>
+                </div>
+
+                <p className="mt-3 text-sm font-semibold text-black">
+                  {new Intl.DateTimeFormat("nl-BE", {
+                    dateStyle: "medium",
+                    timeStyle: "short"
+                  }).format(appointment.scheduledAt)}
+                </p>
+                <p className="mt-0.5 text-xs text-black/50">
+                  {appointment.assignedUser.firstName} {appointment.assignedUser.lastName}
+                </p>
+
+                {appointment.notes ? (
+                  <p className="mt-3 text-sm leading-6 text-black/70">{appointment.notes}</p>
+                ) : null}
+
+                <div className="mt-4 flex flex-col gap-3 border-t border-black/10 pt-4">
+                  <AddToCalendar appointment={appointment} origin={origin} />
+                  <AppointmentActions
+                    appointmentId={appointment.id}
+                    status={appointment.status}
+                  />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </main>
