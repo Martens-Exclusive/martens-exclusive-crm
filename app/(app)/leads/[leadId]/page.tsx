@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { completeFollowUp, completeTask } from "../actions";
+import { completeTask } from "../actions";
 import { createQuote, duplicateAsOrder } from "./quotes/actions";
 import { DeleteQuoteButton } from "./quotes/delete-quote-button";
 
 import {
+  leadPriorities,
   leadPriorityLabels,
   leadStatuses,
   leadStatusLabels,
@@ -26,6 +27,7 @@ import { AssignVehicleForm } from "./assign-vehicle-form";
 import { CreateActivityForm } from "./create-activity-form";
 import { EditContactDetailsForm } from "./edit-contact-details-form";
 import { EditInterestForm } from "./edit-interest-form";
+import { EditLeadInfoForm } from "./edit-lead-info-form";
 import { CreateAppointmentForm } from "./create-appointment-form";
 import { CreateTaskForm } from "./create-task-form";
 import { DeleteLeadButton } from "./delete-lead-button";
@@ -82,7 +84,7 @@ export default async function LeadDetailPage({
     label: leadStatusLabels[value]
   }));
 
-  const [users, vehicles, quotes] = await Promise.all([
+  const [users, vehicles, quotes, sources] = await Promise.all([
     prisma.user.findMany({
       where: { isActive: true },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
@@ -113,6 +115,10 @@ export default async function LeadDetailPage({
         tradeIn: true,
         deposit: true
       }
+    }),
+    prisma.leadSource.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true }
     })
   ]);
 
@@ -184,55 +190,30 @@ export default async function LeadDetailPage({
             country={lead.country || ""}
           />
 
-          <div className="mt-10">
-            <SectionTitle title="Leadinformatie" />
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <InfoRow label="Bron" value={lead.source.name} />
-              <InfoRow
-                label="Verkoper"
-                value={
-                  lead.assignedUser
-                    ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}`
-                    : "Niet toegewezen"
-                }
-              />
-              <div className="border-b border-black/8 pb-3">
-                <p className="text-xs uppercase tracking-[0.2em] text-black/45">
-                  Volgende opvolging
-                </p>
-
-                <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
-                  <p
-                    className={`text-sm font-medium ${
-                      isFollowUpOverdue ? "text-red-700" : "text-black"
-                    }`}
-                  >
-                    {lead.nextFollowUpAt
-                      ? dateFormatter.format(lead.nextFollowUpAt)
-                      : "-"}
-                    {isFollowUpOverdue ? " • Te laat" : ""}
-                  </p>
-
-                  {lead.nextFollowUpAt ? (
-                    <form action={completeFollowUp}>
-                      <input type="hidden" name="leadId" value={lead.id} />
-
-                      <button
-                        type="submit"
-                        className="rounded-xl border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-[#ececec]"
-                      >
-                        Opvolging voltooid
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-              </div>
-              <InfoRow
-                label="Laatste contact"
-                value={lead.lastContactedAt ? dateFormatter.format(lead.lastContactedAt) : "-"}
-              />
-            </div>
-          </div>
+          <EditLeadInfoForm
+            leadId={lead.id}
+            sourceId={lead.sourceId}
+            assignedUserId={lead.assignedUserId || ""}
+            priority={lead.priority}
+            nextFollowUpAt={toDateTimeLocalValue(lead.nextFollowUpAt)}
+            lastContactedAt={toDateTimeLocalValue(lead.lastContactedAt)}
+            sources={sources}
+            users={users}
+            priorities={leadPriorities.map((value) => ({
+              value,
+              label: leadPriorityLabels[value]
+            }))}
+            sourceLabel={lead.source.name}
+            assignedUserLabel={
+              lead.assignedUser
+                ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}`
+                : "Niet toegewezen"
+            }
+            priorityLabel={getLeadPriorityLabel(lead.priority)}
+            nextFollowUpLabel={lead.nextFollowUpAt ? dateFormatter.format(lead.nextFollowUpAt) : "-"}
+            lastContactedLabel={lead.lastContactedAt ? dateFormatter.format(lead.lastContactedAt) : "-"}
+            isFollowUpOverdue={Boolean(isFollowUpOverdue)}
+          />
 
           <EditInterestForm
             leadId={lead.id}
@@ -621,15 +602,6 @@ function toDateTimeLocalValue(value: Date | null) {
 
 function SectionTitle({ title }: { title: string }) {
   return <h2 className="text-lg font-bold text-black">{title}</h2>;
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-b border-black/8 pb-3">
-      <p className="text-xs uppercase tracking-[0.2em] text-black/45">{label}</p>
-      <p className="mt-1 text-sm font-medium text-black">{value}</p>
-    </div>
-  );
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
