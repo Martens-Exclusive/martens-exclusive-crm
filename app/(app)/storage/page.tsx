@@ -8,6 +8,7 @@ import {
   formatStorageDate,
   formatTirePressure,
   getBatteryStatus,
+  getAnnualRevenueCents,
   getBillingLabel,
   getInvoiceAmountCents,
   getInvoiceStatus,
@@ -62,7 +63,9 @@ export default async function StoragePage({
     matchesSearch(contract, query)
   );
 
-  const monthlyRevenueCents = active.reduce((total, contract) => total + contract.monthlyPriceCents, 0);
+  // Werkelijke omzet: wie jaarlijks betaalt krijgt 1 maand gratis, dat zit hier al in.
+  const yearlyRevenueCents = active.reduce((total, contract) => total + getAnnualRevenueCents(contract), 0);
+  const monthlyRevenueCents = Math.round(yearlyRevenueCents / 12);
   const free = STORAGE_CAPACITY - active.length;
   const attention = getStorageAttention(contracts);
   const present = attention.present.length;
@@ -71,7 +74,7 @@ export default async function StoragePage({
   const checksDue = attention.carsWithCheckDue.length;
   const invoicesDue = attention.invoicesDue.length;
   const invoicesDueCents = attention.invoicesDue.reduce(
-    (total, contract) => total + getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod),
+    (total, contract) => total + getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod, contract.invoiceAmountCents),
     0
   );
 
@@ -111,7 +114,7 @@ export default async function StoragePage({
         <Stat
           label="Maandomzet"
           value={formatCurrencyFromCents(monthlyRevenueCents)}
-          note={`${formatCurrencyFromCents(monthlyRevenueCents * 12)} per jaar`}
+          note={`${formatCurrencyFromCents(yearlyRevenueCents)} per jaar`}
         />
         <Stat
           label="Per pakket"
@@ -298,7 +301,7 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
           <div className="flex flex-col items-start gap-2">
             <InvoicePill status={invoice} />
             <p className="whitespace-nowrap text-xs text-black/50">
-              {formatCurrencyFromCents(getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod))}
+              {formatCurrencyFromCents(getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod, contract.invoiceAmountCents))}
             </p>
             <form action={markInvoiced}>
               <input type="hidden" name="contractId" value={contract.id} />

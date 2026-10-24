@@ -53,6 +53,8 @@ export default async function EditStorageContractPage({
           monthlyPrice: String(contract.monthlyPriceCents / 100),
           billingPeriod: contract.billingPeriod,
           nextInvoiceAt: dateToInput(contract.nextInvoiceAt),
+          invoiceAmount:
+            contract.invoiceAmountCents !== null ? String(contract.invoiceAmountCents / 100) : "",
           vehicleLabel: contract.vehicleLabel ?? "",
           chassisNumber: contract.chassisNumber ?? "",
           spot: contract.spot ?? "",

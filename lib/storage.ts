@@ -142,9 +142,28 @@ export function getBillingLabel(period: string): string {
   return BILLING_PERIODS.find((item) => item.value === period)?.label ?? "Maandelijks";
 }
 
-// Bedrag van één factuur: maandbedrag × aantal maanden van de periode.
-export function getInvoiceAmountCents(monthlyPriceCents: number, period: string): number {
-  return monthlyPriceCents * getBillingMonths(period);
+// Wie jaarlijks betaalt, krijgt 1 maand gratis: een jaarfactuur is standaard 11 × het maandbedrag.
+export const YEARLY_PAID_MONTHS = 11;
+
+// Bedrag van één factuur. Een zelf ingevuld bedrag gaat voor; anders maandbedrag ×
+// aantal betaalde maanden (maandelijks 1, jaarlijks 11).
+export function getInvoiceAmountCents(
+  monthlyPriceCents: number,
+  period: string,
+  overrideCents?: number | null
+): number {
+  if (overrideCents !== null && overrideCents !== undefined) return overrideCents;
+  return monthlyPriceCents * (period === "YEARLY" ? YEARLY_PAID_MONTHS : 1);
+}
+
+// Werkelijke omzet per jaar van één contract (met 1 maand gratis bij jaarlijks).
+export function getAnnualRevenueCents(contract: {
+  monthlyPriceCents: number;
+  billingPeriod: string;
+  invoiceAmountCents?: number | null;
+}): number {
+  const invoice = getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod, contract.invoiceAmountCents);
+  return invoice * (12 / getBillingMonths(contract.billingPeriod));
 }
 
 // Telt maanden bij een datum (middernacht UTC); 31 jan + 1 maand = 28/29 feb.

@@ -389,6 +389,7 @@ model StorageContract {
   isPresent         Boolean   @default(true) // staat de wagen nu in de storage?
   billingPeriod     String    @default("MONTHLY") // MONTHLY | YEARLY
   nextInvoiceAt     DateTime? // wanneer de volgende factuur gemaakt moet worden
+  invoiceAmountCents Int? // eigen bedrag per factuur (bv. jaarbedrag); leeg = automatisch berekend
   endedAt           DateTime?
   batteryCheckedAt  DateTime?
   tires             String? // niet meer gebruikt (bandenmerk); kolom blijft staan om geen data te verliezen

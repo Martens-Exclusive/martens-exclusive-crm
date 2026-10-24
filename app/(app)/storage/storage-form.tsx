@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   BILLING_PERIODS,
   STORAGE_PLANS,
-  getBillingMonths,
+  getInvoiceAmountCents,
   getPlanPriceCents,
   hasChecks
 } from "@/lib/storage";
@@ -27,6 +27,7 @@ export type StorageFormValues = {
   monthlyPrice: string; // in euro, bv. "200"
   billingPeriod: string; // MONTHLY | YEARLY
   nextInvoiceAt: string; // YYYY-MM-DD
+  invoiceAmount: string; // eigen jaarbedrag in euro, leeg = automatisch
   vehicleLabel: string;
   chassisNumber: string;
   spot: string;
@@ -49,6 +50,7 @@ const emptyValues: StorageFormValues = {
   monthlyPrice: "200",
   billingPeriod: "MONTHLY",
   nextInvoiceAt: "",
+  invoiceAmount: "",
   vehicleLabel: "",
   chassisNumber: "",
   spot: "",
@@ -69,9 +71,15 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
   const [price, setPrice] = useState(values.monthlyPrice);
   const [billing, setBilling] = useState(values.billingPeriod);
   const monthlyNumber = Number(price.replace(",", "."));
-  const invoiceAmount = Number.isFinite(monthlyNumber)
-    ? formatCurrencyFromCents(Math.round(monthlyNumber * 100) * getBillingMonths(billing))
+  const [invoiceAmount, setInvoiceAmount] = useState(values.invoiceAmount);
+  const autoAmount = Number.isFinite(monthlyNumber)
+    ? formatCurrencyFromCents(getInvoiceAmountCents(Math.round(monthlyNumber * 100), billing))
     : "";
+  const customNumber = Number(invoiceAmount.replace(",", "."));
+  const shownAmount =
+    billing === "YEARLY" && invoiceAmount.trim() !== "" && Number.isFinite(customNumber)
+      ? formatCurrencyFromCents(Math.round(customNumber * 100))
+      : autoAmount;
 
   // Wijzigt het pakket, dan volgt de maandprijs mee zolang je die niet zelf aanpaste.
   function handlePlanChange(nextPlan: string) {
@@ -155,11 +163,26 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
               ))}
             </select>
           </FormField>
-          <FormField label="Bedrag per factuur">
-            <div className="rounded-xl border border-black/10 bg-[#ececec] px-4 py-3 text-sm font-semibold text-black">
-              {invoiceAmount || "-"}
-            </div>
-          </FormField>
+          {billing === "YEARLY" ? (
+            <FormField label="Bedrag per jaar (€)">
+              <Input
+                name="invoiceAmount"
+                inputMode="decimal"
+                value={invoiceAmount}
+                onChange={(event) => setInvoiceAmount(event.target.value)}
+                placeholder={autoAmount.replace(/[^\d,.]/g, "").replace(/\.(?=\d{3})/g, "")}
+              />
+              <span className="text-xs text-black/50">
+                Leeg = 11 × maandbedrag (1 maand gratis): {autoAmount}
+              </span>
+            </FormField>
+          ) : (
+            <FormField label="Bedrag per factuur">
+              <div className="rounded-xl border border-black/10 bg-[#ececec] px-4 py-3 text-sm font-semibold text-black">
+                {shownAmount || "-"}
+              </div>
+            </FormField>
+          )}
           <FormField label="Volgende factuur op">
             <Input name="nextInvoiceAt" type="date" defaultValue={values.nextInvoiceAt} />
           </FormField>

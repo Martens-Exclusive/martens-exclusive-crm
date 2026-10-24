@@ -387,7 +387,7 @@ export default async function DashboardPage() {
                     </span>
                     <span className="text-black/55">
                       {" "}
-                      · {formatCurrencyFromCents(getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod))}
+                      · {formatCurrencyFromCents(getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod, contract.invoiceAmountCents))}
                     </span>
                   </span>
 

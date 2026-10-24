@@ -34,6 +34,7 @@ const storageSchema = z.object({
   monthlyPrice: z.preprocess(clean, z.string()),
   billingPeriod: z.enum(BILLING_PERIOD_VALUES, { message: "Kies maandelijks of jaarlijks." }),
   nextInvoiceAt: z.preprocess(clean, z.string()),
+  invoiceAmount: z.preprocess(clean, z.string()),
   vehicleLabel: optional(200),
   chassisNumber: optional(50),
   spot: optional(30),
@@ -65,6 +66,14 @@ export async function saveStorageContract(
     return { message: "Geef een geldig bedrag per maand." };
   }
 
+  // Eigen bedrag per factuur: enkel bij jaarlijks; leeg = automatisch (11 × maandbedrag).
+  const invoiceAmountCents =
+    input.billingPeriod === "YEARLY" && input.invoiceAmount !== "" ? parseEuroToCents(input.invoiceAmount) : null;
+
+  if (input.billingPeriod === "YEARLY" && input.invoiceAmount !== "" && invoiceAmountCents === null) {
+    return { message: "Geef een geldig jaarbedrag." };
+  }
+
   const tirePressureFrontBar = parseBar(input.tirePressureFront);
   const tirePressureRearBar = parseBar(input.tirePressureRear);
 
@@ -81,6 +90,7 @@ export async function saveStorageContract(
     plan: input.plan,
     monthlyPriceCents,
     billingPeriod: input.billingPeriod,
+    invoiceAmountCents,
     nextInvoiceAt: dateFromInput(input.nextInvoiceAt),
     vehicleLabel: input.vehicleLabel,
     chassisNumber: input.chassisNumber,
