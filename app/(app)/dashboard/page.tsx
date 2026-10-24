@@ -2,6 +2,15 @@ import Link from "next/link";
 import type { Route } from "next";
 
 import { prisma } from "@/lib/prisma";
+import {
+  getBatteryStatus,
+  getInvoiceAmountCents,
+  getInvoiceStatus,
+  getStorageAttention,
+  getTireStatus,
+  hasChecks
+} from "@/lib/storage";
+import { formatCurrencyFromCents } from "@/lib/utils";
 
 const numberFormatter = new Intl.NumberFormat("nl-BE");
 
@@ -55,7 +64,8 @@ export default async function DashboardPage() {
     followUpsDue,
     todaysAppointments,
     expiringQuotes,
-    staleVehicles
+    staleVehicles,
+    storageContracts
   ] = await Promise.all([
     prisma.lead.count({ where: { status: "NEW" } }),
     prisma.lead.count({
@@ -159,8 +169,14 @@ export default async function DashboardPage() {
       orderBy: { purchaseDate: "asc" },
       take: 50,
       select: { id: true, brand: true, model: true, variant: true, purchaseDate: true }
-    })
+    }),
+    // Car Storage: actieve contracten, voor facturen en checks.
+    prisma.storageContract.findMany({ where: { status: "ACTIVE" } })
   ]);
+
+  const storage = getStorageAttention(storageContracts);
+  const storageInvoices = [...storage.invoicesDue, ...storage.invoicesSoon];
+  const storageChecks = storage.carsWithCheckDue;
 
   const cards: Array<{
     label: string;
@@ -348,6 +364,74 @@ export default async function DashboardPage() {
               );
             })}
             <MoreRow total={staleVehicles.length} />
+          </TodayCard>
+
+          <TodayCard
+            title="Car Storage: te factureren"
+            count={storageInvoices.length}
+            href="/storage"
+            emptyText="Geen facturen te maken of binnenkort."
+          >
+            {storageInvoices.slice(0, TODAY_LIST_LIMIT).map((contract) => {
+              const status = getInvoiceStatus(contract.nextInvoiceAt);
+
+              return (
+                <Link
+                  key={contract.id}
+                  href={`/storage/${contract.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-black/5"
+                >
+                  <span className="min-w-0 truncate">
+                    <span className="font-semibold text-black">
+                      {contract.firstName} {contract.lastName}
+                    </span>
+                    <span className="text-black/55">
+                      {" "}
+                      · {formatCurrencyFromCents(getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod))}
+                    </span>
+                  </span>
+
+                  <span className={`shrink-0 text-xs font-semibold ${status.tone === "due" ? "text-red-600" : "text-black/55"}`}>
+                    {status.label}
+                  </span>
+                </Link>
+              );
+            })}
+            <MoreRow total={storageInvoices.length} />
+          </TodayCard>
+
+          <TodayCard
+            title="Car Storage: checks nodig"
+            count={storageChecks.length}
+            href="/storage"
+            emptyText="Alle aanwezige wagens zijn gecontroleerd."
+          >
+            {storageChecks.slice(0, TODAY_LIST_LIMIT).map((contract) => {
+              const needs = [
+                hasChecks(contract.plan) && getBatteryStatus(contract.batteryCheckedAt).tone !== "ok"
+                  ? "batterij"
+                  : "",
+                hasChecks(contract.plan) && getTireStatus(contract.tiresCheckedAt).tone !== "ok" ? "banden" : ""
+              ].filter(Boolean);
+
+              return (
+                <Link
+                  key={contract.id}
+                  href={`/storage/${contract.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-black/5"
+                >
+                  <span className="min-w-0 truncate">
+                    <span className="font-semibold text-black">
+                      {contract.firstName} {contract.lastName}
+                    </span>
+                    <span className="text-black/55"> · {contract.vehicleLabel || "wagen"}</span>
+                  </span>
+
+                  <span className="shrink-0 text-xs font-semibold text-red-600">{needs.join(" + ")}</span>
+                </Link>
+              );
+            })}
+            <MoreRow total={storageChecks.length} />
           </TodayCard>
         </div>
       </section>

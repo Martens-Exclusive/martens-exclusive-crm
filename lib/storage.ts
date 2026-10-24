@@ -30,8 +30,8 @@ export function normalizePlan(plan: string): StoragePlanValue {
   return (LEGACY_PLANS[plan] ?? plan) as StoragePlanValue;
 }
 
-// Batterij-check zit enkel in Premium en Exclusive, niet in Basic.
-export function hasBatteryCheck(plan: string): boolean {
+// Batterij-check en banden-check zitten enkel in Premium en Exclusive, niet in Basic.
+export function hasChecks(plan: string): boolean {
   return normalizePlan(plan) !== "BASIC";
 }
 
@@ -112,4 +112,94 @@ export function parseEuroToCents(value: string): number | null {
   if (!cleaned) return null;
   const number = Number(cleaned);
   return Number.isFinite(number) && number >= 0 ? Math.round(number * 100) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Facturatie: per contract maandelijks of jaarlijks. "Volgende factuur" is de datum
+// waarop je de factuur moet maken; met "Gefactureerd" schuift die een periode op.
+// ---------------------------------------------------------------------------
+
+export const BILLING_PERIODS = [
+  { value: "MONTHLY", label: "Maandelijks", months: 1 },
+  { value: "YEARLY", label: "Jaarlijks", months: 12 }
+] as const;
+
+export type BillingPeriodValue = (typeof BILLING_PERIODS)[number]["value"];
+
+export const BILLING_PERIOD_VALUES = BILLING_PERIODS.map((item) => item.value) as [
+  BillingPeriodValue,
+  ...BillingPeriodValue[]
+];
+
+// Zoveel dagen vooraf verschijnt een factuur als "binnenkort" op het dashboard.
+export const INVOICE_WARNING_DAYS = 7;
+
+export function getBillingMonths(period: string): number {
+  return BILLING_PERIODS.find((item) => item.value === period)?.months ?? 1;
+}
+
+export function getBillingLabel(period: string): string {
+  return BILLING_PERIODS.find((item) => item.value === period)?.label ?? "Maandelijks";
+}
+
+// Bedrag van één factuur: maandbedrag × aantal maanden van de periode.
+export function getInvoiceAmountCents(monthlyPriceCents: number, period: string): number {
+  return monthlyPriceCents * getBillingMonths(period);
+}
+
+// Telt maanden bij een datum (middernacht UTC); 31 jan + 1 maand = 28/29 feb.
+export function addMonthsUtc(date: Date, months: number): Date {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + months;
+  const day = date.getUTCDate();
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month, Math.min(day, lastDay)));
+}
+
+export type InvoiceStatus = { tone: "none" | "ok" | "soon" | "due"; label: string; days: number | null };
+
+export function getInvoiceStatus(nextInvoiceAt: Date | null | undefined): InvoiceStatus {
+  if (!nextInvoiceAt) return { tone: "none", label: "Geen factuurdatum", days: null };
+
+  const today = dateFromInput(todayBrussels()) as Date;
+  const days = Math.round((nextInvoiceAt.getTime() - today.getTime()) / 86_400_000);
+
+  if (days < 0) return { tone: "due", label: `${-days} ${-days === 1 ? "dag" : "dagen"} te laat`, days };
+  if (days === 0) return { tone: "due", label: "Vandaag factureren", days };
+  if (days <= INVOICE_WARNING_DAYS) return { tone: "soon", label: `Binnen ${days} ${days === 1 ? "dag" : "dagen"}`, days };
+  return { tone: "ok", label: formatStorageDate(nextInvoiceAt), days };
+}
+
+// ---------------------------------------------------------------------------
+// Wat heeft aandacht nodig? Gebruikt door het storage-overzicht én het dashboard.
+// ---------------------------------------------------------------------------
+
+export type StorageAttentionInput = {
+  status: string;
+  plan: string;
+  isPresent: boolean;
+  nextInvoiceAt: Date | null;
+  batteryCheckedAt: Date | null;
+  tiresCheckedAt: Date | null;
+};
+
+export function getStorageAttention<T extends StorageAttentionInput>(contracts: T[]) {
+  const active = contracts.filter((contract) => contract.status === "ACTIVE");
+  const present = active.filter((contract) => contract.isPresent);
+  const byInvoiceDate = (a: T, b: T) => (a.nextInvoiceAt?.getTime() ?? 0) - (b.nextInvoiceAt?.getTime() ?? 0);
+
+  // Facturen lopen door, ook als de wagen tijdelijk weg is. Checks enkel voor aanwezige wagens.
+  const invoicesDue = active.filter((c) => getInvoiceStatus(c.nextInvoiceAt).tone === "due").sort(byInvoiceDate);
+  const invoicesSoon = active.filter((c) => getInvoiceStatus(c.nextInvoiceAt).tone === "soon").sort(byInvoiceDate);
+  const batteryDue = present.filter(
+    (c) => hasChecks(c.plan) && getBatteryStatus(c.batteryCheckedAt).tone !== "ok"
+  );
+  const tiresDue = present.filter((c) => hasChecks(c.plan) && getTireStatus(c.tiresCheckedAt).tone !== "ok");
+  const carsWithCheckDue = present.filter(
+    (c) =>
+      hasChecks(c.plan) &&
+      (getBatteryStatus(c.batteryCheckedAt).tone !== "ok" || getTireStatus(c.tiresCheckedAt).tone !== "ok")
+  );
+
+  return { active, present, invoicesDue, invoicesSoon, batteryDue, tiresDue, carsWithCheckDue };
 }

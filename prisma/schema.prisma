@@ -387,9 +387,11 @@ model StorageContract {
   startDate         DateTime?
   status            String    @default("ACTIVE") // ACTIVE | ENDED
   isPresent         Boolean   @default(true) // staat de wagen nu in de storage?
+  billingPeriod     String    @default("MONTHLY") // MONTHLY | YEARLY
+  nextInvoiceAt     DateTime? // wanneer de volgende factuur gemaakt moet worden
   endedAt           DateTime?
   batteryCheckedAt  DateTime?
-  tires             String?
+  tires             String? // niet meer gebruikt (bandenmerk); kolom blijft staan om geen data te verliezen
   tiresCheckedAt    DateTime? // laatste check van de bandenspanning
   tirePressureFrontBar Float? // bandenspanning voor, in bar
   tirePressureRearBar  Float? // bandenspanning achter, in bar

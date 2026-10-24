@@ -6,7 +6,14 @@ import { useActionState, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { STORAGE_PLANS, getPlanPriceCents, hasBatteryCheck } from "@/lib/storage";
+import {
+  BILLING_PERIODS,
+  STORAGE_PLANS,
+  getBillingMonths,
+  getPlanPriceCents,
+  hasChecks
+} from "@/lib/storage";
+import { formatCurrencyFromCents } from "@/lib/utils";
 import { saveStorageContract, type SaveStorageState } from "./actions";
 
 export type StorageFormValues = {
@@ -18,13 +25,14 @@ export type StorageFormValues = {
   isPresent: boolean;
   plan: string;
   monthlyPrice: string; // in euro, bv. "200"
+  billingPeriod: string; // MONTHLY | YEARLY
+  nextInvoiceAt: string; // YYYY-MM-DD
   vehicleLabel: string;
   chassisNumber: string;
   spot: string;
   startDate: string; // YYYY-MM-DD
   batteryCheckedAt: string; // YYYY-MM-DD
   tiresCheckedAt: string; // YYYY-MM-DD
-  tires: string;
   tirePressureFront: string; // bar, bv. "2,4"
   tirePressureRear: string;
   notes: string;
@@ -39,13 +47,14 @@ const emptyValues: StorageFormValues = {
   isPresent: true,
   plan: "PREMIUM",
   monthlyPrice: "200",
+  billingPeriod: "MONTHLY",
+  nextInvoiceAt: "",
   vehicleLabel: "",
   chassisNumber: "",
   spot: "",
   startDate: "",
   batteryCheckedAt: "",
   tiresCheckedAt: "",
-  tires: "",
   tirePressureFront: "",
   tirePressureRear: "",
   notes: ""
@@ -58,6 +67,11 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
   const [state, formAction, isPending] = useActionState(saveStorageContract, initialState);
   const [plan, setPlan] = useState(values.plan);
   const [price, setPrice] = useState(values.monthlyPrice);
+  const [billing, setBilling] = useState(values.billingPeriod);
+  const monthlyNumber = Number(price.replace(",", "."));
+  const invoiceAmount = Number.isFinite(monthlyNumber)
+    ? formatCurrencyFromCents(Math.round(monthlyNumber * 100) * getBillingMonths(billing))
+    : "";
 
   // Wijzigt het pakket, dan volgt de maandprijs mee zolang je die niet zelf aanpaste.
   function handlePlanChange(nextPlan: string) {
@@ -126,11 +140,39 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
             <Input name="spot" defaultValue={values.spot} placeholder="Bv. 7" />
           </FormField>
         </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-4">
+          <FormField label="Facturatie">
+            <select
+              name="billingPeriod"
+              value={billing}
+              onChange={(event) => setBilling(event.target.value)}
+              className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-black outline-none focus:border-black focus:ring-1 focus:ring-black/20"
+            >
+              {BILLING_PERIODS.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Bedrag per factuur">
+            <div className="rounded-xl border border-black/10 bg-[#ececec] px-4 py-3 text-sm font-semibold text-black">
+              {invoiceAmount || "-"}
+            </div>
+          </FormField>
+          <FormField label="Volgende factuur op">
+            <Input name="nextInvoiceAt" type="date" defaultValue={values.nextInvoiceAt} />
+          </FormField>
+          <p className="self-end pb-3 text-xs text-black/50">
+            Leeg laten = eerste factuur op de startdatum. Met &quot;Gefactureerd&quot; in de lijst schuift
+            de datum zelf een maand of jaar op.
+          </p>
+        </div>
       </div>
 
       <div>
         <h2 className="text-lg font-bold text-black">Wagen</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
           <FormField label="Wagen">
             <Input name="vehicleLabel" defaultValue={values.vehicleLabel} placeholder="Bv. Porsche 911 GT3" />
           </FormField>
@@ -138,18 +180,11 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
             <Input name="chassisNumber" defaultValue={values.chassisNumber} placeholder="Bv. WP0ZZZ99ZNS000000" />
           </FormField>
           {/* Blijft in het formulier staan (verborgen bij Basic) zodat een bestaande datum niet verdwijnt. */}
-          <div className={hasBatteryCheck(plan) ? undefined : "hidden"}>
+          <div className={hasChecks(plan) ? undefined : "hidden"}>
             <FormField label="Laatste batterij-check">
               <Input name="batteryCheckedAt" type="date" defaultValue={values.batteryCheckedAt} />
             </FormField>
           </div>
-          <FormField label="Banden">
-            <Input
-              name="tires"
-              defaultValue={values.tires}
-              placeholder="Bv. Pirelli P Zero 20 inch zomer, 6 mm"
-            />
-          </FormField>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <FormField label="Bandenspanning voor (bar)">
@@ -168,9 +203,11 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
               placeholder="Bv. 2,6"
             />
           </FormField>
-          <FormField label="Laatste banden-check">
-            <Input name="tiresCheckedAt" type="date" defaultValue={values.tiresCheckedAt} />
-          </FormField>
+          <div className={hasChecks(plan) ? undefined : "hidden"}>
+            <FormField label="Laatste banden-check">
+              <Input name="tiresCheckedAt" type="date" defaultValue={values.tiresCheckedAt} />
+            </FormField>
+          </div>
         </div>
         <label className="mt-4 flex w-fit cursor-pointer items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black">
           <input
@@ -181,9 +218,9 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
           />
           Wagen staat nu in de storage (aanwezig)
         </label>
-        {!hasBatteryCheck(plan) ? (
+        {!hasChecks(plan) ? (
           <p className="mt-3 text-xs text-black/50">
-            Batterij-check zit niet in het Basic-pakket en wordt voor deze klant niet opgevolgd.
+            Batterij-check en banden-check zitten niet in het Basic-pakket en worden voor deze klant niet opgevolgd.
           </p>
         ) : null}
         <div className="mt-4">

@@ -8,13 +8,17 @@ import {
   formatStorageDate,
   formatTirePressure,
   getBatteryStatus,
+  getBillingLabel,
+  getInvoiceAmountCents,
+  getInvoiceStatus,
   getPlanLabel,
+  getStorageAttention,
   getTireStatus,
-  hasBatteryCheck,
+  hasChecks,
   normalizePlan
 } from "@/lib/storage";
 import { formatCurrencyFromCents } from "@/lib/utils";
-import { markChecked, setPresence } from "./actions";
+import { markChecked, markInvoiced, setPresence } from "./actions";
 
 type Contract = Awaited<ReturnType<typeof prisma.storageContract.findMany>>[number];
 
@@ -30,7 +34,6 @@ function matchesSearch(contract: Contract, query: string): boolean {
     contract.vehicleLabel,
     contract.chassisNumber,
     contract.spot,
-    contract.tires,
     contract.notes
   ]
     .filter(Boolean)
@@ -61,18 +64,16 @@ export default async function StoragePage({
 
   const monthlyRevenueCents = active.reduce((total, contract) => total + contract.monthlyPriceCents, 0);
   const free = STORAGE_CAPACITY - active.length;
-  const present = active.filter((contract) => contract.isPresent).length;
-  // Enkel Premium/Exclusive, en enkel wagens die er nu staan (een afwezige wagen kan je niet controleren).
-  const presentCars = active.filter((contract) => contract.isPresent);
-  const batteryDue = presentCars.filter(
-    (contract) => hasBatteryCheck(contract.plan) && getBatteryStatus(contract.batteryCheckedAt).tone !== "ok"
-  ).length;
-  const tiresDue = presentCars.filter((contract) => getTireStatus(contract.tiresCheckedAt).tone !== "ok").length;
-  const checksDue = presentCars.filter(
-    (contract) =>
-      (hasBatteryCheck(contract.plan) && getBatteryStatus(contract.batteryCheckedAt).tone !== "ok") ||
-      getTireStatus(contract.tiresCheckedAt).tone !== "ok"
-  ).length;
+  const attention = getStorageAttention(contracts);
+  const present = attention.present.length;
+  const batteryDue = attention.batteryDue.length;
+  const tiresDue = attention.tiresDue.length;
+  const checksDue = attention.carsWithCheckDue.length;
+  const invoicesDue = attention.invoicesDue.length;
+  const invoicesDueCents = attention.invoicesDue.reduce(
+    (total, contract) => total + getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod),
+    0
+  );
 
   return (
     <main className="flex flex-col gap-6">
@@ -100,7 +101,7 @@ export default async function StoragePage({
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Stat
           label="Bezet"
           value={`${active.length} / ${STORAGE_CAPACITY}`}
@@ -116,6 +117,18 @@ export default async function StoragePage({
           label="Per pakket"
           value={STORAGE_PLANS.map((plan) => active.filter((c) => normalizePlan(c.plan) === plan.value).length).join(" · ")}
           note={STORAGE_PLANS.map((plan) => plan.label).join(" · ")}
+        />
+        <Stat
+          label="Te factureren"
+          value={String(invoicesDue)}
+          note={
+            invoicesDue === 0
+              ? attention.invoicesSoon.length > 0
+                ? `${attention.invoicesSoon.length} binnenkort`
+                : "Alles gefactureerd"
+              : `${formatCurrencyFromCents(invoicesDueCents)} · ${attention.invoicesSoon.length} binnenkort`
+          }
+          tone={invoicesDue > 0 ? "bad" : "good"}
         />
         <Stat
           label="Checks nodig"
@@ -164,17 +177,17 @@ export default async function StoragePage({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[56rem] border-separate border-spacing-y-2 text-left text-sm">
+            <table className="w-full min-w-[64rem] border-separate border-spacing-y-2 text-left text-sm">
               <thead>
                 <tr className="text-xs font-bold uppercase tracking-[0.18em] text-black/40">
-                  <th className="px-4 pb-1">Klant</th>
-                  <th className="px-4 pb-1">Wagen</th>
-                  <th className="px-4 pb-1">Pakket</th>
-                  <th className="px-4 pb-1">Plaats</th>
-                  {currentTab === "active" ? <th className="px-4 pb-1">Aanwezig</th> : null}
-                  <th className="px-4 pb-1">Batterij-check</th>
-                  <th className="px-4 pb-1">Banden en check</th>
-                  <th className="px-4 pb-1" />
+                  <th className="px-3 pb-1">Klant</th>
+                  <th className="px-3 pb-1">Wagen</th>
+                  <th className="px-3 pb-1">Pakket</th>
+                  {currentTab === "active" ? <th className="px-3 pb-1">Aanwezig</th> : null}
+                  <th className="px-3 pb-1">Batterij-check</th>
+                  <th className="px-3 pb-1">Banden en check</th>
+                  {currentTab === "active" ? <th className="px-3 pb-1">Factuur</th> : null}
+                  <th className="px-3 pb-1" />
                 </tr>
               </thead>
               <tbody>
@@ -193,7 +206,8 @@ export default async function StoragePage({
 function ContractRow({ contract, showBattery }: { contract: Contract; showBattery: boolean }) {
   const battery = getBatteryStatus(contract.batteryCheckedAt);
   const tires = getTireStatus(contract.tiresCheckedAt);
-  const cell = "bg-white px-4 py-3 align-top first:rounded-l-2xl last:rounded-r-2xl";
+  const invoice = getInvoiceStatus(contract.nextInvoiceAt);
+  const cell = "bg-white px-3 py-3 align-top first:rounded-l-2xl last:rounded-r-2xl";
 
   return (
     <tr>
@@ -209,12 +223,13 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
       <td className={cell}>
         <p className="font-semibold text-black">{contract.vehicleLabel || "-"}</p>
         <p className="mt-1 text-xs text-black/50">{contract.chassisNumber || ""}</p>
+        {contract.spot ? <p className="mt-0.5 text-xs font-semibold text-black/60">Plaats {contract.spot}</p> : null}
       </td>
       <td className={cell}>
         <p className="font-semibold text-black">{getPlanLabel(contract.plan)}</p>
         <p className="mt-1 whitespace-nowrap text-xs text-black/50">{formatCurrencyFromCents(contract.monthlyPriceCents)} per maand</p>
+        <p className="mt-0.5 whitespace-nowrap text-xs text-black/50">{getBillingLabel(contract.billingPeriod)} gefactureerd</p>
       </td>
-      <td className={cell}>{contract.spot || "-"}</td>
       {showBattery ? (
         <td className={cell}>
           <form action={setPresence}>
@@ -244,8 +259,8 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
         </td>
       ) : null}
       <td className={cell}>
-        {showBattery && !hasBatteryCheck(contract.plan) ? (
-          <span className="text-xs text-black/40">Niet in Basic</span>
+        {showBattery && !hasChecks(contract.plan) ? (
+          <span className="text-xs text-black/40">Check niet in Basic</span>
         ) : showBattery ? (
           <div className="flex flex-col items-start gap-2">
             <CheckPill status={battery} date={contract.batteryCheckedAt} />
@@ -262,13 +277,10 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
         )}
       </td>
       <td className={cell}>
-        <span className="text-black/75">{contract.tires || "-"}</span>
-        {formatTirePressure(contract.tirePressureFrontBar, contract.tirePressureRearBar) ? (
-          <p className="mt-1 whitespace-nowrap text-xs font-semibold text-black/60">
-            {formatTirePressure(contract.tirePressureFrontBar, contract.tirePressureRearBar)}
-          </p>
-        ) : null}
-        {showBattery ? (
+        <p className="whitespace-nowrap font-semibold text-black/75">
+          {formatTirePressure(contract.tirePressureFrontBar, contract.tirePressureRearBar) || "-"}
+        </p>
+        {showBattery && hasChecks(contract.plan) ? (
           <div className="mt-2 flex flex-col items-start gap-2">
             <CheckPill status={tires} date={contract.tiresCheckedAt} />
             <form action={markChecked}>
@@ -281,6 +293,22 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
           </div>
         ) : null}
       </td>
+      {showBattery ? (
+        <td className={cell}>
+          <div className="flex flex-col items-start gap-2">
+            <InvoicePill status={invoice} />
+            <p className="whitespace-nowrap text-xs text-black/50">
+              {formatCurrencyFromCents(getInvoiceAmountCents(contract.monthlyPriceCents, contract.billingPeriod))}
+            </p>
+            <form action={markInvoiced}>
+              <input type="hidden" name="contractId" value={contract.id} />
+              <button type="submit" className="text-xs font-semibold text-black/60 underline underline-offset-4 hover:text-black">
+                Gefactureerd
+              </button>
+            </form>
+          </div>
+        </td>
+      ) : null}
       <td className={`${cell} text-right`}>
         <Link
           href={`/storage/${contract.id}` as Route}
@@ -290,6 +318,23 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
         </Link>
       </td>
     </tr>
+  );
+}
+
+function InvoicePill({ status }: { status: ReturnType<typeof getInvoiceStatus> }) {
+  const color =
+    status.tone === "due"
+      ? "bg-red-50 text-red-700"
+      : status.tone === "soon"
+        ? "bg-amber-50 text-amber-700"
+        : status.tone === "ok"
+          ? "bg-black/5 text-black/70"
+          : "bg-amber-50 text-amber-700";
+
+  return (
+    <span className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${color}`}>
+      {status.label}
+    </span>
   );
 }
 

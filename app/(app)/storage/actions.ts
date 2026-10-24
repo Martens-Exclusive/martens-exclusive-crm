@@ -7,8 +7,11 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
+  BILLING_PERIOD_VALUES,
   STORAGE_PLAN_VALUES,
+  addMonthsUtc,
   dateFromInput,
+  getBillingMonths,
   getPlanPriceCents,
   parseBar,
   parseEuroToCents,
@@ -29,13 +32,14 @@ const storageSchema = z.object({
   email: optional(200),
   plan: z.enum(STORAGE_PLAN_VALUES, { message: "Kies een pakket." }),
   monthlyPrice: z.preprocess(clean, z.string()),
+  billingPeriod: z.enum(BILLING_PERIOD_VALUES, { message: "Kies maandelijks of jaarlijks." }),
+  nextInvoiceAt: z.preprocess(clean, z.string()),
   vehicleLabel: optional(200),
   chassisNumber: optional(50),
   spot: optional(30),
   startDate: z.preprocess(clean, z.string()),
   batteryCheckedAt: z.preprocess(clean, z.string()),
   tiresCheckedAt: z.preprocess(clean, z.string()),
-  tires: optional(500),
   tirePressureFront: z.preprocess(clean, z.string()),
   tirePressureRear: z.preprocess(clean, z.string()),
   notes: optional(4000)
@@ -76,13 +80,14 @@ export async function saveStorageContract(
     email: input.email,
     plan: input.plan,
     monthlyPriceCents,
+    billingPeriod: input.billingPeriod,
+    nextInvoiceAt: dateFromInput(input.nextInvoiceAt),
     vehicleLabel: input.vehicleLabel,
     chassisNumber: input.chassisNumber,
     spot: input.spot,
     startDate: dateFromInput(input.startDate),
     batteryCheckedAt: dateFromInput(input.batteryCheckedAt),
     tiresCheckedAt: dateFromInput(input.tiresCheckedAt),
-    tires: input.tires,
     tirePressureFrontBar,
     tirePressureRearBar,
     notes: input.notes
@@ -91,10 +96,14 @@ export async function saveStorageContract(
   if (input.contractId) {
     await prisma.storageContract.update({ where: { id: input.contractId }, data });
   } else {
-    await prisma.storageContract.create({ data });
+    // Nieuwe klant zonder ingevulde factuurdatum: eerste factuur op de startdatum.
+    await prisma.storageContract.create({
+      data: { ...data, nextInvoiceAt: data.nextInvoiceAt ?? data.startDate }
+    });
   }
 
   revalidatePath("/storage");
+  revalidatePath("/dashboard");
   redirect("/storage");
 }
 
@@ -110,6 +119,30 @@ export async function setPresence(formData: FormData) {
   });
 
   revalidatePath("/storage");
+  revalidatePath("/dashboard");
+}
+
+// Factuur gemaakt: "volgende factuur" schuift één periode (maand of jaar) op.
+export async function markInvoiced(formData: FormData) {
+  await requireUser();
+
+  const contractId = clean(formData.get("contractId"));
+  if (!contractId) return;
+
+  const contract = await prisma.storageContract.findUnique({ where: { id: contractId } });
+  if (!contract) return;
+
+  const months = getBillingMonths(contract.billingPeriod);
+  const base = contract.nextInvoiceAt ?? dateFromInput(todayBrussels());
+  if (!base) return;
+
+  await prisma.storageContract.update({
+    where: { id: contractId },
+    data: { nextInvoiceAt: addMonthsUtc(base, months) }
+  });
+
+  revalidatePath("/storage");
+  revalidatePath("/dashboard");
 }
 
 // Zet de laatste check van "vandaag": kind = "battery" of "tires".
@@ -128,6 +161,7 @@ export async function markChecked(formData: FormData) {
   });
 
   revalidatePath("/storage");
+  revalidatePath("/dashboard");
 }
 
 export async function setStorageStatus(formData: FormData) {
@@ -143,6 +177,7 @@ export async function setStorageStatus(formData: FormData) {
   });
 
   revalidatePath("/storage");
+  revalidatePath("/dashboard");
   redirect(status === "ENDED" ? "/storage?tab=ended" : "/storage");
 }
 
@@ -162,5 +197,6 @@ export async function deleteStorageContract(
   }
 
   revalidatePath("/storage");
+  revalidatePath("/dashboard");
   redirect("/storage?tab=ended");
 }
