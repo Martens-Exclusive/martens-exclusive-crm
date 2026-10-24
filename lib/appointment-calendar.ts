@@ -33,14 +33,18 @@ function formatVehicle(vehicle: VehicleInfo) {
   return [vehicle.brand, vehicle.model, vehicle.variant].filter(Boolean).join(" ");
 }
 
-// Wagen van de afspraak; zonder gekozen wagen valt dit terug op de wagen of het merk/model van de lead.
-export function getAppointmentVehicleLabel(appointment: CalendarAppointment) {
-  const vehicle = appointment.vehicle ?? appointment.lead.primaryVehicle;
-  if (vehicle) return formatVehicle(vehicle);
+// Wagen van de lead: de gekoppelde stockwagen, anders het merk/model waarvoor de lead interesse heeft.
+export function getLeadVehicleLabel(lead: CalendarAppointment["lead"]) {
+  if (lead.primaryVehicle) return formatVehicle(lead.primaryVehicle);
 
-  return [appointment.lead.interestedBrand, appointment.lead.interestedModel]
-    .filter(Boolean)
-    .join(" ");
+  return [lead.interestedBrand, lead.interestedModel].filter(Boolean).join(" ");
+}
+
+// Wagen van de afspraak: een apart gekozen wagen, anders die van de lead.
+export function getAppointmentVehicleLabel(appointment: CalendarAppointment) {
+  if (appointment.vehicle) return formatVehicle(appointment.vehicle);
+
+  return getLeadVehicleLabel(appointment.lead);
 }
 
 function getAppointmentStockNumber(appointment: CalendarAppointment) {

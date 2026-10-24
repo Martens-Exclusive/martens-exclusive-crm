@@ -17,7 +17,7 @@ import { calcQuotePricing, formatDateBE, formatEuro } from "@/lib/quote-calc";
 import { QUOTE_TYPE_LABELS } from "@/lib/quote-content";
 import { toNeedsAnalysisValues } from "@/lib/needs-analysis";
 import { prisma } from "@/lib/prisma";
-import { getAppointmentVehicleLabel } from "@/lib/appointment-calendar";
+import { getAppointmentVehicleLabel, getLeadVehicleLabel } from "@/lib/appointment-calendar";
 import { getRequestOrigin } from "@/lib/request-origin";
 
 import { AddToCalendar } from "../../appointments/add-to-calendar";
@@ -460,7 +460,7 @@ export default async function LeadDetailPage({
 
         <CreateAppointmentForm
           leadId={lead.id}
-          defaultVehicleId={lead.primaryVehicleId}
+          leadVehicleLabel={getLeadVehicleLabel(lead)}
           vehicles={vehicles}
         />
 

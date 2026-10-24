@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type CreateAppointmentFormProps = {
   leadId: string;
-  defaultVehicleId?: string | null;
+  leadVehicleLabel: string;
   vehicles: {
     id: string;
     brand: string;
@@ -31,7 +31,7 @@ const appointmentTypes = [
 
 export function CreateAppointmentForm({
   leadId,
-  defaultVehicleId,
+  leadVehicleLabel,
   vehicles
 }: CreateAppointmentFormProps) {
   const [state, formAction, isPending] = useActionState(createAppointment, initialState);
@@ -59,9 +59,13 @@ export function CreateAppointmentForm({
           </Select>
         </Field>
 
-        <Field label="Wagen waarvoor ze komen">
-          <Select name="vehicleId" defaultValue={defaultVehicleId ?? ""}>
-            <option value="">Geen specifieke wagen</option>
+        <Field label="Wagen">
+          <Select name="vehicleId" defaultValue="">
+            <option value="">
+              {leadVehicleLabel
+                ? `Zoals bij de lead: ${leadVehicleLabel}`
+                : "Geen wagen bij de lead ingevuld"}
+            </option>
             {vehicles.map((vehicle) => (
               <option key={vehicle.id} value={vehicle.id}>
                 {[vehicle.brand, vehicle.model, vehicle.variant].filter(Boolean).join(" ")} (
