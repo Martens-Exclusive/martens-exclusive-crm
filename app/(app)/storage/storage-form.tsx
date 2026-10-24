@@ -23,6 +23,7 @@ export type StorageFormValues = {
   spot: string;
   startDate: string; // YYYY-MM-DD
   batteryCheckedAt: string; // YYYY-MM-DD
+  tiresCheckedAt: string; // YYYY-MM-DD
   tires: string;
   tirePressureFront: string; // bar, bv. "2,4"
   tirePressureRear: string;
@@ -43,6 +44,7 @@ const emptyValues: StorageFormValues = {
   spot: "",
   startDate: "",
   batteryCheckedAt: "",
+  tiresCheckedAt: "",
   tires: "",
   tirePressureFront: "",
   tirePressureRear: "",
@@ -149,7 +151,7 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
             />
           </FormField>
         </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
           <FormField label="Bandenspanning voor (bar)">
             <Input
               name="tirePressureFront"
@@ -165,6 +167,9 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
               defaultValue={values.tirePressureRear}
               placeholder="Bv. 2,6"
             />
+          </FormField>
+          <FormField label="Laatste banden-check">
+            <Input name="tiresCheckedAt" type="date" defaultValue={values.tiresCheckedAt} />
           </FormField>
         </div>
         <label className="mt-4 flex w-fit cursor-pointer items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black">

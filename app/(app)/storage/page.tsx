@@ -9,11 +9,12 @@ import {
   formatTirePressure,
   getBatteryStatus,
   getPlanLabel,
+  getTireStatus,
   hasBatteryCheck,
   normalizePlan
 } from "@/lib/storage";
 import { formatCurrencyFromCents } from "@/lib/utils";
-import { markBatteryChecked, setPresence } from "./actions";
+import { markChecked, setPresence } from "./actions";
 
 type Contract = Awaited<ReturnType<typeof prisma.storageContract.findMany>>[number];
 
@@ -62,11 +63,15 @@ export default async function StoragePage({
   const free = STORAGE_CAPACITY - active.length;
   const present = active.filter((contract) => contract.isPresent).length;
   // Enkel Premium/Exclusive, en enkel wagens die er nu staan (een afwezige wagen kan je niet controleren).
-  const batteryDue = active.filter(
+  const presentCars = active.filter((contract) => contract.isPresent);
+  const batteryDue = presentCars.filter(
+    (contract) => hasBatteryCheck(contract.plan) && getBatteryStatus(contract.batteryCheckedAt).tone !== "ok"
+  ).length;
+  const tiresDue = presentCars.filter((contract) => getTireStatus(contract.tiresCheckedAt).tone !== "ok").length;
+  const checksDue = presentCars.filter(
     (contract) =>
-      contract.isPresent &&
-      hasBatteryCheck(contract.plan) &&
-      getBatteryStatus(contract.batteryCheckedAt).tone !== "ok"
+      (hasBatteryCheck(contract.plan) && getBatteryStatus(contract.batteryCheckedAt).tone !== "ok") ||
+      getTireStatus(contract.tiresCheckedAt).tone !== "ok"
   ).length;
 
   return (
@@ -113,10 +118,14 @@ export default async function StoragePage({
           note={STORAGE_PLANS.map((plan) => plan.label).join(" · ")}
         />
         <Stat
-          label="Batterij-check"
-          value={String(batteryDue)}
-          note={batteryDue === 0 ? "Alles in orde (Premium en Exclusive)" : "aanwezige wagens met check nodig of zonder check"}
-          tone={batteryDue > 0 ? "warn" : "good"}
+          label="Checks nodig"
+          value={String(checksDue)}
+          note={
+            checksDue === 0
+              ? "Alles in orde"
+              : `wagens · batterij ${batteryDue} · banden ${tiresDue}`
+          }
+          tone={checksDue > 0 ? "warn" : "good"}
         />
       </section>
 
@@ -163,8 +172,8 @@ export default async function StoragePage({
                   <th className="px-4 pb-1">Pakket</th>
                   <th className="px-4 pb-1">Plaats</th>
                   {currentTab === "active" ? <th className="px-4 pb-1">Aanwezig</th> : null}
-                  <th className="px-4 pb-1">Batterij</th>
-                  <th className="px-4 pb-1">Banden</th>
+                  <th className="px-4 pb-1">Batterij-check</th>
+                  <th className="px-4 pb-1">Banden en check</th>
                   <th className="px-4 pb-1" />
                 </tr>
               </thead>
@@ -183,6 +192,7 @@ export default async function StoragePage({
 
 function ContractRow({ contract, showBattery }: { contract: Contract; showBattery: boolean }) {
   const battery = getBatteryStatus(contract.batteryCheckedAt);
+  const tires = getTireStatus(contract.tiresCheckedAt);
   const cell = "bg-white px-4 py-3 align-top first:rounded-l-2xl last:rounded-r-2xl";
 
   return (
@@ -238,20 +248,10 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
           <span className="text-xs text-black/40">Niet in Basic</span>
         ) : showBattery ? (
           <div className="flex flex-col items-start gap-2">
-            <span
-              className={
-                battery.tone === "ok"
-                  ? "whitespace-nowrap rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
-                  : battery.tone === "due"
-                    ? "whitespace-nowrap rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"
-                    : "whitespace-nowrap rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700"
-              }
-            >
-              {battery.label}
-              {contract.batteryCheckedAt ? ` · ${formatStorageDate(contract.batteryCheckedAt)}` : ""}
-            </span>
-            <form action={markBatteryChecked}>
+            <CheckPill status={battery} date={contract.batteryCheckedAt} />
+            <form action={markChecked}>
               <input type="hidden" name="contractId" value={contract.id} />
+              <input type="hidden" name="kind" value="battery" />
               <button type="submit" className="text-xs font-semibold text-black/60 underline underline-offset-4 hover:text-black">
                 Check vandaag gedaan
               </button>
@@ -268,6 +268,18 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
             {formatTirePressure(contract.tirePressureFrontBar, contract.tirePressureRearBar)}
           </p>
         ) : null}
+        {showBattery ? (
+          <div className="mt-2 flex flex-col items-start gap-2">
+            <CheckPill status={tires} date={contract.tiresCheckedAt} />
+            <form action={markChecked}>
+              <input type="hidden" name="contractId" value={contract.id} />
+              <input type="hidden" name="kind" value="tires" />
+              <button type="submit" className="text-xs font-semibold text-black/60 underline underline-offset-4 hover:text-black">
+                Check vandaag gedaan
+              </button>
+            </form>
+          </div>
+        ) : null}
       </td>
       <td className={`${cell} text-right`}>
         <Link
@@ -278,6 +290,22 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
         </Link>
       </td>
     </tr>
+  );
+}
+
+function CheckPill({ status, date }: { status: ReturnType<typeof getBatteryStatus>; date: Date | null }) {
+  const color =
+    status.tone === "ok"
+      ? "bg-emerald-50 text-emerald-700"
+      : status.tone === "due"
+        ? "bg-red-50 text-red-700"
+        : "bg-amber-50 text-amber-700";
+
+  return (
+    <span className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${color}`}>
+      {status.label}
+      {date ? ` · ${formatStorageDate(date)}` : ""}
+    </span>
   );
 }
 

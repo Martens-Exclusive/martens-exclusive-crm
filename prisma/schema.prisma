@@ -390,6 +390,7 @@ model StorageContract {
   endedAt           DateTime?
   batteryCheckedAt  DateTime?
   tires             String?
+  tiresCheckedAt    DateTime? // laatste check van de bandenspanning
   tirePressureFrontBar Float? // bandenspanning voor, in bar
   tirePressureRearBar  Float? // bandenspanning achter, in bar
   notes             String?

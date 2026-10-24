@@ -2,8 +2,9 @@
 
 export const STORAGE_CAPACITY = 15;
 
-// Een batterij-check ouder dan dit aantal dagen wordt rood ("Check nodig").
+// Een check ouder dan dit aantal dagen wordt rood ("Check nodig").
 export const BATTERY_CHECK_INTERVAL_DAYS = 90;
+export const TIRE_CHECK_INTERVAL_DAYS = 60;
 
 export const STORAGE_PLANS = [
   { value: "BASIC", label: "Basic", priceCents: 15000 },
@@ -87,12 +88,20 @@ export function formatStorageDate(value: Date | null | undefined): string {
 export type BatteryStatus = { tone: "none" | "ok" | "due"; label: string; days: number | null };
 
 export function getBatteryStatus(checkedAt: Date | null | undefined): BatteryStatus {
+  return getCheckStatus(checkedAt, BATTERY_CHECK_INTERVAL_DAYS);
+}
+
+export function getTireStatus(checkedAt: Date | null | undefined): BatteryStatus {
+  return getCheckStatus(checkedAt, TIRE_CHECK_INTERVAL_DAYS);
+}
+
+function getCheckStatus(checkedAt: Date | null | undefined, intervalDays: number): BatteryStatus {
   if (!checkedAt) return { tone: "none", label: "Nog geen check", days: null };
 
   const today = dateFromInput(todayBrussels()) as Date;
   const days = Math.max(0, Math.round((today.getTime() - checkedAt.getTime()) / 86_400_000));
 
-  return days > BATTERY_CHECK_INTERVAL_DAYS
+  return days > intervalDays
     ? { tone: "due", label: "Check nodig", days }
     : { tone: "ok", label: "OK", days };
 }

@@ -34,6 +34,7 @@ const storageSchema = z.object({
   spot: optional(30),
   startDate: z.preprocess(clean, z.string()),
   batteryCheckedAt: z.preprocess(clean, z.string()),
+  tiresCheckedAt: z.preprocess(clean, z.string()),
   tires: optional(500),
   tirePressureFront: z.preprocess(clean, z.string()),
   tirePressureRear: z.preprocess(clean, z.string()),
@@ -80,6 +81,7 @@ export async function saveStorageContract(
     spot: input.spot,
     startDate: dateFromInput(input.startDate),
     batteryCheckedAt: dateFromInput(input.batteryCheckedAt),
+    tiresCheckedAt: dateFromInput(input.tiresCheckedAt),
     tires: input.tires,
     tirePressureFrontBar,
     tirePressureRearBar,
@@ -110,15 +112,19 @@ export async function setPresence(formData: FormData) {
   revalidatePath("/storage");
 }
 
-export async function markBatteryChecked(formData: FormData) {
+// Zet de laatste check van "vandaag": kind = "battery" of "tires".
+export async function markChecked(formData: FormData) {
   await requireUser();
 
   const contractId = clean(formData.get("contractId"));
-  if (!contractId) return;
+  const kind = clean(formData.get("kind"));
+  if (!contractId || (kind !== "battery" && kind !== "tires")) return;
+
+  const today = dateFromInput(todayBrussels());
 
   await prisma.storageContract.update({
     where: { id: contractId },
-    data: { batteryCheckedAt: dateFromInput(todayBrussels()) }
+    data: kind === "battery" ? { batteryCheckedAt: today } : { tiresCheckedAt: today }
   });
 
   revalidatePath("/storage");

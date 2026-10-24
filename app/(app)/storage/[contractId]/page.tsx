@@ -56,6 +56,7 @@ export default async function EditStorageContractPage({
           spot: contract.spot ?? "",
           startDate: dateToInput(contract.startDate),
           batteryCheckedAt: dateToInput(contract.batteryCheckedAt),
+          tiresCheckedAt: dateToInput(contract.tiresCheckedAt),
           tires: contract.tires ?? "",
           tirePressureFront: formatBar(contract.tirePressureFrontBar),
           tirePressureRear: formatBar(contract.tirePressureRearBar),
