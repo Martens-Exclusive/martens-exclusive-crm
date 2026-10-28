@@ -80,7 +80,7 @@ export default async function StoragePage({
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/50">Car Storage</p>
@@ -145,7 +145,7 @@ export default async function StoragePage({
         />
       </section>
 
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-card p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <form method="get" className="mb-5 flex flex-wrap gap-3">
           {currentTab === "ended" ? <input type="hidden" name="tab" value="ended" /> : null}
           <input
@@ -156,7 +156,7 @@ export default async function StoragePage({
           />
           <button
             type="submit"
-            className="rounded-2xl border border-black/15 bg-[#fafafa] px-5 py-3 text-sm font-semibold text-black/80 transition hover:bg-[#e7e7e7]"
+            className="rounded-2xl border border-black/15 bg-raised px-5 py-3 text-sm font-semibold text-black/80 transition hover:bg-hover2"
           >
             Zoeken
           </button>
@@ -323,7 +323,7 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
       <td className={`${cell} text-right`}>
         <Link
           href={`/storage/${contract.id}` as Route}
-          className="rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-[#e2e2e2] hover:text-black"
+          className="rounded-2xl border border-black/15 bg-header px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-hover3 hover:text-black"
         >
           Open
         </Link>
@@ -333,7 +333,7 @@ function ContractRow({ contract, showBattery }: { contract: Contract; showBatter
 }
 
 const cardButton =
-  "rounded-xl border border-black/15 bg-[#f8f8f8] px-3 py-2 text-xs font-semibold text-black/80 transition active:bg-[#e2e2e2]";
+  "rounded-xl border border-black/15 bg-header px-3 py-2 text-xs font-semibold text-black/80 transition active:bg-hover3";
 
 // Telefoon en tablet: elke storageklant als kaartje in plaats van een brede tabel.
 function ContractCard({ contract, showActive }: { contract: Contract; showActive: boolean }) {
@@ -354,7 +354,7 @@ function ContractCard({ contract, showActive }: { contract: Contract; showActive
             {[contract.phone, contract.email].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-[#f0f0f0] px-3 py-1 text-xs font-semibold text-black/75">
+        <span className="shrink-0 rounded-full bg-soft px-3 py-1 text-xs font-semibold text-black/75">
           {getPlanLabel(contract.plan)}
         </span>
       </div>
@@ -452,7 +452,7 @@ function ContractCard({ contract, showActive }: { contract: Contract; showActive
 
       <Link
         href={`/storage/${contract.id}` as Route}
-        className="mt-4 block rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-3 text-center text-sm font-semibold text-black/85 transition active:bg-[#e2e2e2]"
+        className="mt-4 block rounded-2xl border border-black/15 bg-header px-4 py-3 text-center text-sm font-semibold text-black/85 transition active:bg-hover3"
       >
         Open
       </Link>
@@ -508,7 +508,7 @@ function Stat({
     tone === "bad" ? "text-red-700" : tone === "warn" ? "text-amber-700" : tone === "good" ? "text-emerald-700" : "text-black";
 
   return (
-    <div className="rounded-3xl border border-black/10 bg-[#f5f5f5] p-4 shadow-sm sm:p-6">
+    <div className="rounded-3xl border border-black/10 bg-card p-4 shadow-sm sm:p-6">
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-black/45">{label}</p>
       <p className={`mt-3 text-2xl font-bold sm:text-3xl ${color}`}>{value}</p>
       <p className="mt-1 text-xs text-black/55">{note}</p>
@@ -523,7 +523,7 @@ function TabLink({ href, label, active }: { href: Route; label: string; active: 
       className={
         active
           ? "rounded-2xl border border-black bg-black px-5 py-3 text-sm font-semibold text-white"
-          : "rounded-2xl border border-black/15 bg-[#fafafa] px-5 py-3 text-sm font-semibold text-black/80 transition hover:bg-[#e7e7e7] hover:text-black"
+          : "rounded-2xl border border-black/15 bg-raised px-5 py-3 text-sm font-semibold text-black/80 transition hover:bg-hover2 hover:text-black"
       }
     >
       {label}

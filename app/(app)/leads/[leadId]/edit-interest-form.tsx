@@ -63,7 +63,7 @@ export function EditInterestForm({
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="rounded-xl border border-black/15 bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-[#ececec]"
+            className="rounded-xl border border-black/15 bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-hover"
           >
             Wijzig
           </button>
@@ -80,7 +80,7 @@ export function EditInterestForm({
       ) : (
         <form
           action={formAction}
-          className="mt-4 rounded-2xl border border-black/10 bg-[#efefef] p-6"
+          className="mt-4 rounded-2xl border border-black/10 bg-panel p-6"
         >
           <input type="hidden" name="leadId" value={leadId} />
 
@@ -146,7 +146,7 @@ export function EditInterestForm({
             <button
               type="button"
               onClick={() => setIsEditing(false)}
-              className="rounded-2xl border border-black/15 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#ececec]"
+              className="rounded-2xl border border-black/15 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-hover"
             >
               Annuleren
             </button>

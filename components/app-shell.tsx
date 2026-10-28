@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { FormEvent } from "react";
 import { signOut } from "next-auth/react";
 
+import { ThemeToggle } from "@/components/theme-toggle";
 import { mainNavigation } from "@/lib/navigation";
 
 type AppShellProps = {
@@ -36,8 +37,8 @@ export function AppShell({ children, userName }: AppShellProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f3f3] text-black">
-      <header className="z-50 border-b border-black/10 bg-[#f8f8f8]/95 backdrop-blur lg:sticky lg:top-0">
+    <div className="min-h-screen bg-page text-black">
+      <header className="z-50 border-b border-black/10 bg-header/95 backdrop-blur xl:sticky xl:top-0">
         <div className="mx-auto flex min-h-[64px] w-full max-w-[1600px] items-center justify-between gap-5 px-4 sm:px-6 lg:px-10">
           <Link href="/dashboard" className="flex shrink-0 items-center">
             <Image
@@ -46,11 +47,19 @@ export function AppShell({ children, userName }: AppShellProps) {
               width={132}
               height={32}
               priority
-              className="h-8 w-auto"
+              className="h-8 w-auto dark:hidden"
+            />
+            <Image
+              src="/logo-white.png"
+              alt="Martens Exclusive"
+              width={132}
+              height={32}
+              priority
+              className="hidden h-8 w-auto dark:block"
             />
           </Link>
 
-          <nav className="hidden flex-1 items-center justify-center gap-2 lg:flex">
+          <nav className="hidden flex-1 items-center justify-center gap-2 xl:flex">
             {mainNavigation.map((item) => {
               const active = isActivePath(pathname, item.href);
 
@@ -58,7 +67,7 @@ export function AppShell({ children, userName }: AppShellProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                  className={`whitespace-nowrap rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                     active
                       ? "bg-black text-white shadow-[0_10px_25px_rgba(0,0,0,0.15)]"
                       : "text-black/65 hover:bg-black/5 hover:text-black"
@@ -70,7 +79,7 @@ export function AppShell({ children, userName }: AppShellProps) {
             })}
           </nav>
 
-          <form onSubmit={handleSearch} className="hidden w-full max-w-sm lg:block">
+          <form onSubmit={handleSearch} className="hidden w-full max-w-sm xl:block">
             <input
               type="search"
               name="q"
@@ -80,7 +89,7 @@ export function AppShell({ children, userName }: AppShellProps) {
             />
           </form>
 
-          <div className="hidden min-w-0 text-right xl:block">
+          <div className="hidden min-w-0 text-right 2xl:block">
             <p className="text-xs uppercase tracking-[0.18em] text-black/40">
               Aangemeld als
             </p>
@@ -89,16 +98,20 @@ export function AppShell({ children, userName }: AppShellProps) {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black/70 transition hover:bg-[#ececec] hover:text-black"
-          >
-            Afmelden
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black/70 transition hover:bg-hover hover:text-black"
+            >
+              Afmelden
+            </button>
+          </div>
         </div>
 
-        <nav className="mx-auto flex w-full max-w-[1600px] gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:px-6 lg:hidden [&::-webkit-scrollbar]:hidden">
+        <nav className="mx-auto flex w-full max-w-[1600px] gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:px-6 lg:px-10 xl:hidden [&::-webkit-scrollbar]:hidden">
           {mainNavigation.map((item) => {
             const active = isActivePath(pathname, item.href);
 
@@ -120,7 +133,7 @@ export function AppShell({ children, userName }: AppShellProps) {
 
         <form
           onSubmit={handleSearch}
-          className="mx-auto w-full max-w-[1600px] px-4 pb-3 sm:px-6 lg:hidden"
+          className="mx-auto w-full max-w-[1600px] px-4 pb-3 sm:px-6 lg:px-10 xl:hidden"
         >
           <input
             type="search"

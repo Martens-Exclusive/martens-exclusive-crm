@@ -147,7 +147,7 @@ export default async function LeadDetailPage({
   return (
     <main className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <section className="flex flex-col gap-6">
-        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <div className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
@@ -261,7 +261,7 @@ export default async function LeadDetailPage({
               <input type="hidden" name="type" value="BESTELBON" />
               <button
                 type="submit"
-                className="rounded-2xl border border-black/15 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#ececec]"
+                className="rounded-2xl border border-black/15 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-hover"
               >
                 Bestelbon maken
               </button>
@@ -283,7 +283,7 @@ export default async function LeadDetailPage({
               return (
                 <div
                   key={quote.id}
-                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-black/10 bg-[#efefef] p-5"
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-black/10 bg-panel p-5"
                 >
                   <div>
                     <span className="inline-flex rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
@@ -302,7 +302,7 @@ export default async function LeadDetailPage({
 
                     <Link
                       href={`/leads/${lead.id}/quotes/${quote.id}`}
-                      className="rounded-xl border border-black/15 bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-[#e2e2e2]"
+                      className="rounded-xl border border-black/15 bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-hover3"
                     >
                       Openen
                     </Link>
@@ -312,7 +312,7 @@ export default async function LeadDetailPage({
                         <input type="hidden" name="quoteId" value={quote.id} />
                         <button
                           type="submit"
-                          className="rounded-xl border border-black/15 bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-[#e2e2e2]"
+                          className="rounded-xl border border-black/15 bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-hover3"
                         >
                           Naar bestelbon
                         </button>
@@ -348,7 +348,7 @@ export default async function LeadDetailPage({
             <EmptyState text="Nog geen afspraken ingepland." />
           ) : (
             lead.appointments.map((appointment) => (
-              <div key={appointment.id} className="rounded-2xl border border-black/10 bg-[#efefef] p-5">
+              <div key={appointment.id} className="rounded-2xl border border-black/10 bg-panel p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-semibold text-black">
@@ -402,7 +402,7 @@ export default async function LeadDetailPage({
             <EmptyState text="Nog geen activiteiten geregistreerd." />
           ) : (
             lead.activities.map((activity) => (
-              <div key={activity.id} className="rounded-2xl border border-black/10 bg-[#efefef] p-5">
+              <div key={activity.id} className="rounded-2xl border border-black/10 bg-panel p-5">
                 <p className="font-semibold text-black">{activity.summary}</p>
 
                 {activity.details ? (
@@ -451,11 +451,11 @@ export default async function LeadDetailPage({
           defaultAssignedUserId={lead.assignedUserId || users[0]?.id || ""}
         />
 
-        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <div className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
           <h2 className="text-xl font-bold text-black">Wagen</h2>
 
           {lead.primaryVehicle ? (
-            <div className="mt-6 rounded-2xl border border-black/10 bg-[#efefef] p-5">
+            <div className="mt-6 rounded-2xl border border-black/10 bg-panel p-5">
               <p className="text-lg font-bold text-black">
                 {lead.primaryVehicle.brand} {lead.primaryVehicle.model}
               </p>
@@ -516,8 +516,8 @@ function TaskGroup({
               highlight === "overdue"
                 ? "border-red-300 bg-red-50"
                 : task.status === "COMPLETED"
-                  ? "border-black/10 bg-[#efefef] opacity-70"
-                  : "border-black/10 bg-[#efefef]"
+                  ? "border-black/10 bg-panel opacity-70"
+                  : "border-black/10 bg-panel"
             }`}
           >
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -546,7 +546,7 @@ function TaskGroup({
 
                   <button
                     type="submit"
-                    className="rounded-2xl border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-[#ececec]"
+                    className="rounded-2xl border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-hover"
                   >
                     Markeer als voltooid
                   </button>
@@ -606,7 +606,7 @@ function SectionTitle({ title }: { title: string }) {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-black/10 bg-[#efefef] p-4">
+    <div className="rounded-2xl border border-black/10 bg-panel p-4">
       <p className="text-xs uppercase tracking-[0.2em] text-black/45">{label}</p>
       <p className="mt-2 text-lg font-bold text-black">{value}</p>
     </div>
@@ -617,7 +617,7 @@ function TextBlock({ title, text }: { title: string; text: string }) {
   return (
     <div className="mt-10">
       <SectionTitle title={title} />
-      <div className="mt-4 rounded-2xl border border-black/10 bg-[#efefef] p-5">
+      <div className="mt-4 rounded-2xl border border-black/10 bg-panel p-5">
         <p className="text-sm leading-7 text-black/75">{text}</p>
       </div>
     </div>
@@ -632,7 +632,7 @@ function OverviewBlock({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+    <div className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
       <h2 className="text-xl font-bold text-black">{title}</h2>
       <div className="mt-6 flex flex-col gap-4">{children}</div>
     </div>
@@ -641,7 +641,7 @@ function OverviewBlock({
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-black/12 bg-[#ececec] p-4 text-sm text-black/55">
+    <div className="rounded-2xl border border-dashed border-black/12 bg-hover p-4 text-sm text-black/55">
       {text}
     </div>
   );

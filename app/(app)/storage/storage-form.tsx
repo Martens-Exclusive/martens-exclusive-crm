@@ -93,7 +93,7 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
   return (
     <form
       action={formAction}
-      className="flex flex-col gap-8 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
+      className="flex flex-col gap-8 rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
     >
       <input type="hidden" name="contractId" value={values.id} />
 
@@ -178,7 +178,7 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
             </FormField>
           ) : (
             <FormField label="Bedrag per factuur">
-              <div className="rounded-xl border border-black/10 bg-[#ececec] px-4 py-3 text-sm font-semibold text-black">
+              <div className="rounded-xl border border-black/10 bg-hover px-4 py-3 text-sm font-semibold text-black">
                 {shownAmount || "-"}
               </div>
             </FormField>
@@ -270,7 +270,7 @@ export function StorageForm({ contract }: { contract?: StorageFormValues }) {
         </button>
         <Link
           href={"/storage" as Route}
-          className="rounded-2xl border border-black/15 bg-[#fafafa] px-6 py-3 text-sm font-semibold text-black/80 transition hover:bg-[#e7e7e7]"
+          className="rounded-2xl border border-black/15 bg-raised px-6 py-3 text-sm font-semibold text-black/80 transition hover:bg-hover2"
         >
           Annuleren
         </Link>

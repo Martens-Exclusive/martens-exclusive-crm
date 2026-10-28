@@ -12,7 +12,7 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
+    <main className="theme-fixed min-h-screen bg-black text-white">
       <div className="grid min-h-screen lg:grid-cols-[1.15fr_0.85fr]">
         {/* LEFT IMAGE */}
         <section className="relative hidden lg:block">

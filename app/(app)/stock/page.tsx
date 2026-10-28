@@ -55,7 +55,7 @@ export default async function StockPage({
         />
       </section>
 
-      <section className="rounded-[30px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[30px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/50">
@@ -78,7 +78,7 @@ export default async function StockPage({
 
             <a
               href="/api/stock/pdf"
-              className="rounded-2xl border border-black/15 bg-[#fafafa] px-5 py-3 text-sm font-semibold text-black/80 transition hover:bg-[#e7e7e7] hover:text-black"
+              className="rounded-2xl border border-black/15 bg-raised px-5 py-3 text-sm font-semibold text-black/80 transition hover:bg-hover2 hover:text-black"
             >
               PDF
             </a>
@@ -151,7 +151,7 @@ function VehicleOverview({
   emptyText: string;
 }) {
   return (
-    <section className="rounded-[30px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+    <section className="rounded-[30px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/50">
@@ -169,7 +169,7 @@ function VehicleOverview({
       </div>
 
       <div className="mt-6 overflow-hidden rounded-[24px] border border-black/10 bg-white">
-        <div className="hidden grid-cols-[1fr_1.4fr_0.8fr_1fr_1fr_1fr_0.9fr] border-b border-black/10 bg-[#eeeeee] px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-black/45 lg:grid">
+        <div className="hidden grid-cols-[1fr_1.4fr_0.8fr_1fr_1fr_1fr_0.9fr] border-b border-black/10 bg-soft px-5 py-4 text-xs font-bold uppercase tracking-[0.16em] text-black/45 lg:grid">
           <div>Wagennr.</div>
           <div>Wagen</div>
           <div>Km</div>
@@ -221,7 +221,7 @@ function VehicleRow({
   };
 }) {
   return (
-    <article className="grid gap-4 px-5 py-5 transition hover:bg-[#f7f7f7] lg:grid-cols-[1fr_1.4fr_0.8fr_1fr_1fr_1fr_0.9fr] lg:items-center">
+    <article className="grid gap-4 px-5 py-5 transition hover:bg-soft lg:grid-cols-[1fr_1.4fr_0.8fr_1fr_1fr_1fr_0.9fr] lg:items-center">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/40 lg:hidden">
           Wagennr.
@@ -279,14 +279,14 @@ function VehicleRow({
       <div className="flex justify-start gap-2 lg:justify-end">
         <Link
           href={`/stock/${vehicle.id}/edit` as Route}
-          className="rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-[#e2e2e2] hover:text-black"
+          className="rounded-2xl border border-black/15 bg-header px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-hover3 hover:text-black"
         >
           Open
         </Link>
 
         <Link
           href={`/stock/${vehicle.id}/affiche` as Route}
-          className="rounded-2xl border border-black/15 bg-[#f8f8f8] px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-[#e2e2e2] hover:text-black"
+          className="rounded-2xl border border-black/15 bg-header px-4 py-2 text-sm font-semibold text-black/85 transition hover:bg-hover3 hover:text-black"
         >
           Affiche
         </Link>
@@ -324,7 +324,7 @@ function Badge({
   tone: "neutral" | "blue" | "orange" | "black";
 }) {
   const toneClassName = {
-    neutral: "border-black/10 bg-[#f2f2f2] text-black/70",
+    neutral: "border-black/10 bg-soft text-black/70",
     blue: "border-blue-200 bg-blue-50 text-blue-700",
     orange: "border-amber-200 bg-amber-50 text-amber-700",
     black: "border-black bg-black text-white"
@@ -354,7 +354,7 @@ function TabLink({
       className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
         active
           ? "border-black bg-black text-white"
-          : "border-black/10 bg-[#fafafa] text-black/70 hover:bg-[#e7e7e7] hover:text-black"
+          : "border-black/10 bg-raised text-black/70 hover:bg-hover2 hover:text-black"
       }`}
     >
       {label}
@@ -364,7 +364,7 @@ function TabLink({
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[26px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
+    <div className="rounded-[26px] border border-black/10 bg-card p-6 shadow-[0_16px_40px_rgba(0,0,0,0.06)]">
       <p className="text-sm font-semibold text-black/50">{label}</p>
       <p className="mt-4 text-3xl font-bold text-black">{value}</p>
     </div>

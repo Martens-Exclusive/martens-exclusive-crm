@@ -192,7 +192,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Dashboard
         </p>
@@ -207,7 +207,7 @@ export default async function DashboardPage() {
         </p>
       </section>
 
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h2 className="text-xl font-bold text-black">Vandaag</h2>
 
@@ -441,7 +441,7 @@ export default async function DashboardPage() {
           <Link
             key={card.label}
             href={card.href}
-            className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition hover:bg-[#ececec] sm:p-6"
+            className="rounded-[24px] border border-black/10 bg-card p-4 shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition hover:bg-hover sm:p-6"
           >
             <p className="text-sm font-semibold text-black/55">{card.label}</p>
             <p className="mt-3 text-3xl font-bold text-black sm:mt-4 sm:text-4xl">
@@ -452,7 +452,7 @@ export default async function DashboardPage() {
       </section>
 
       {platforms.length > 0 ? (
-        <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <section className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-bold text-black">Platformen</h2>
 
@@ -471,7 +471,7 @@ export default async function DashboardPage() {
                 href={platform.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-2xl border border-black/10 bg-white px-5 py-4 text-sm font-semibold text-black transition hover:border-black/25 hover:bg-[#ececec]"
+                className="rounded-2xl border border-black/10 bg-white px-5 py-4 text-sm font-semibold text-black transition hover:border-black/25 hover:bg-hover"
               >
                 {platform.name}
               </a>

@@ -24,7 +24,7 @@ export default async function EditStorageContractPage({
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">Car Storage</p>
         <h1 className="mt-3 text-2xl font-bold text-black">
           {contract.firstName} {contract.lastName}
@@ -67,7 +67,7 @@ export default async function EditStorageContractPage({
         }}
       />
 
-      <section className="flex flex-wrap items-start gap-6 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="flex flex-wrap items-start gap-6 rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="max-w-md">
           <h2 className="text-lg font-bold text-black">
             {isEnded ? "Contract opnieuw activeren" : "Contract beëindigen"}
@@ -82,7 +82,7 @@ export default async function EditStorageContractPage({
             <input type="hidden" name="status" value={isEnded ? "ACTIVE" : "ENDED"} />
             <button
               type="submit"
-              className="rounded-2xl border border-black/15 bg-[#fafafa] px-5 py-3 text-sm font-semibold text-black/80 transition hover:bg-[#e7e7e7] hover:text-black"
+              className="rounded-2xl border border-black/15 bg-raised px-5 py-3 text-sm font-semibold text-black/80 transition hover:bg-hover2 hover:text-black"
             >
               {isEnded ? "Opnieuw activeren" : "Contract beëindigen"}
             </button>

@@ -193,7 +193,7 @@ export default async function LeadsPage({
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
+      <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
             Pipeline
@@ -219,7 +219,7 @@ export default async function LeadsPage({
 
   <Link
     href="/leads/new"
-    className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-[#fafafa] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#ececec]"
+    className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-raised px-5 py-3 text-sm font-semibold text-black transition hover:bg-hover"
   >
     Nieuwe lead
   </Link>
@@ -234,7 +234,7 @@ export default async function LeadsPage({
         <StatCard label="Conversie" value={`${conversionRate}%`} />
       </section>
 
-      <section className={`rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]${laterOrder}`}>
+      <section className={`rounded-[28px] border border-black/10 bg-card p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]${laterOrder}`}>
         <div className="mb-5">
           <h2 className="text-lg font-bold text-black">Funnel fases</h2>
           <p className="mt-1 text-sm text-black/60">
@@ -247,7 +247,7 @@ export default async function LeadsPage({
             <Link
               key={pipelineStatus}
               href={`/leads?status=${pipelineStatus}`}
-              className="rounded-2xl border border-black/10 bg-white p-4 transition hover:bg-[#ececec]"
+              className="rounded-2xl border border-black/10 bg-white p-4 transition hover:bg-hover"
             >
               <StatusBadge status={pipelineStatus} />
 
@@ -260,7 +260,7 @@ export default async function LeadsPage({
       </section>
 
       <section className={`grid gap-6 md:grid-cols-2${laterOrder}`}>
-        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <div className="rounded-[28px] border border-black/10 bg-card p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-black">
@@ -302,7 +302,7 @@ export default async function LeadsPage({
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+        <div className="rounded-[28px] border border-black/10 bg-card p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-black">Leads per bron</h2>
@@ -345,7 +345,7 @@ export default async function LeadsPage({
         </div>
       </section>
 
-      <section className={`rounded-[28px] border border-black/10 bg-[#f5f5f5] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]${filterOrder}`}>
+      <section className={`rounded-[28px] border border-black/10 bg-card p-6 shadow-[0_20px_60px_rgba(0,0,0,0.08)]${filterOrder}`}>
         <form className="grid gap-4 xl:grid-cols-[1fr_0.35fr_0.35fr_0.35fr_auto]">
           <input
             name="q"
@@ -436,7 +436,7 @@ export default async function LeadsPage({
         ) : null}
       </section>
 
-      <section className={`overflow-hidden rounded-[28px] border border-black/10 bg-[#f5f5f5] shadow-[0_20px_60px_rgba(0,0,0,0.08)]${resultsOrder}`}>
+      <section className={`overflow-hidden rounded-[28px] border border-black/10 bg-card shadow-[0_20px_60px_rgba(0,0,0,0.08)]${resultsOrder}`}>
         <div className="flex items-start justify-between gap-4 px-6 pt-6">
           <div>
             <h2 className="text-lg font-bold text-black">Overzicht leads</h2>
@@ -458,7 +458,7 @@ export default async function LeadsPage({
         <div className="hidden overflow-x-auto lg:block">
           <table className="min-w-full border-collapse">
             <thead>
-              <tr className="border-b border-black/10 bg-[#ececec] text-left text-xs uppercase tracking-[0.2em] text-black/45">
+              <tr className="border-b border-black/10 bg-hover text-left text-xs uppercase tracking-[0.2em] text-black/45">
                 <th className="px-6 py-4">Naam</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Wagen</th>
@@ -493,7 +493,7 @@ export default async function LeadsPage({
                   return (
                     <tr
                       key={lead.id}
-                      className="border-b border-black/10 text-sm text-black transition hover:bg-[#ececec]"
+                      className="border-b border-black/10 text-sm text-black transition hover:bg-hover"
                     >
                       <td className="px-6 py-5">
                         <Link
@@ -592,7 +592,7 @@ export default async function LeadsPage({
                 <Link
                   key={lead.id}
                   href={`/leads/${lead.id}`}
-                  className="block rounded-2xl border border-black/10 bg-white p-4 transition active:bg-[#ececec]"
+                  className="block rounded-2xl border border-black/10 bg-white p-4 transition active:bg-hover"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -679,7 +679,7 @@ function getPriorityClassName(priority: string) {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.06)] sm:p-6">
+    <div className="rounded-[24px] border border-black/10 bg-card p-4 shadow-[0_16px_40px_rgba(0,0,0,0.06)] sm:p-6">
       <p className="text-sm font-semibold text-black/55">{label}</p>
       <p className="mt-3 text-3xl font-bold text-black sm:mt-4 sm:text-4xl">{value}</p>
     </div>
@@ -690,7 +690,7 @@ function PdfButton({ href }: { href: string }) {
   return (
     <a
       href={href}
-      className="inline-flex flex-none items-center justify-center rounded-2xl border border-black/15 bg-[#fafafa] px-4 py-2 text-xs font-semibold text-black/80 transition hover:bg-[#e7e7e7] hover:text-black"
+      className="inline-flex flex-none items-center justify-center rounded-2xl border border-black/15 bg-raised px-4 py-2 text-xs font-semibold text-black/80 transition hover:bg-hover2 hover:text-black"
     >
       PDF afdrukken
     </a>

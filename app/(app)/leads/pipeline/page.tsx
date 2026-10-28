@@ -40,7 +40,7 @@ export default async function LeadPipelinePage() {
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
+      <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
             Kanban pipeline
@@ -59,7 +59,7 @@ export default async function LeadPipelinePage() {
         <div className="flex flex-wrap gap-3">
           <Link
             href="/leads"
-            className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-[#fafafa] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#ececec]"
+            className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-raised px-5 py-3 text-sm font-semibold text-black transition hover:bg-hover"
           >
             Lijstweergave
           </Link>
@@ -83,7 +83,7 @@ export default async function LeadPipelinePage() {
               return (
                 <div
                   key={status}
-                  className="rounded-[24px] border border-black/10 bg-[#f5f5f5] p-4 shadow-[0_16px_40px_rgba(0,0,0,0.06)]"
+                  className="rounded-[24px] border border-black/10 bg-card p-4 shadow-[0_16px_40px_rgba(0,0,0,0.06)]"
                 >
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <StatusBadge status={status} />
@@ -95,7 +95,7 @@ export default async function LeadPipelinePage() {
 
                   <div className="flex flex-col gap-3">
                     {columnLeads.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-black/12 bg-[#ececec] p-4 text-sm text-black/50">
+                      <div className="rounded-2xl border border-dashed border-black/12 bg-hover p-4 text-sm text-black/50">
                         Geen leads in deze fase.
                       </div>
                     ) : (
@@ -108,7 +108,7 @@ export default async function LeadPipelinePage() {
                           <Link
                             key={lead.id}
                             href={`/leads/${lead.id}`}
-                            className="rounded-2xl border border-black/10 bg-white p-4 transition hover:bg-[#ececec]"
+                            className="rounded-2xl border border-black/10 bg-white p-4 transition hover:bg-hover"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div>

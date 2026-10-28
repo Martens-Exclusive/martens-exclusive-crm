@@ -23,7 +23,7 @@ export default async function AppointmentsPage() {
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Afspraken
         </p>
@@ -36,11 +36,11 @@ export default async function AppointmentsPage() {
         </p>
       </section>
 
-      <section className="overflow-hidden rounded-[28px] border border-black/10 bg-[#f5f5f5] shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="overflow-hidden rounded-[28px] border border-black/10 bg-card shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="hidden overflow-x-auto lg:block">
           <table className="min-w-full border-collapse">
             <thead>
-              <tr className="border-b border-black/10 bg-[#ececec] text-left text-xs uppercase tracking-[0.2em] text-black/45">
+              <tr className="border-b border-black/10 bg-hover text-left text-xs uppercase tracking-[0.2em] text-black/45">
                 <th className="px-6 py-4">Lead</th>
                 <th className="px-6 py-4">Type afspraak</th>
                 <th className="px-6 py-4">Datum en tijd</th>
@@ -65,7 +65,7 @@ export default async function AppointmentsPage() {
                 appointments.map((appointment) => (
                   <tr
                     key={appointment.id}
-                    className="border-b border-black/10 text-sm text-black transition hover:bg-[#ececec]"
+                    className="border-b border-black/10 text-sm text-black transition hover:bg-hover"
                   >
                     <td className="px-6 py-5">
                       <Link
@@ -151,7 +151,7 @@ export default async function AppointmentsPage() {
                     ) : null}
                   </div>
 
-                  <span className="shrink-0 rounded-full bg-[#ececec] px-3 py-1 text-xs font-semibold text-black/70">
+                  <span className="shrink-0 rounded-full bg-hover px-3 py-1 text-xs font-semibold text-black/70">
                     {getAppointmentStatusLabel(appointment.status)}
                   </span>
                 </div>

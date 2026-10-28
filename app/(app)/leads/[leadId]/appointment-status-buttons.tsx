@@ -20,7 +20,7 @@ export function AppointmentStatusButtons({
 
         <button
           type="submit"
-          className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-[#ececec]"
+          className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-hover"
         >
           Afspraak afronden
         </button>

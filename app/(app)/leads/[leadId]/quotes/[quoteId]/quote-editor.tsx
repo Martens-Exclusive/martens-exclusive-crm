@@ -375,7 +375,7 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
             <button
               type="button"
               onClick={() => window.print()}
-              className="rounded-xl border border-black/15 bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-[#ececec]"
+              className="rounded-xl border border-black/15 bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-hover"
             >
               Afdrukken
             </button>
@@ -525,7 +525,7 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
 
                 <div className="grid grid-cols-4 gap-2">
                   {q.photoUrls.map((url, index) => (
-                    <div key={index} className="relative aspect-[3/2] overflow-hidden rounded-lg bg-[#eeedea]">
+                    <div key={index} className="relative aspect-[3/2] overflow-hidden rounded-lg bg-soft">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={url} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" />
                       <button
@@ -626,7 +626,7 @@ export function QuoteEditor({ initial }: { initial: QuoteEditorInitial }) {
 
       <section
         ref={previewRef}
-        className="overflow-auto bg-[#eeedea] px-5 py-7"
+        className="overflow-auto bg-soft px-5 py-7"
         style={{ height: previewHeight ? previewHeight + 40 : undefined }}
       >
         <div

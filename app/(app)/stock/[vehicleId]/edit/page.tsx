@@ -37,7 +37,7 @@ export default async function EditStockVehiclePage({
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
           Stock
         </p>
@@ -82,7 +82,7 @@ export default async function EditStockVehiclePage({
         totalCostCents={totalCostCents}
       />
 
-      <section className="rounded-[28px] border border-black/10 bg-[#f5f5f5] p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+      <section className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
@@ -152,7 +152,7 @@ export default async function EditStockVehiclePage({
           </div>
         </form>
 
-        <div className="mt-8 overflow-hidden rounded-[24px] border border-black/10 bg-[#fafafa]">
+        <div className="mt-8 overflow-hidden rounded-[24px] border border-black/10 bg-raised">
           {vehicle.costItems.length === 0 ? (
             <div className="p-6 text-sm text-black/60">
               Er zijn nog geen kosten toegevoegd voor deze wagen.

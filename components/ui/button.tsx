@@ -22,15 +22,15 @@ export function Button({
 
         // PRIMARY → lichte knop, donkere tekst
         variant === "primary" &&
-          "border border-white/20 bg-white text-[#1a1a1a] hover:bg-[#d8d8d8] disabled:border-white/10 disabled:bg-white/20 disabled:text-white/40",
+          "border border-black/15 bg-white text-black hover:bg-hover3 disabled:border-black/10 disabled:bg-black/5 disabled:text-black/40",
 
         // SECONDARY → donker
         variant === "secondary" &&
-          "border border-white/15 bg-[#1a1a1a] text-white hover:bg-[#242424]",
+          "border border-black/10 bg-black text-white hover:bg-black/80",
 
         // GHOST
         variant === "ghost" &&
-          "text-white/70 hover:bg-white/5 hover:text-white",
+          "text-black/70 hover:bg-black/5 hover:text-black",
 
         className
       )}

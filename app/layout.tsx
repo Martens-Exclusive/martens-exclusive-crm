@@ -18,8 +18,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="nl">
-      <body className="font-sans bg-black text-white">{children}</body>
+    <html lang="nl" suppressHydrationWarning>
+      <head>
+        {/* Zet nachtmodus vóór het tonen van de pagina (geen flikkering). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{var t=localStorage.getItem("theme");if(t==="dark"||(t===null&&window.matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark")}}catch(e){}'
+          }}
+        />
+      </head>
+      <body className="font-sans">{children}</body>
     </html>
   );
 }

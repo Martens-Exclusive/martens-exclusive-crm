@@ -91,7 +91,7 @@ export function NeedsAnalysisFields({ defaults }: NeedsAnalysisFieldsProps) {
                 className={`rounded-full border px-4 py-2 text-sm transition ${
                   selected
                     ? "border-black bg-black text-white"
-                    : "border-black/10 bg-white text-black hover:bg-[#ececec]"
+                    : "border-black/10 bg-white text-black hover:bg-hover"
                 }`}
               >
                 {option.label}
