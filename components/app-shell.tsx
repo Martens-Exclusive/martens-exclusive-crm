@@ -4,9 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent } from "react";
-import { signOut } from "next-auth/react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 import { mainNavigation } from "@/lib/navigation";
 
 type AppShellProps = {
@@ -39,7 +39,7 @@ export function AppShell({ children, userName }: AppShellProps) {
   return (
     <div className="min-h-screen bg-page text-black">
       <header className="z-50 border-b border-black/10 bg-header/95 backdrop-blur xl:sticky xl:top-0">
-        <div className="mx-auto flex min-h-[64px] w-full max-w-[1600px] items-center justify-between gap-5 px-4 sm:px-6 lg:px-10">
+        <div className="mx-auto flex min-h-[64px] w-full max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-10">
           <Link href="/dashboard" className="flex shrink-0 items-center">
             <Image
               src="/logo-dark.svg"
@@ -59,7 +59,7 @@ export function AppShell({ children, userName }: AppShellProps) {
             />
           </Link>
 
-          <nav className="hidden flex-1 items-center justify-center gap-2 xl:flex">
+          <nav className="hidden flex-1 items-center justify-center gap-1 xl:flex">
             {mainNavigation.map((item) => {
               const active = isActivePath(pathname, item.href);
 
@@ -67,9 +67,9 @@ export function AppShell({ children, userName }: AppShellProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`whitespace-nowrap rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                  className={`whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
                     active
-                      ? "bg-black text-white shadow-[0_10px_25px_rgba(0,0,0,0.15)]"
+                      ? "bg-black text-white shadow-sm"
                       : "text-black/65 hover:bg-black/5 hover:text-black"
                   }`}
                 >
@@ -79,35 +79,23 @@ export function AppShell({ children, userName }: AppShellProps) {
             })}
           </nav>
 
-          <form onSubmit={handleSearch} className="hidden w-full max-w-sm xl:block">
+          <form onSubmit={handleSearch} className="relative hidden w-52 shrink-0 xl:block 2xl:w-64">
+            <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-black/40" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
             <input
               type="search"
               name="q"
               aria-label="Zoek een lead"
-              placeholder="Zoek lead op naam, gsm, e-mail, adres..."
-              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black outline-none transition placeholder:text-black/35 focus:border-black/25"
+              placeholder="Zoek een lead"
+              className="w-full rounded-xl border border-black/10 bg-white py-2.5 pl-10 pr-3 text-sm text-black outline-none transition placeholder:text-black/40 focus:border-black/25"
             />
           </form>
 
-          <div className="hidden min-w-0 text-right 2xl:block">
-            <p className="text-xs uppercase tracking-[0.18em] text-black/40">
-              Aangemeld als
-            </p>
-            <p className="truncate text-sm font-semibold text-black">
-              {userName || "Gebruiker"}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <ThemeToggle />
-
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black/70 transition hover:bg-hover hover:text-black"
-            >
-              Afmelden
-            </button>
+            <UserMenu userName={userName} />
           </div>
         </div>
 
