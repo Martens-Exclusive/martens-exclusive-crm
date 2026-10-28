@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Route } from "next";
 
-import { completeTask } from "../leads/actions";
+import { ConfirmActionForm } from "@/components/confirm-action-form";
+import { completeTask, deleteCompletedTasks, deleteTask } from "../leads/actions";
 import { prisma } from "@/lib/prisma";
 
 type TaskFilter = "open" | "overdue" | "completed" | "all";
@@ -22,6 +23,8 @@ export default async function TasksPage({
     orderBy: [{ status: "asc" }, { dueAt: "asc" }],
     take: 200
   });
+
+  const completedTotal = await prisma.task.count({ where: { status: "COMPLETED" } });
 
   const now = new Date();
 
@@ -63,7 +66,7 @@ export default async function TasksPage({
         <div className="mt-6 grid gap-3 md:grid-cols-3">
           <StatCard label="Te laat" value={overdueTasks.length} href="/tasks?status=overdue" />
           <StatCard label="Open" value={openTasks.length} href="/tasks?status=open" />
-          <StatCard label="Voltooid" value={completedTasks.length} href="/tasks?status=completed" />
+          <StatCard label="Voltooid" value={completedTotal} href="/tasks?status=completed" />
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2">
@@ -79,6 +82,7 @@ export default async function TasksPage({
         tasks={visibleTasks}
         emptyText="Geen taken gevonden voor deze filter."
         now={now}
+        completedCount={activeFilter === "completed" ? completedTotal : 0}
       />
     </main>
   );
@@ -133,7 +137,8 @@ function TaskSection({
   title,
   tasks,
   emptyText,
-  now
+  now,
+  completedCount
 }: {
   title: string;
   tasks: Array<{
@@ -148,10 +153,22 @@ function TaskSection({
   }>;
   emptyText: string;
   now: Date;
+  completedCount: number;
 }) {
   return (
     <section className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-      <h2 className="text-xl font-bold text-black">{title}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-black">{title}</h2>
+
+        {completedCount > 0 ? (
+          <ConfirmActionForm
+            action={deleteCompletedTasks}
+            size="md"
+            label={`Alle voltooide taken verwijderen (${completedCount})`}
+            message={`${completedCount} voltooide taken definitief verwijderen? Dit kan niet ongedaan gemaakt worden.`}
+          />
+        ) : null}
+      </div>
 
       <div className="mt-6 flex flex-col gap-4">
         {tasks.length === 0 ? (
@@ -215,6 +232,15 @@ function TaskSection({
                         Markeer als voltooid
                       </button>
                     </form>
+                  ) : null}
+
+                  {task.status === "COMPLETED" ? (
+                    <ConfirmActionForm
+                      action={deleteTask}
+                      hidden={{ taskId: task.id }}
+                      label="Verwijderen"
+                      message="Deze taak definitief verwijderen?"
+                    />
                   ) : null}
                 </div>
               </div>

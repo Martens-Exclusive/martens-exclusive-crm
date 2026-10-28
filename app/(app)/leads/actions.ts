@@ -1416,6 +1416,59 @@ export async function completeTask(formData: FormData) {
   revalidatePath(`/leads/${existingTask.leadId}`);
 }
 
+export async function deleteTask(formData: FormData) {
+  await requireUser();
+
+  const taskId = formData.get("taskId");
+
+  if (typeof taskId !== "string" || taskId.length === 0) {
+    return;
+  }
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { id: true, leadId: true }
+  });
+
+  if (!task) {
+    return;
+  }
+
+  await prisma.task.delete({
+    where: { id: task.id }
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath("/dashboard");
+  revalidatePath(`/leads/${task.leadId}`);
+}
+
+// Verwijdert enkel taken die al voltooid zijn. De melding "Taak voltooid" in de
+// geschiedenis van de lead blijft bestaan.
+export async function deleteCompletedTasks() {
+  await requireUser();
+
+  await prisma.task.deleteMany({
+    where: { status: "COMPLETED" }
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath("/dashboard");
+  revalidatePath("/leads", "layout");
+}
+
+export async function deleteCompletedAppointments() {
+  await requireUser();
+
+  await prisma.appointment.deleteMany({
+    where: { status: "COMPLETED" }
+  });
+
+  revalidatePath("/appointments");
+  revalidatePath("/dashboard");
+  revalidatePath("/leads", "layout");
+}
+
 export async function deleteLead(_: DeleteLeadState, formData: FormData) {
   await requireUser();
 
