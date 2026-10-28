@@ -35,7 +35,9 @@ async function main() {
     "Autoscout24",
     "Mobile.de",
     "Social media",
-    "Doorverwijzing"
+    "Doorverwijzing",
+    "Views",
+    "Reeds klant"
   ];
 
   for (const sourceName of defaultSources) {

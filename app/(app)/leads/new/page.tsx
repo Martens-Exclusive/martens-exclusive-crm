@@ -1,3 +1,4 @@
+import { ensureLeadSources } from "@/lib/lead-sources";
 import { prisma } from "@/lib/prisma";
 import {
   leadPriorities,
@@ -8,6 +9,8 @@ import {
 import { CreateLeadForm } from "./create-lead-form";
 
 export default async function NewLeadPage() {
+  await ensureLeadSources();
+
   const [sources, users, vehicles] = await Promise.all([
     prisma.leadSource.findMany({
       where: { isActive: true },

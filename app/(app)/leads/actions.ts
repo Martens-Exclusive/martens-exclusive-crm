@@ -79,7 +79,7 @@ const updateLeadDetailsSchema = z.object({
 
 const createAppointmentSchema = z.object({
   leadId: z.string().trim().min(1),
-  type: z.enum(["SHOWROOM_VISIT", "TEST_DRIVE", "PHONE_CALL"]),
+  type: z.enum(["SHOWROOM_VISIT", "TEST_DRIVE", "PHONE_CALL", "DELIVERY"]),
   scheduledAt: z.string().trim().min(1, "Datum en tijd zijn verplicht."),
   notes: optionalText
 });

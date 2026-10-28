@@ -17,6 +17,7 @@ import { formatCurrencyFromCents } from "@/lib/utils";
 import { calcQuotePricing, formatDateBE, formatEuro } from "@/lib/quote-calc";
 import { QUOTE_TYPE_LABELS } from "@/lib/quote-content";
 import { toNeedsAnalysisValues } from "@/lib/needs-analysis";
+import { ensureLeadSources } from "@/lib/lead-sources";
 import { prisma } from "@/lib/prisma";
 import { getAppointmentVehicleLabel, getLeadVehicleLabel } from "@/lib/appointment-calendar";
 import { getRequestOrigin } from "@/lib/request-origin";
@@ -47,6 +48,7 @@ export default async function LeadDetailPage({
   params: Promise<{ leadId: string }>;
 }) {
   const { leadId } = await params;
+  await ensureLeadSources();
   const origin = await getRequestOrigin();
 
   const lead = await prisma.lead.findUnique({
@@ -580,6 +582,7 @@ function formatAppointmentType(type: string) {
   if (type === "SHOWROOM_VISIT") return "Showroombezoek";
   if (type === "TEST_DRIVE") return "Testrit";
   if (type === "PHONE_CALL") return "Telefonische afspraak";
+  if (type === "DELIVERY") return "Levering";
   return type;
 }
 

@@ -26,7 +26,8 @@ const initialState: CreateAppointmentState = {};
 const appointmentTypes = [
   { value: "SHOWROOM_VISIT", label: "Showroombezoek" },
   { value: "TEST_DRIVE", label: "Testrit" },
-  { value: "PHONE_CALL", label: "Telefonische afspraak" }
+  { value: "PHONE_CALL", label: "Telefonische afspraak" },
+  { value: "DELIVERY", label: "Levering" }
 ] as const;
 
 export function CreateAppointmentForm({

@@ -487,6 +487,7 @@ function appointmentTypeLabel(type: string) {
   if (type === "SHOWROOM_VISIT") return "Showroombezoek";
   if (type === "TEST_DRIVE") return "Testrit";
   if (type === "PHONE_CALL") return "Telefonische afspraak";
+  if (type === "DELIVERY") return "Levering";
   return type;
 }
 

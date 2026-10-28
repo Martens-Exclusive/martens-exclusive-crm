@@ -9,6 +9,7 @@ import {
   type LeadPriority,
   type LeadStatus
 } from "@/lib/lead-status";
+import { ensureLeadSources } from "@/lib/lead-sources";
 import { prisma } from "@/lib/prisma";
 
 const dateFormatter = new Intl.DateTimeFormat("nl-BE", {
@@ -27,6 +28,8 @@ export default async function LeadsPage({
     openOnly?: string;
   }>;
 }) {
+  await ensureLeadSources();
+
   const params = await searchParams;
 
   const query = params?.q?.trim() || "";
