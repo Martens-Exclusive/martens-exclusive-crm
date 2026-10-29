@@ -30,6 +30,7 @@ import { EditContactDetailsForm } from "./edit-contact-details-form";
 import { EditInterestForm } from "./edit-interest-form";
 import { EditLeadInfoForm } from "./edit-lead-info-form";
 import { CreateAppointmentForm } from "./create-appointment-form";
+import { EditAppointmentForm } from "./edit-appointment-form";
 import { CreateTaskForm } from "./create-task-form";
 import { DeleteLeadButton } from "./delete-lead-button";
 import { EditLeadForm } from "./editLeadForm";
@@ -382,10 +383,20 @@ export default async function LeadDetailPage({
                 </p>
 
                 {appointment.status !== "COMPLETED" && appointment.status !== "CANCELLED" ? (
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-wrap items-start gap-2">
                     <AddToCalendar
                       appointment={{ ...appointment, lead }}
                       origin={origin}
+                    />
+
+                    <EditAppointmentForm
+                      appointmentId={appointment.id}
+                      type={appointment.type}
+                      scheduledAt={toDateTimeLocalValue(appointment.scheduledAt)}
+                      vehicleId={appointment.vehicleId ?? ""}
+                      notes={appointment.notes ?? ""}
+                      leadVehicleLabel={getLeadVehicleLabel(lead)}
+                      vehicles={vehicles}
                     />
                   </div>
                 ) : null}

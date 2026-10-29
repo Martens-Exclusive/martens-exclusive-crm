@@ -81,6 +81,15 @@ const createAppointmentSchema = z.object({
   leadId: z.string().trim().min(1),
   type: z.enum(["SHOWROOM_VISIT", "TEST_DRIVE", "PHONE_CALL", "DELIVERY"]),
   scheduledAt: z.string().trim().min(1, "Datum en tijd zijn verplicht."),
+  vehicleId: optionalText,
+  notes: optionalText
+});
+
+const updateAppointmentSchema = z.object({
+  appointmentId: z.string().trim().min(1),
+  type: z.enum(["SHOWROOM_VISIT", "TEST_DRIVE", "PHONE_CALL", "DELIVERY"]),
+  scheduledAt: z.string().trim().min(1, "Datum en tijd zijn verplicht."),
+  vehicleId: optionalText,
   notes: optionalText
 });
 
@@ -150,6 +159,12 @@ export type UpdateLeadInterestState = {
 };
 
 export type UpdateNeedsAnalysisState = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+  success?: boolean;
+};
+
+export type UpdateAppointmentState = {
   errors?: Record<string, string[] | undefined>;
   message?: string;
   success?: boolean;
@@ -879,6 +894,7 @@ export async function createAppointment(
     leadId: formData.get("leadId"),
     type: formData.get("type"),
     scheduledAt: formData.get("scheduledAt"),
+    vehicleId: formData.get("vehicleId"),
     notes: formData.get("notes")
   });
 
@@ -924,12 +940,31 @@ export async function createAppointment(
     };
   }
 
+  let vehicleId: string | null = null;
+
+  if (parsedAppointment.data.vehicleId) {
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: parsedAppointment.data.vehicleId },
+      select: { id: true }
+    });
+
+    if (!vehicle) {
+      return {
+        message: "Deze wagen bestaat niet meer.",
+        success: false
+      };
+    }
+
+    vehicleId = vehicle.id;
+  }
+
   await prisma.appointment.create({
     data: {
       leadId: existingLead.id,
       assignedUserId: existingLead.assignedUserId,
       type: parsedAppointment.data.type,
       scheduledAt,
+      vehicleId,
       notes: parsedAppointment.data.notes || null
     }
   });
@@ -952,6 +987,130 @@ export async function createAppointment(
 
   return {
     message: "Afspraak opgeslagen.",
+    success: true
+  };
+}
+
+// Type, datum/uur, wagen en notities van een bestaande afspraak aanpassen.
+export async function updateAppointment(_: UpdateAppointmentState, formData: FormData) {
+  const currentUser = await requireUser();
+
+  const parsed = updateAppointmentSchema.safeParse({
+    appointmentId: formData.get("appointmentId"),
+    type: formData.get("type"),
+    scheduledAt: formData.get("scheduledAt"),
+    vehicleId: formData.get("vehicleId"),
+    notes: formData.get("notes")
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  const scheduledAt = new Date(parsed.data.scheduledAt);
+
+  if (Number.isNaN(scheduledAt.getTime())) {
+    return {
+      errors: { scheduledAt: ["Datum en tijd zijn verplicht."] },
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  const existing = await prisma.appointment.findUnique({
+    where: { id: parsed.data.appointmentId },
+    select: {
+      id: true,
+      leadId: true,
+      type: true,
+      scheduledAt: true,
+      vehicleId: true,
+      notes: true
+    }
+  });
+
+  if (!existing) {
+    return {
+      message: "Afspraak niet gevonden.",
+      success: false
+    };
+  }
+
+  let vehicleId: string | null = null;
+
+  if (parsed.data.vehicleId) {
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id: parsed.data.vehicleId },
+      select: { id: true }
+    });
+
+    if (!vehicle) {
+      return {
+        message: "Deze wagen bestaat niet meer.",
+        success: false
+      };
+    }
+
+    vehicleId = vehicle.id;
+  }
+
+  const notes = parsed.data.notes || null;
+  const changes: string[] = [];
+
+  if (existing.type !== parsed.data.type) {
+    changes.push("type");
+  }
+
+  if (existing.scheduledAt.getTime() !== scheduledAt.getTime()) {
+    changes.push("datum/uur");
+  }
+
+  if ((existing.vehicleId ?? null) !== vehicleId) {
+    changes.push("wagen");
+  }
+
+  if ((existing.notes ?? null) !== notes) {
+    changes.push("notities");
+  }
+
+  if (changes.length === 0) {
+    return {
+      message: "Geen wijzigingen.",
+      success: true
+    };
+  }
+
+  await prisma.appointment.update({
+    where: { id: existing.id },
+    data: {
+      type: parsed.data.type,
+      scheduledAt,
+      vehicleId,
+      notes
+    }
+  });
+
+  await prisma.activity.create({
+    data: {
+      leadId: existing.leadId,
+      userId: currentUser.id,
+      type: "NOTE",
+      summary: "Afspraak gewijzigd",
+      details: `Afspraak gewijzigd (${changes.join(", ")}). Nieuwe datum: ${scheduledAt.toLocaleString("nl-BE", { dateStyle: "medium", timeStyle: "short" })}.`,
+      occurredAt: new Date()
+    }
+  });
+
+  revalidatePath(`/leads/${existing.leadId}`);
+  revalidatePath("/appointments");
+  revalidatePath("/dashboard");
+
+  return {
+    message: "Afspraak gewijzigd.",
     success: true
   };
 }

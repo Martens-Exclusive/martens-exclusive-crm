@@ -23,7 +23,7 @@ type CreateAppointmentFormProps = {
 
 const initialState: CreateAppointmentState = {};
 
-const appointmentTypes = [
+export const appointmentTypes = [
   { value: "SHOWROOM_VISIT", label: "Showroombezoek" },
   { value: "TEST_DRIVE", label: "Testrit" },
   { value: "PHONE_CALL", label: "Telefonische afspraak" },
