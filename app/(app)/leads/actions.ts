@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth";
+import { linkLeadToCustomer } from "@/lib/customers";
 import { leadPriorities, leadStatuses } from "@/lib/lead-status";
 import {
   hasNeedsAnalysisContent,
@@ -258,62 +259,70 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
   // Optionele behoefteanalyse uit hetzelfde formulier: enkel opslaan als er iets ingevuld is.
   const needsAnalysis = readNeedsAnalysisFromForm(formData);
 
-  const lead = await prisma.lead.create({
-    data: {
-      firstName: parsedLead.data.firstName,
-      lastName: parsedLead.data.lastName,
-      phone: parsedLead.data.phone || null,
-      email: parsedLead.data.email || null,
-      street: parsedLead.data.street || null,
-      houseNumber: parsedLead.data.houseNumber || null,
-      postalCode: parsedLead.data.postalCode || null,
-      city: parsedLead.data.city || null,
-      country: parsedLead.data.country || "België",
-      sourceId: parsedLead.data.sourceId,
-      assignedUserId: parsedLead.data.assignedUserId,
-      primaryVehicleId: parsedLead.data.primaryVehicleId || null,
-      interestedBrand: parsedLead.data.interestedBrand || null,
-      interestedModel: parsedLead.data.interestedModel || null,
-      status: parsedLead.data.status,
-      priority: parsedLead.data.priority,
-      nextFollowUpAt,
-      financeInterest: parsedLead.data.financeInterest,
-      tradeInInterest: parsedLead.data.tradeInInterest,
-      storageInterest: parsedLead.data.storageInterest,
-      customerMessage: parsedLead.data.customerMessage || null,
-      internalNotes: parsedLead.data.internalNotes || null,
-      ...(hasNeedsAnalysisContent(needsAnalysis)
-        ? { needsAnalysis: { create: needsAnalysisToData(needsAnalysis) } }
-        : {}),
-      activities: {
-        create: {
-          userId: currentUser.id,
-          type: "LEAD_CREATED",
-          summary: "Lead aangemaakt",
-          details: "Nieuwe lead ingevoerd in het systeem.",
-          occurredAt: new Date()
+  // Lead en klantenbestand in één transactie: de lead wordt meteen aan een bestaande klant
+  // gekoppeld (op e-mail of telefoon) of er wordt een nieuwe klant aangemaakt.
+  const lead = await prisma.$transaction(async (tx) => {
+    const created = await tx.lead.create({
+      data: {
+        firstName: parsedLead.data.firstName,
+        lastName: parsedLead.data.lastName,
+        phone: parsedLead.data.phone || null,
+        email: parsedLead.data.email || null,
+        street: parsedLead.data.street || null,
+        houseNumber: parsedLead.data.houseNumber || null,
+        postalCode: parsedLead.data.postalCode || null,
+        city: parsedLead.data.city || null,
+        country: parsedLead.data.country || "België",
+        sourceId: parsedLead.data.sourceId,
+        assignedUserId: parsedLead.data.assignedUserId,
+        primaryVehicleId: parsedLead.data.primaryVehicleId || null,
+        interestedBrand: parsedLead.data.interestedBrand || null,
+        interestedModel: parsedLead.data.interestedModel || null,
+        status: parsedLead.data.status,
+        priority: parsedLead.data.priority,
+        nextFollowUpAt,
+        financeInterest: parsedLead.data.financeInterest,
+        tradeInInterest: parsedLead.data.tradeInInterest,
+        storageInterest: parsedLead.data.storageInterest,
+        customerMessage: parsedLead.data.customerMessage || null,
+        internalNotes: parsedLead.data.internalNotes || null,
+        ...(hasNeedsAnalysisContent(needsAnalysis)
+          ? { needsAnalysis: { create: needsAnalysisToData(needsAnalysis) } }
+          : {}),
+        activities: {
+          create: {
+            userId: currentUser.id,
+            type: "LEAD_CREATED",
+            summary: "Lead aangemaakt",
+            details: "Nieuwe lead ingevoerd in het systeem.",
+            occurredAt: new Date()
+          }
+        },
+        statusHistory: {
+          create: {
+            toStatus: parsedLead.data.status,
+            changedByUserId: currentUser.id
+          }
+        },
+        assignmentHistory: {
+          create: {
+            toUserId: parsedLead.data.assignedUserId,
+            changedByUserId: currentUser.id
+          }
         }
       },
-      statusHistory: {
-        create: {
-          toStatus: parsedLead.data.status,
-          changedByUserId: currentUser.id
-        }
-      },
-      assignmentHistory: {
-        create: {
-          toUserId: parsedLead.data.assignedUserId,
-          changedByUserId: currentUser.id
-        }
+      select: {
+        id: true
       }
-    },
-    select: {
-      id: true
-    }
-  });
+    });
+
+    await linkLeadToCustomer(tx, created.id);
+    return created;
+  }, { maxWait: 10_000, timeout: 15_000 });
 
   revalidatePath("/dashboard");
   revalidatePath("/leads");
+  revalidatePath("/customers");
   redirect(`/leads/${lead.id}`);
 }
 
@@ -468,6 +477,12 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     }
   });
 
+  // Gewonnen? Dan wordt de gekoppelde prospect automatisch "Klant" in het klantenbestand.
+  if (existingLead.status !== parsedLead.data.status) {
+    await linkLeadToCustomer(prisma, existingLead.id);
+    revalidatePath("/customers");
+  }
+
   revalidatePath("/leads");
   revalidatePath(`/leads/${existingLead.id}`);
 
@@ -556,7 +571,11 @@ export async function updateLeadDetails(
     }
   });
 
+  // Nieuwe of aangevulde gegevens vullen ook de lege velden van de klantfiche aan.
+  await linkLeadToCustomer(prisma, existingLead.id);
+
   revalidatePath("/leads");
+  revalidatePath("/customers");
   revalidatePath(`/leads/${existingLead.id}`);
 
   return {

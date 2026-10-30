@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth";
+import { linkStorageContractToCustomer } from "@/lib/customers";
 import { prisma } from "@/lib/prisma";
 import {
   BILLING_PERIOD_VALUES,
@@ -103,16 +104,26 @@ export async function saveStorageContract(
     notes: input.notes
   };
 
-  if (input.contractId) {
-    await prisma.storageContract.update({ where: { id: input.contractId }, data });
-  } else {
-    // Nieuwe klant zonder ingevulde factuurdatum: eerste factuur op de startdatum.
-    await prisma.storageContract.create({
-      data: { ...data, nextInvoiceAt: data.nextInvoiceAt ?? data.startDate }
-    });
-  }
+  // Contract en klantenbestand in één transactie: een storageklant is altijd een "Klant".
+  await prisma.$transaction(
+    async (tx) => {
+      const contractId = input.contractId
+        ? (await tx.storageContract.update({ where: { id: input.contractId }, data, select: { id: true } })).id
+        : (
+            await tx.storageContract.create({
+              // Nieuwe klant zonder ingevulde factuurdatum: eerste factuur op de startdatum.
+              data: { ...data, nextInvoiceAt: data.nextInvoiceAt ?? data.startDate },
+              select: { id: true }
+            })
+          ).id;
+
+      await linkStorageContractToCustomer(tx, contractId);
+    },
+    { maxWait: 10_000, timeout: 15_000 }
+  );
 
   revalidatePath("/storage");
+  revalidatePath("/customers");
   revalidatePath("/dashboard");
   redirect("/storage");
 }

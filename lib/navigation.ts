@@ -6,6 +6,7 @@ export const mainNavigation: Array<{
 }> = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/leads", label: "Leads" },
+  { href: "/customers", label: "Klanten" },
   { href: "/stock", label: "Stock" },
   { href: "/storage", label: "Car Storage" },
   { href: "/tasks", label: "Taken" },

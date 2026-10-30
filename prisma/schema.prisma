@@ -135,8 +135,11 @@ model Lead {
   assignmentHistory      LeadAssignmentHistory[]
   quotes                 Quote[]
   needsAnalysis          LeadNeedsAnalysis?
+  customerId             String?
+  customer               Customer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([status])
+  @@index([customerId])
   @@index([assignedUserId, status])
   @@index([nextFollowUpAt])
   @@index([sourceId])
@@ -402,6 +405,47 @@ model StorageContract {
   notes             String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+  customerId        String?
+  customer          Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([status])
+  @@index([customerId])
+}
+
+// Klantenbestand: één fiche per persoon of bedrijf. Leads en storage-contracten worden er
+// automatisch aan gekoppeld (op e-mail of telefoon), zodat niets dubbel ingegeven moet worden.
+model Customer {
+  id             String    @id @default(cuid())
+  type           String    @default("PROSPECT") // CUSTOMER (klant) | PROSPECT | RELATION (zakelijk contact/partner)
+  firstName      String?
+  lastName       String?
+  companyName    String?
+  vatNumber      String?
+  email          String? // altijd in kleine letters opgeslagen
+  email2         String?
+  phone          String?
+  phone2         String?
+  phoneKey       String? // genormaliseerd telefoonnummer (bv. 0474325504), enkel om te zoeken en te koppelen
+  phone2Key      String?
+  street         String?
+  houseNumber    String?
+  postalCode     String?
+  city           String?
+  country        String?   @default("België")
+  language       String    @default("NL") // NL | FR | EN | DE
+  birthday       DateTime?
+  mailingOptOut  Boolean   @default(false) // true = wil geen mailings meer ontvangen
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  leads            Lead[]
+  storageContracts StorageContract[]
+
+  @@index([email])
+  @@index([email2])
+  @@index([phoneKey])
+  @@index([phone2Key])
+  @@index([type])
+  @@index([lastName])
 }

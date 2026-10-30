@@ -33,12 +33,22 @@ export default async function EditStorageContractPage({
           {contract.vehicleLabel || "Wagen niet ingevuld"}
           {isEnded ? ` · Contract beëindigd op ${formatStorageDate(contract.endedAt) || "—"}` : ""}
         </p>
-        <Link
-          href={"/storage" as Route}
-          className="mt-4 inline-block text-sm font-semibold text-black/70 underline underline-offset-4 hover:text-black"
-        >
-          ← Terug naar het overzicht
-        </Link>
+        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+          <Link
+            href={"/storage" as Route}
+            className="text-sm font-semibold text-black/70 underline underline-offset-4 hover:text-black"
+          >
+            ← Terug naar het overzicht
+          </Link>
+          {contract.customerId ? (
+            <Link
+              href={`/customers/${contract.customerId}` as Route}
+              className="text-sm font-semibold text-black/70 underline underline-offset-4 hover:text-black"
+            >
+              Klantfiche openen →
+            </Link>
+          ) : null}
+        </div>
       </section>
 
       <StorageForm
