@@ -28,6 +28,11 @@ export function useFormShell(state: { success?: boolean; message?: string }) {
   return drawer ? "" : cardChrome;
 }
 
+// Voor formulieren die zich anders moeten schikken in het smalle zijpaneel.
+export function useInDrawer() {
+  return useContext(DrawerContext) !== null;
+}
+
 export type FichePanel = {
   key: string;
   label: string;
@@ -37,7 +42,7 @@ export type FichePanel = {
 
 // Knoppenrij bovenaan de leadfiche. Elke knop opent het bijhorende formulier in een zijpaneel,
 // zodat je niet naar onder moet scrollen om iets in te vullen.
-export function FicheActions({ panels }: { panels: FichePanel[] }) {
+export function FicheActions({ panels, extra }: { panels: FichePanel[]; extra?: ReactNode }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -105,6 +110,7 @@ export function FicheActions({ panels }: { panels: FichePanel[] }) {
             {panel.label}
           </button>
         ))}
+        {extra}
       </div>
 
       {toast ? (

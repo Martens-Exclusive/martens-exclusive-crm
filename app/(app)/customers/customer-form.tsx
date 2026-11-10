@@ -7,6 +7,7 @@ import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CUSTOMER_LANGUAGES, CUSTOMER_TYPES } from "@/lib/customers";
+import { useFormShell, useInDrawer } from "../leads/[leadId]/fiche-actions";
 import { saveCustomer, type SaveCustomerState } from "./actions";
 
 export type CustomerFormValues = {
@@ -61,17 +62,21 @@ const selectClassName =
 export function CustomerForm({ customer }: { customer?: CustomerFormValues }) {
   const values = customer ?? emptyValues;
   const [state, formAction, isPending] = useActionState(saveCustomer, initialState);
+  const shellClass = useFormShell(state);
+  const inDrawer = useInDrawer();
+
+  // In het smalle zijpaneel schikken de velden zich onder elkaar, op de volle pagina naast elkaar.
+  const klantGrid = inDrawer ? "grid-cols-2" : "md:grid-cols-4";
+  const contactGrid = inDrawer ? "grid-cols-1" : "md:grid-cols-2";
+  const addressGrid = inDrawer ? "grid-cols-2" : "md:grid-cols-[2fr_1fr_1fr_2fr_1.5fr]";
 
   return (
-    <form
-      action={formAction}
-      className="flex flex-col gap-8 rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
-    >
+    <form action={formAction} className={`flex flex-col ${inDrawer ? "gap-6" : "gap-8"} ${shellClass}`}>
       <input type="hidden" name="customerId" value={values.id} />
 
       <div>
         <h2 className="text-lg font-bold text-black">Klant</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-4">
+        <div className={`mt-4 grid gap-4 ${klantGrid}`}>
           <FormField label="Type">
             <select name="type" defaultValue={values.type} className={selectClassName}>
               {CUSTOMER_TYPES.map((item) => (
@@ -114,7 +119,7 @@ export function CustomerForm({ customer }: { customer?: CustomerFormValues }) {
 
       <div>
         <h2 className="text-lg font-bold text-black">Contact</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className={`mt-4 grid gap-4 ${contactGrid}`}>
           <FormField label="E-mail">
             <Input name="email" type="email" defaultValue={values.email} />
           </FormField>
@@ -136,7 +141,7 @@ export function CustomerForm({ customer }: { customer?: CustomerFormValues }) {
 
       <div>
         <h2 className="text-lg font-bold text-black">Adres</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-[2fr_1fr_1fr_2fr_1.5fr]">
+        <div className={`mt-4 grid gap-4 ${addressGrid}`}>
           <FormField label="Straat">
             <Input name="street" defaultValue={values.street} />
           </FormField>
@@ -175,7 +180,11 @@ export function CustomerForm({ customer }: { customer?: CustomerFormValues }) {
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div
+        className={`flex flex-wrap items-center gap-3 ${
+          inDrawer ? "sticky bottom-0 -mx-5 -mb-5 border-t border-black/10 bg-card px-5 py-3 sm:-mx-6 sm:-mb-6 sm:px-6" : ""
+        }`}
+      >
         <button
           type="submit"
           disabled={isPending}
@@ -183,12 +192,14 @@ export function CustomerForm({ customer }: { customer?: CustomerFormValues }) {
         >
           {isPending ? "Bezig met opslaan..." : customer ? "Wijzigingen opslaan" : "Klant toevoegen"}
         </button>
-        <Link
-          href={(customer ? `/customers/${customer.id}` : "/customers") as Route}
-          className="rounded-2xl border border-black/15 bg-raised px-6 py-3 text-sm font-semibold text-black/80 transition hover:bg-hover2"
-        >
-          Annuleren
-        </Link>
+        {inDrawer ? null : (
+          <Link
+            href={(customer ? `/customers/${customer.id}` : "/customers") as Route}
+            className="rounded-2xl border border-black/15 bg-raised px-6 py-3 text-sm font-semibold text-black/80 transition hover:bg-hover2"
+          >
+            Annuleren
+          </Link>
+        )}
       </div>
     </form>
   );

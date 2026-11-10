@@ -20,6 +20,8 @@ export type TimelineItem = {
   dayLabel: string;
   timeLabel: string;
   userName: string | null;
+  // Enkel ingevuld op de klantfiche, om te zien bij welke lead het contact hoort.
+  leadLabel?: string | null;
 };
 
 export type TimelineData = {
@@ -39,6 +41,7 @@ type ActivityInput = {
   details: string | null;
   occurredAt: Date;
   user: { firstName: string; lastName: string } | null;
+  leadLabel?: string | null;
 };
 
 export const contactLabels: Record<string, string> = {
@@ -140,7 +143,8 @@ export function buildTimeline(activities: ActivityInput[], now: Date): TimelineD
       details,
       dayLabel: getDayLabel(activity.occurredAt, wallNow),
       timeLabel: timeFormatter.format(activity.occurredAt),
-      userName: activity.user ? `${activity.user.firstName} ${activity.user.lastName}` : null
+      userName: activity.user ? `${activity.user.firstName} ${activity.user.lastName}` : null,
+      leadLabel: activity.leadLabel ?? null
     };
   });
 

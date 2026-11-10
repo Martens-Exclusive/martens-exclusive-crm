@@ -89,7 +89,11 @@ function ContactItem({ item }: { item: TimelineItem }) {
         <p className="mt-2 text-sm text-black/40">Geen notitie bij dit contact.</p>
       )}
 
-      {item.userName ? <p className="mt-3 text-xs text-black/45">{item.userName}</p> : null}
+      {item.leadLabel || item.userName ? (
+        <p className="mt-3 text-xs text-black/45">
+          {[item.leadLabel, item.userName].filter(Boolean).join(" · ")}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -101,11 +105,18 @@ function SystemItem({ item }: { item: TimelineItem }) {
       {item.details ? ` · ${item.details}` : ""}
       {` · ${item.timeLabel}`}
       {item.userName ? ` · ${item.userName.split(" ")[0]}` : ""}
+      {item.leadLabel ? ` · ${item.leadLabel}` : ""}
     </p>
   );
 }
 
-export function ActivityTimeline({ data }: { data: TimelineData }) {
+export function ActivityTimeline({
+  data,
+  title = "Contact en activiteiten"
+}: {
+  data: TimelineData;
+  title?: string;
+}) {
   const [filter, setFilter] = useState<Filter>("all");
   const [showAll, setShowAll] = useState(false);
 
@@ -141,7 +152,7 @@ export function ActivityTimeline({ data }: { data: TimelineData }) {
 
   return (
     <div className="rounded-[28px] border border-black/10 bg-card p-5 shadow-[0_20px_60px_rgba(0,0,0,0.08)] sm:p-8">
-      <h2 className="text-xl font-bold text-black">Contact en activiteiten</h2>
+      <h2 className="text-xl font-bold text-black">{title}</h2>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-black/10 bg-panel p-4">

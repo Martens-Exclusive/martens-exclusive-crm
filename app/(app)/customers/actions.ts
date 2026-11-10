@@ -17,7 +17,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { dateFromInput } from "@/lib/storage";
 
-export type SaveCustomerState = { message?: string; duplicateId?: string };
+export type SaveCustomerState = { message?: string; duplicateId?: string; success?: boolean };
 export type DeleteCustomerState = { message?: string };
 
 const clean = (value: unknown) => (typeof value === "string" ? value.trim() : "");
@@ -117,13 +117,19 @@ export async function saveCustomer(_: SaveCustomerState, formData: FormData): Pr
     notes: input.notes
   };
 
-  const customerId = input.customerId
-    ? (await prisma.customer.update({ where: { id: input.customerId }, data, select: { id: true } })).id
-    : (await prisma.customer.create({ data, select: { id: true } })).id;
+  // Bestaande klant: op de fiche blijven, het zijpaneel sluit zichzelf. Nieuwe klant: naar de fiche.
+  if (input.customerId) {
+    await prisma.customer.update({ where: { id: input.customerId }, data, select: { id: true } });
+
+    revalidatePath("/customers");
+    revalidatePath(`/customers/${input.customerId}`);
+    return { success: true, message: "Klantgegevens opgeslagen." };
+  }
+
+  const created = await prisma.customer.create({ data, select: { id: true } });
 
   revalidatePath("/customers");
-  revalidatePath(`/customers/${customerId}`);
-  redirect(`/customers/${customerId}`);
+  redirect(`/customers/${created.id}`);
 }
 
 // Snel aan- of afmelden voor mailings vanop de klantfiche.
