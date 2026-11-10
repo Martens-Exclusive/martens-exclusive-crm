@@ -19,6 +19,7 @@ import { QUOTE_TYPE_LABELS } from "@/lib/quote-content";
 import { toNeedsAnalysisValues } from "@/lib/needs-analysis";
 import { ensureLeadSources } from "@/lib/lead-sources";
 import { prisma } from "@/lib/prisma";
+import { buildTimeline } from "@/lib/activity-timeline";
 import { getAppointmentVehicleLabel, getLeadVehicleLabel } from "@/lib/appointment-calendar";
 import { getRequestOrigin } from "@/lib/request-origin";
 
@@ -30,6 +31,7 @@ import { EditContactDetailsForm } from "./edit-contact-details-form";
 import { EditInterestForm } from "./edit-interest-form";
 import { EditLeadInfoForm } from "./edit-lead-info-form";
 import { CreateAppointmentForm } from "./create-appointment-form";
+import { ActivityTimeline } from "./activity-timeline";
 import { EditAppointmentForm } from "./edit-appointment-form";
 import { CreateTaskForm } from "./create-task-form";
 import { DeleteLeadButton } from "./delete-lead-button";
@@ -67,7 +69,7 @@ export default async function LeadDetailPage({
       },
       activities: {
         orderBy: { occurredAt: "desc" },
-        take: 25,
+        take: 100,
         include: { user: true }
       },
       appointments: {
@@ -126,6 +128,7 @@ export default async function LeadDetailPage({
   ]);
 
   const now = new Date();
+  const timeline = buildTimeline(lead.activities, now);
 
   const overdueTasks = lead.tasks.filter(
     (task) => task.status === "OPEN" && task.dueAt < now
@@ -419,26 +422,7 @@ export default async function LeadDetailPage({
           )}
         </OverviewBlock>
 
-        <OverviewBlock title="Activiteiten timeline">
-          {lead.activities.length === 0 ? (
-            <EmptyState text="Nog geen activiteiten geregistreerd." />
-          ) : (
-            lead.activities.map((activity) => (
-              <div key={activity.id} className="rounded-2xl border border-black/10 bg-panel p-5">
-                <p className="font-semibold text-black">{activity.summary}</p>
-
-                {activity.details ? (
-                  <p className="mt-2 text-sm leading-6 text-black/70">{activity.details}</p>
-                ) : null}
-
-                <p className="mt-3 text-xs text-black/45">
-                  {dateFormatter.format(activity.occurredAt)}
-                  {activity.user ? ` • ${activity.user.firstName} ${activity.user.lastName}` : ""}
-                </p>
-              </div>
-            ))
-          )}
-        </OverviewBlock>
+        <ActivityTimeline data={timeline} />
       </section>
 
       <section className="flex flex-col gap-6">
