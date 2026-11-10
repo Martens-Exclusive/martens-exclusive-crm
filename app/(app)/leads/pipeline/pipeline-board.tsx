@@ -88,8 +88,8 @@ export function PipelineBoard({ columns, leads: initialLeads }: PipelineBoardPro
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch lg:overflow-x-auto lg:pb-4">
-        {columns.map((column) => {
+      <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {columns.map((column, columnIndex) => {
           const columnLeads = leads.filter((lead) => lead.status === column.status);
           const isEmpty = columnLeads.length === 0;
           const isOver = overStatus === column.status && draggingId !== null;
@@ -114,19 +114,20 @@ export function PipelineBoard({ columns, leads: initialLeads }: PipelineBoardPro
                 setDraggingId(null);
                 setOverStatus(null);
               }}
-              className={`rounded-[22px] border p-3 transition lg:shrink-0 lg:min-h-[60vh] ${
-                isEmpty ? "lg:w-56" : "lg:w-[17rem]"
-              } ${
+              className={`rounded-[22px] border p-3 transition ${
                 isOver
                   ? "border-black/40 bg-hover2"
                   : "border-black/10 bg-card"
               }`}
             >
-              <div className="flex items-center justify-between gap-2 px-1 pb-3">
-                <span
-                  className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold ${column.badgeClassName}`}
-                >
-                  {column.label}
+              <div className={`flex items-center justify-between gap-2 px-1 ${isEmpty ? "" : "pb-3"}`}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="text-xs font-bold text-black/35">{columnIndex + 1}</span>
+                  <span
+                    className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold ${column.badgeClassName}`}
+                  >
+                    {column.label}
+                  </span>
                 </span>
 
                 <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-black/55">
@@ -135,7 +136,7 @@ export function PipelineBoard({ columns, leads: initialLeads }: PipelineBoardPro
               </div>
 
               {isEmpty ? (
-                <p className="px-1 text-xs text-black/40 max-lg:hidden">Sleep een lead hierheen</p>
+                <p className="px-1 pt-2 text-xs text-black/40 max-sm:hidden">Sleep een lead hierheen</p>
               ) : (
                 <div className="flex flex-col gap-2.5">
                   {columnLeads.map((lead) => (
@@ -198,7 +199,7 @@ export function PipelineBoard({ columns, leads: initialLeads }: PipelineBoardPro
                       <div className="flex items-center justify-between gap-2 border-t border-black/8 px-3.5 py-2">
                         <p
                           title={`Bron: ${lead.source}`}
-                          className="min-w-0 truncate text-[11px] text-black/45"
+                          className="max-w-[5.5rem] shrink-0 truncate text-[11px] text-black/45"
                         >
                           {lead.seller ?? "Geen verkoper"}
                         </p>
@@ -207,7 +208,7 @@ export function PipelineBoard({ columns, leads: initialLeads }: PipelineBoardPro
                           aria-label={`Verplaats ${lead.name} naar een andere fase`}
                           value={lead.status}
                           onChange={(event) => moveLead(lead.id, event.target.value)}
-                          className="max-w-[11rem] shrink-0 lg:max-w-[9rem] rounded-lg border border-black/10 bg-white px-1.5 py-1 text-[11px] font-semibold text-black/70"
+                          className="min-w-0 flex-1 rounded-lg border border-black/10 bg-white px-1.5 py-1 text-[11px] font-semibold text-black/70"
                         >
                           {columns.map((option) => (
                             <option key={option.status} value={option.status}>
