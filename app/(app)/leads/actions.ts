@@ -36,8 +36,9 @@ const createLeadSchema = z.object({
   interestedModel: optionalText,
   status: z.enum(leadStatuses).default("NEW"),
   priority: z.enum(leadPriorities).default("NORMAL"),
-  taskTitle: z.string().trim().min(1, "Geef aan wat de eerste stap is.").max(200),
-  nextFollowUpAt: z.string().trim().min(1, "Volgende opvolging is verplicht."),
+  // De eerste stap is optioneel: zonder titel en datum wordt er geen taak aangemaakt.
+  taskTitle: optionalText.refine((value) => value.length <= 200, "De titel is te lang."),
+  nextFollowUpAt: optionalText,
   financeInterest: z
     .union([z.literal("on"), z.null(), z.undefined()])
     .transform((value) => value === "on"),
@@ -247,12 +248,24 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
     };
   }
 
-  const nextFollowUpAt = new Date(parsedLead.data.nextFollowUpAt);
+  const taskTitle = parsedLead.data.taskTitle;
+  const hasFollowUpDate = parsedLead.data.nextFollowUpAt.length > 0;
 
-  if (Number.isNaN(nextFollowUpAt.getTime())) {
+  if (taskTitle && !hasFollowUpDate) {
     return {
       errors: {
-        nextFollowUpAt: ["Volgende opvolging is verplicht."]
+        nextFollowUpAt: ["Kies wanneer de eerste stap moet gebeuren, of laat de titel leeg."]
+      },
+      message: "Controleer de ingevulde gegevens."
+    };
+  }
+
+  const nextFollowUpAt = hasFollowUpDate ? new Date(parsedLead.data.nextFollowUpAt) : null;
+
+  if (nextFollowUpAt && Number.isNaN(nextFollowUpAt.getTime())) {
+    return {
+      errors: {
+        nextFollowUpAt: ["Ongeldige datum."]
       },
       message: "Controleer de ingevulde gegevens."
     };
@@ -291,17 +304,21 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
         ...(hasNeedsAnalysisContent(needsAnalysis)
           ? { needsAnalysis: { create: needsAnalysisToData(needsAnalysis) } }
           : {}),
-        // De eerste stap wordt meteen een taak; de opvolgdatum van de lead volgt die taak.
-        tasks: {
-          create: {
-            assignedUserId: parsedLead.data.assignedUserId,
-            createdByUserId: currentUser.id,
-            taskType: "FOLLOW_UP",
-            title: parsedLead.data.taskTitle,
-            dueAt: nextFollowUpAt,
-            status: "OPEN"
-          }
-        },
+        // De eerste stap is optioneel. Is ze ingevuld, dan wordt ze meteen een taak en volgt de opvolgdatum van de lead die taak.
+        ...(nextFollowUpAt
+          ? {
+              tasks: {
+                create: {
+                  assignedUserId: parsedLead.data.assignedUserId,
+                  createdByUserId: currentUser.id,
+                  taskType: "FOLLOW_UP",
+                  title: taskTitle || "Opvolgen",
+                  dueAt: nextFollowUpAt,
+                  status: "OPEN"
+                }
+              }
+            }
+          : {}),
         activities: {
           create: {
             userId: currentUser.id,

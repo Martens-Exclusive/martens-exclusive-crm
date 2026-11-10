@@ -212,15 +212,14 @@ export function CreateLeadForm({
           </Field>
 
           <div className="flex flex-col gap-5 rounded-2xl border border-black/10 bg-panel p-4 md:col-span-2">
-            <p className="text-sm font-semibold text-black">Eerste stap</p>
+            <p className="text-sm font-semibold text-black">Eerste stap (optioneel)</p>
 
             <Field
               label="Wat moet er gebeuren?"
-              hint="Dit wordt de eerste taak van de lead. Vrij in te vullen, de knoppen zijn enkel voorbeelden."
+              hint="Optioneel. Dit wordt de eerste taak van de lead. Vrij in te vullen, de knoppen zijn enkel voorbeelden."
             >
               <Input
                 name="taskTitle"
-                required
                 value={taskTitle}
                 onChange={(event) => setTaskTitle(event.target.value)}
                 placeholder="Bv. Terugbellen, offerte opvolgen, ..."
@@ -246,7 +245,6 @@ export function CreateLeadForm({
               <Input
                 name="nextFollowUpAt"
                 type="datetime-local"
-                required
                 value={followUpAt}
                 onChange={(event) => setFollowUpAt(event.target.value)}
               />
@@ -266,6 +264,9 @@ export function CreateLeadForm({
                   );
                 })}
               </div>
+              {state.errors?.nextFollowUpAt ? (
+                <span className="text-xs text-red-700">{state.errors.nextFollowUpAt[0]}</span>
+              ) : null}
             </Field>
           </div>
 
