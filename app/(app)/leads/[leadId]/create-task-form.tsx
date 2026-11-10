@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { createTask, type CreateTaskState } from "../actions";
 import { useFormShell } from "./fiche-actions";
@@ -18,6 +18,44 @@ type CreateTaskFormProps = {
 
 const initialState: CreateTaskState = {};
 
+// Snelkeuzes. De titel blijft vrij in te vullen, dit zijn enkel veelgebruikte voorbeelden.
+const titleSuggestions = [
+  "Terugbellen",
+  "Offerte opvolgen",
+  "Offerte opmaken",
+  "Testrit inplannen",
+  "Documenten opvragen",
+  "Prijs bespreken",
+  "Foto's of info doorsturen"
+];
+
+const dateSuggestions = [
+  { label: "Morgen", days: 1 },
+  { label: "Over 3 dagen", days: 3 },
+  { label: "Over 1 week", days: 7 },
+  { label: "Over 2 weken", days: 14 }
+];
+
+function toLocalInputValue(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// Een dag in de toekomst, om 9 uur 's ochtends.
+function inDays(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  date.setHours(9, 0, 0, 0);
+
+  return toLocalInputValue(date);
+}
+
+const chipClass = (active: boolean) =>
+  `rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+    active ? "border-black bg-black text-white" : "border-black/15 bg-raised text-black hover:bg-hover2"
+  }`;
+
 export function CreateTaskForm({
   leadId,
   users,
@@ -25,6 +63,8 @@ export function CreateTaskForm({
 }: CreateTaskFormProps) {
   const [state, formAction, isPending] = useActionState(createTask, initialState);
   const shellClass = useFormShell(state);
+  const [title, setTitle] = useState("");
+  const [dueAt, setDueAt] = useState("");
 
   return (
     <form
@@ -39,12 +79,52 @@ export function CreateTaskForm({
       </p>
 
       <div className="mt-6 flex flex-col gap-5">
-        <Field label="Titel">
-          <Input name="title" required />
+        <Field label="Wat moet er gebeuren?">
+          <Input
+            name="title"
+            required
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Bv. Terugbellen, of vrij in te vullen"
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {titleSuggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => setTitle(suggestion)}
+                className={chipClass(title === suggestion)}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
         </Field>
 
-        <Field label="Vervaldatum">
-          <Input name="dueAt" type="datetime-local" required />
+        <Field label="Wanneer?">
+          <Input
+            name="dueAt"
+            type="datetime-local"
+            required
+            value={dueAt}
+            onChange={(event) => setDueAt(event.target.value)}
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {dateSuggestions.map((suggestion) => {
+              const value = inDays(suggestion.days);
+
+              return (
+                <button
+                  key={suggestion.label}
+                  type="button"
+                  onClick={() => setDueAt(value)}
+                  className={chipClass(dueAt === value)}
+                >
+                  {suggestion.label}
+                </button>
+              );
+            })}
+          </div>
         </Field>
 
         <Field label="Verkoper">

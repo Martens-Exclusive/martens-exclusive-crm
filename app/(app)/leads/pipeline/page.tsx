@@ -9,6 +9,7 @@ import {
   type LeadPriority,
   type LeadStatus
 } from "@/lib/lead-status";
+import { getNextTask, wallClockNow } from "@/lib/lead-tasks";
 import { prisma } from "@/lib/prisma";
 import { PipelineBoard, type BoardLead } from "./pipeline-board";
 
@@ -40,25 +41,35 @@ export default async function LeadPipelinePage({
     include: {
       source: true,
       assignedUser: true,
-      primaryVehicle: true
+      primaryVehicle: true,
+      tasks: {
+        where: { status: "OPEN" },
+        orderBy: { dueAt: "asc" },
+        select: { id: true, title: true, dueAt: true }
+      }
     },
     orderBy: [{ nextFollowUpAt: "asc" }, { createdAt: "desc" }]
   });
 
-  const now = new Date();
+  const now = wallClockNow();
 
+  // Een open taak weegt zwaarder dan de losse opvolgdatum; die tellen we enkel nog mee bij leads zonder taak.
   const isOverdue = (lead: (typeof leads)[number]) =>
-    lead.nextFollowUpAt !== null && lead.nextFollowUpAt < now;
+    lead.tasks.length > 0
+      ? lead.tasks[0].dueAt < now
+      : lead.nextFollowUpAt !== null && lead.nextFollowUpAt < now;
+  const hasNothingPlanned = (lead: (typeof leads)[number]) =>
+    lead.tasks.length === 0 && lead.nextFollowUpAt === null;
   const isHot = (lead: (typeof leads)[number]) =>
     lead.priority === "HOT" || lead.priority === "HIGH";
 
   const overdueCount = leads.filter(isOverdue).length;
-  const noFollowUpCount = leads.filter((lead) => lead.nextFollowUpAt === null).length;
+  const noFollowUpCount = leads.filter(hasNothingPlanned).length;
   const hotCount = leads.filter(isHot).length;
 
   const visibleLeads = leads.filter((lead) => {
     if (activeFilter === "overdue") return isOverdue(lead);
-    if (activeFilter === "none") return lead.nextFollowUpAt === null;
+    if (activeFilter === "none") return hasNothingPlanned(lead);
     if (activeFilter === "hot") return isHot(lead);
     return true;
   });
@@ -73,9 +84,10 @@ export default async function LeadPipelinePage({
     source: lead.source.name,
     seller: lead.assignedUser ? lead.assignedUser.firstName : null,
     followUpLabel: lead.nextFollowUpAt ? followUpFormatter.format(lead.nextFollowUpAt) : null,
-    overdueDays: lead.nextFollowUpAt && lead.nextFollowUpAt < now
-      ? Math.floor((now.getTime() - lead.nextFollowUpAt.getTime()) / DAY_MS)
-      : null
+    overdueDays: isOverdue(lead)
+      ? Math.floor((now.getTime() - (lead.tasks[0]?.dueAt ?? lead.nextFollowUpAt ?? now).getTime()) / DAY_MS)
+      : null,
+    nextTask: getNextTask(lead.tasks, now)
   }));
 
   const columns = leadStatuses
@@ -113,14 +125,14 @@ export default async function LeadPipelinePage({
         <FilterChip href="/leads/pipeline" label="Alle open leads" count={leads.length} active={activeFilter === "all"} />
         <FilterChip
           href={"/leads/pipeline?filter=overdue" as Route}
-          label="Te late opvolging"
+          label="Te late taken"
           count={overdueCount}
           active={activeFilter === "overdue"}
           alert={overdueCount > 0}
         />
         <FilterChip
           href={"/leads/pipeline?filter=none" as Route}
-          label="Zonder opvolging"
+          label="Zonder taak"
           count={noFollowUpCount}
           active={activeFilter === "none"}
         />

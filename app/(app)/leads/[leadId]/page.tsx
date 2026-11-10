@@ -20,6 +20,7 @@ import { toNeedsAnalysisValues } from "@/lib/needs-analysis";
 import { ensureLeadSources } from "@/lib/lead-sources";
 import { prisma } from "@/lib/prisma";
 import { buildTimeline } from "@/lib/activity-timeline";
+import { getNextTask, wallClockNow } from "@/lib/lead-tasks";
 import { getAppointmentVehicleLabel, getLeadVehicleLabel } from "@/lib/appointment-calendar";
 import { getRequestOrigin } from "@/lib/request-origin";
 
@@ -131,13 +132,21 @@ export default async function LeadDetailPage({
   const now = new Date();
   const timeline = buildTimeline(lead.activities, now);
 
+  const clockNow = wallClockNow(now);
+
   const overdueTasks = lead.tasks.filter(
-    (task) => task.status === "OPEN" && task.dueAt < now
+    (task) => task.status === "OPEN" && task.dueAt < clockNow
   );
 
   const openTasks = lead.tasks.filter(
-    (task) => task.status === "OPEN" && task.dueAt >= now
+    (task) => task.status === "OPEN" && task.dueAt >= clockNow
   );
+
+  const nextTask = getNextTask(
+    lead.tasks.filter((task) => task.status === "OPEN"),
+    clockNow
+  );
+  const isClosedLead = ["WON", "LOST"].includes(lead.status);
 
   const completedTasks = lead.tasks.filter((task) => task.status === "COMPLETED");
 
@@ -239,7 +248,64 @@ export default async function LeadDetailPage({
             </div>
           </div>
 
-          <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+          {!isClosedLead ? (
+            <div
+              className={`mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${
+                nextTask?.overdue
+                  ? "border-red-300 bg-red-50"
+                  : nextTask
+                    ? "border-black/10 bg-panel"
+                    : "border-amber-200 bg-amber-50"
+              }`}
+            >
+              <div className="min-w-0">
+                <p
+                  className={`text-xs font-bold uppercase tracking-[0.2em] ${
+                    nextTask?.overdue ? "text-red-700" : nextTask ? "text-black/45" : "text-amber-700"
+                  }`}
+                >
+                  Volgende stap
+                </p>
+
+                {nextTask ? (
+                  <>
+                    <p className={`mt-1 text-base font-bold ${nextTask.overdue ? "text-red-700" : "text-black"}`}>
+                      {nextTask.title}
+                    </p>
+                    <p className={`mt-0.5 text-sm ${nextTask.overdue ? "font-semibold text-red-700" : "text-black/60"}`}>
+                      {nextTask.dueLabel}
+                      {nextTask.overdue
+                        ? nextTask.overdueDays === 0
+                          ? " · vandaag te laat"
+                          : ` · ${nextTask.overdueDays} ${nextTask.overdueDays === 1 ? "dag" : "dagen"} te laat`
+                        : ""}
+                      {nextTask.more > 0
+                        ? ` · nog ${nextTask.more} ${nextTask.more === 1 ? "taak" : "taken"} daarna`
+                        : ""}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm font-semibold text-amber-700">
+                    Geen taak gepland. Voeg een taak toe, bv. terugbellen of offerte opvolgen.
+                  </p>
+                )}
+              </div>
+
+              {nextTask ? (
+                <form action={completeTask}>
+                  <input type="hidden" name="taskId" value={nextTask.id} />
+                  <button
+                    type="submit"
+                    className="rounded-2xl border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-hover"
+                  >
+                    Afgewerkt
+                  </button>
+                </form>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
             <StatCard label="Status" value={getLeadStatusLabel(lead.status)} />
             <StatCard label="Prioriteit" value={getLeadPriorityLabel(lead.priority)} />
             <StatCard label="Open taken" value={String(openTasks.length + overdueTasks.length)} />

@@ -11,6 +11,7 @@ import {
 } from "@/lib/lead-status";
 import { LeadViewToggle } from "@/components/lead-view-toggle";
 import { ensureLeadSources } from "@/lib/lead-sources";
+import { getNextTask, wallClockNow } from "@/lib/lead-tasks";
 import { prisma } from "@/lib/prisma";
 
 const dateFormatter = new Intl.DateTimeFormat("nl-BE", {
@@ -40,6 +41,7 @@ export default async function LeadsPage({
   const openOnly = params?.openOnly === "1";
 
   const now = new Date();
+  const clockNow = wallClockNow(now);
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -69,7 +71,12 @@ export default async function LeadsPage({
       include: {
         source: true,
         assignedUser: true,
-        primaryVehicle: true
+        primaryVehicle: true,
+        tasks: {
+          where: { status: "OPEN" },
+          orderBy: { dueAt: "asc" },
+          select: { id: true, title: true, dueAt: true }
+        }
       },
       orderBy: [{ nextFollowUpAt: "asc" }, { createdAt: "desc" }],
       take: 100
@@ -228,7 +235,7 @@ export default async function LeadsPage({
       <section className={`grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4${laterOrder}`}>
         <StatCard label="Totaal leads" value={String(totalLeads)} />
         <StatCard label="Open leads" value={String(openLeads)} />
-        <StatCard label="Te late opvolging" value={String(overdueLeads)} />
+        <StatCard label="Leads met te late taak" value={String(overdueLeads)} />
         <StatCard label="Gewonnen deze maand" value={String(wonThisMonth)} />
         <StatCard label="Conversie" value={`${conversionRate}%`} />
       </section>
@@ -463,7 +470,7 @@ export default async function LeadsPage({
                 <th className="px-6 py-4">Wagen</th>
                 <th className="px-6 py-4">Verkoper</th>
                 <th className="px-6 py-4">Bron</th>
-                <th className="px-6 py-4">Opvolging</th>
+                <th className="px-6 py-4">Volgende taak</th>
                 <th className="px-6 py-4">Prioriteit</th>
               </tr>
             </thead>
@@ -480,9 +487,9 @@ export default async function LeadsPage({
                 </tr>
               ) : (
                 leads.map((lead) => {
+                  const nextTask = getNextTask(lead.tasks, clockNow);
                   const isOverdue =
-                    lead.nextFollowUpAt &&
-                    lead.nextFollowUpAt < now &&
+                    (nextTask ? nextTask.overdue : lead.nextFollowUpAt && lead.nextFollowUpAt < clockNow) &&
                     !["WON", "LOST"].includes(lead.status);
 
                   const interestText = [lead.interestedBrand, lead.interestedModel]
@@ -535,23 +542,25 @@ export default async function LeadsPage({
                       <td className="px-6 py-5">{lead.source.name}</td>
 
                       <td className="px-6 py-5">
-                        <span
-                          className={
-                            isOverdue
-                              ? "font-semibold text-red-700"
-                              : "text-black"
-                          }
-                        >
-                          {lead.nextFollowUpAt
-                            ? dateFormatter.format(lead.nextFollowUpAt)
-                            : "Nog niet ingepland"}
-                        </span>
-
-                        {isOverdue ? (
-                          <p className="mt-1 text-xs font-semibold text-red-700">
-                            Te laat
+                        {nextTask ? (
+                          <>
+                            <p className={`font-semibold ${isOverdue ? "text-red-700" : "text-black"}`}>
+                              {nextTask.title}
+                            </p>
+                            <p className={`mt-1 text-xs ${isOverdue ? "font-semibold text-red-700" : "text-black/55"}`}>
+                              {nextTask.dueLabel}
+                              {isOverdue ? " · te laat" : ""}
+                              {nextTask.more > 0 ? ` · +${nextTask.more}` : ""}
+                            </p>
+                          </>
+                        ) : lead.nextFollowUpAt ? (
+                          <p className={isOverdue ? "font-semibold text-red-700" : "text-black"}>
+                            Opvolging {dateFormatter.format(lead.nextFollowUpAt)}
+                            {isOverdue ? " · te laat" : ""}
                           </p>
-                        ) : null}
+                        ) : (
+                          <p className="text-xs font-semibold text-amber-700">Geen taak gepland</p>
+                        )}
                       </td>
 
                       <td className="px-6 py-5">
@@ -572,9 +581,9 @@ export default async function LeadsPage({
             </p>
           ) : (
             leads.map((lead) => {
+              const nextTask = getNextTask(lead.tasks, clockNow);
               const isOverdue =
-                lead.nextFollowUpAt &&
-                lead.nextFollowUpAt < now &&
+                (nextTask ? nextTask.overdue : lead.nextFollowUpAt && lead.nextFollowUpAt < clockNow) &&
                 !["WON", "LOST"].includes(lead.status);
 
               const interestText = [lead.interestedBrand, lead.interestedModel]
@@ -608,10 +617,20 @@ export default async function LeadsPage({
                   <p className="mt-3 text-sm text-black/80">{vehicleText}</p>
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-black/10 pt-3 text-xs">
-                    <span className={isOverdue ? "font-semibold text-red-700" : "text-black/60"}>
-                      {lead.nextFollowUpAt
-                        ? `Opvolging ${dateFormatter.format(lead.nextFollowUpAt)}${isOverdue ? " · te laat" : ""}`
-                        : "Opvolging nog niet ingepland"}
+                    <span
+                      className={
+                        isOverdue
+                          ? "font-semibold text-red-700"
+                          : nextTask || lead.nextFollowUpAt
+                            ? "text-black/70"
+                            : "font-semibold text-amber-700"
+                      }
+                    >
+                      {nextTask
+                        ? `${nextTask.title} · ${nextTask.dueLabel}${isOverdue ? " · te laat" : ""}`
+                        : lead.nextFollowUpAt
+                          ? `Opvolging ${dateFormatter.format(lead.nextFollowUpAt)}${isOverdue ? " · te laat" : ""}`
+                          : "Geen taak gepland"}
                     </span>
                     <PriorityBadge priority={lead.priority} />
                   </div>

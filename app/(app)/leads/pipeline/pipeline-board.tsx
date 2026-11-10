@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import type { NextTask } from "@/lib/lead-tasks";
 import { moveLeadStatus } from "../actions";
 
 export type BoardLead = {
@@ -15,8 +16,10 @@ export type BoardLead = {
   source: string;
   seller: string | null;
   followUpLabel: string | null;
-  // Aantal dagen te laat; null = niet te laat (of geen opvolging).
+  // Aantal dagen te laat; null = niet te laat (of niets gepland).
   overdueDays: number | null;
+  // Eerstvolgende open taak, bv. "Terugbellen".
+  nextTask: NextTask | null;
 };
 
 export type BoardColumn = {
@@ -177,23 +180,7 @@ export function PipelineBoard({ columns, leads: initialLeads }: PipelineBoardPro
                           {lead.vehicle ?? "Geen wagen"}
                         </p>
 
-                        <p
-                          className={`mt-2 text-xs font-semibold ${
-                            lead.overdueDays !== null
-                              ? "text-red-700"
-                              : lead.followUpLabel
-                                ? "text-black/65"
-                                : "text-black/40"
-                          }`}
-                        >
-                          {lead.overdueDays !== null
-                            ? lead.overdueDays === 0
-                              ? "Opvolging te laat"
-                              : `${lead.overdueDays} ${lead.overdueDays === 1 ? "dag" : "dagen"} te laat`
-                            : lead.followUpLabel
-                              ? `Opvolging ${lead.followUpLabel}`
-                              : "Geen opvolging gepland"}
-                        </p>
+                        <TaskLine lead={lead} />
                       </Link>
 
                       <div className="flex items-center justify-between gap-2 border-t border-black/8 px-3.5 py-2">
@@ -225,6 +212,45 @@ export function PipelineBoard({ columns, leads: initialLeads }: PipelineBoardPro
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Wat staat er nog te gebeuren bij deze lead? De eerstvolgende taak, rood als ze te laat is.
+function TaskLine({ lead }: { lead: BoardLead }) {
+  const task = lead.nextTask;
+
+  if (!task) {
+    const late = lead.overdueDays !== null;
+
+    return (
+      <p
+        className={`mt-2.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold ${
+          late ? "bg-red-50 text-red-700" : lead.followUpLabel ? "bg-soft text-black/65" : "bg-amber-50 text-amber-700"
+        }`}
+      >
+        {lead.followUpLabel ? `Opvolging ${lead.followUpLabel}` : "Geen taak gepland"}
+        {late ? " · te laat" : ""}
+      </p>
+    );
+  }
+
+  const lateText = task.overdue
+    ? task.overdueDays === 0
+      ? "vandaag te laat"
+      : `${task.overdueDays} ${task.overdueDays === 1 ? "dag" : "dagen"} te laat`
+    : null;
+
+  return (
+    <div
+      className={`mt-2.5 rounded-xl px-2.5 py-1.5 ${task.overdue ? "bg-red-50 text-red-700" : "bg-soft text-black/80"}`}
+    >
+      <p className="line-clamp-2 text-xs font-bold leading-4">{task.title}</p>
+      <p className={`mt-0.5 text-[11px] font-semibold ${task.overdue ? "text-red-700" : "text-black/55"}`}>
+        {task.dueLabel}
+        {lateText ? ` · ${lateText}` : ""}
+        {task.more > 0 ? ` · +${task.more} ${task.more === 1 ? "taak" : "taken"}` : ""}
+      </p>
     </div>
   );
 }

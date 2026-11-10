@@ -1318,6 +1318,25 @@ export async function deleteAppointment(formData: FormData) {
   revalidatePath("/appointments");
 }
 
+// De eerstvolgende open taak bepaalt de opvolgdatum van de lead. Zo tonen pipeline, leadlijst en
+// dashboard altijd dezelfde datum als de taken. Is er geen open taak meer, dan is er geen opvolging gepland.
+async function syncLeadFollowUp(leadId: string) {
+  const nextOpenTask = await prisma.task.findFirst({
+    where: { leadId, status: "OPEN" },
+    orderBy: { dueAt: "asc" },
+    select: { dueAt: true }
+  });
+
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: { nextFollowUpAt: nextOpenTask?.dueAt ?? null }
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/leads");
+  revalidatePath("/leads/pipeline");
+}
+
 export async function createTask(_: CreateTaskState, formData: FormData) {
   const currentUser = await requireUser();
 
@@ -1373,6 +1392,8 @@ export async function createTask(_: CreateTaskState, formData: FormData) {
       status: "OPEN"
     }
   });
+
+  await syncLeadFollowUp(existingLead.id);
 
   await prisma.activity.create({
     data: {
@@ -1645,6 +1666,8 @@ export async function completeTask(formData: FormData) {
     }
   });
 
+  await syncLeadFollowUp(existingTask.leadId);
+
   await prisma.activity.create({
     data: {
       leadId: existingTask.leadId,
@@ -1681,6 +1704,8 @@ export async function deleteTask(formData: FormData) {
   await prisma.task.delete({
     where: { id: task.id }
   });
+
+  await syncLeadFollowUp(task.leadId);
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
