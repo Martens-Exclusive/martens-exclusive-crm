@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { assignVehicle, type AssignVehicleState } from "../actions";
+import { useFormShell } from "./fiche-actions";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
@@ -27,11 +28,12 @@ export function AssignVehicleForm({
   vehicles
 }: AssignVehicleFormProps) {
   const [state, formAction, isPending] = useActionState(assignVehicle, initialState);
+  const shellClass = useFormShell(state);
 
   return (
     <form
       action={formAction}
-      className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
+      className={shellClass}
     >
       <input type="hidden" name="leadId" value={leadId} />
 

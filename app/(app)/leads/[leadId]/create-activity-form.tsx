@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { createActivity, type CreateActivityState } from "../actions";
+import { useFormShell } from "./fiche-actions";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -33,11 +34,12 @@ function getNowDateTimeLocal() {
 
 export function CreateActivityForm({ leadId }: CreateActivityFormProps) {
   const [state, formAction, isPending] = useActionState(createActivity, initialState);
+  const shellClass = useFormShell(state);
 
   return (
     <form
       action={formAction}
-      className="rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
+      className={shellClass}
     >
       <input type="hidden" name="leadId" value={leadId} />
 
