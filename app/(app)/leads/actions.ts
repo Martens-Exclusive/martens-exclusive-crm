@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { requireUser } from "@/lib/auth";
 import { linkLeadToCustomer } from "@/lib/customers";
-import { leadPriorities, leadStatuses } from "@/lib/lead-status";
+import { leadPriorities, leadStatusLabels, leadStatuses, type LeadStatus } from "@/lib/lead-status";
 import {
   hasNeedsAnalysisContent,
   needsAnalysisToData,
@@ -490,6 +490,72 @@ export async function updateLead(_: UpdateLeadState, formData: FormData) {
     message: "Lead bijgewerkt.",
     success: true
   };
+}
+
+// Lead naar een andere fase van de pipeline verplaatsen (slepen of menu op het bord).
+// Gewonnen en verloren lopen via de leadfiche, omdat daar een reden/afronding bij hoort.
+export async function moveLeadStatus(
+  leadId: string,
+  status: string
+): Promise<{ success: boolean; message?: string }> {
+  const currentUser = await requireUser();
+
+  const openStatuses: readonly string[] = leadStatuses.filter(
+    (value) => value !== "WON" && value !== "LOST"
+  );
+
+  if (!openStatuses.includes(status)) {
+    return { success: false, message: "Ongeldige fase." };
+  }
+
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { id: true, status: true }
+  });
+
+  if (!lead) {
+    return { success: false, message: "Lead niet gevonden." };
+  }
+
+  if (lead.status === "WON" || lead.status === "LOST") {
+    return { success: false, message: "Gewonnen of verloren leads verplaats je via de leadfiche." };
+  }
+
+  if (lead.status === status) {
+    return { success: true };
+  }
+
+  const nextLabel = leadStatusLabels[status as LeadStatus];
+
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      status,
+      statusHistory: {
+        create: {
+          fromStatus: lead.status,
+          toStatus: status,
+          changedByUserId: currentUser.id
+        }
+      },
+      activities: {
+        create: {
+          type: "STATUS_CHANGE",
+          summary: "Status gewijzigd",
+          details: `Status gewijzigd naar ${nextLabel}.`,
+          occurredAt: new Date(),
+          userId: currentUser.id
+        }
+      }
+    }
+  });
+
+  revalidatePath("/leads");
+  revalidatePath("/leads/pipeline");
+  revalidatePath(`/leads/${lead.id}`);
+  revalidatePath("/dashboard");
+
+  return { success: true };
 }
 
 export async function updateLeadDetails(

@@ -9,6 +9,7 @@ import {
   type LeadPriority,
   type LeadStatus
 } from "@/lib/lead-status";
+import { LeadViewToggle } from "@/components/lead-view-toggle";
 import { ensureLeadSources } from "@/lib/lead-sources";
 import { prisma } from "@/lib/prisma";
 
@@ -199,7 +200,7 @@ export default async function LeadsPage({
       <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
-            Pipeline
+            Leadlijst
           </p>
 
           <h1 className="mt-4 text-3xl font-bold text-black">
@@ -212,21 +213,16 @@ export default async function LeadsPage({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-  <Link
-    href="/leads/pipeline"
-    className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80"
-  >
-    Pipeline
-  </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <LeadViewToggle active="list" />
 
-  <Link
-    href="/leads/new"
-    className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-raised px-5 py-3 text-sm font-semibold text-black transition hover:bg-hover"
-  >
-    Nieuwe lead
-  </Link>
-</div>
+          <Link
+            href="/leads/new"
+            className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80"
+          >
+            Nieuwe lead
+          </Link>
+        </div>
       </section>
 
       <section className={`grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4${laterOrder}`}>

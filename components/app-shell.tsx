@@ -61,7 +61,7 @@ export function AppShell({ children, userName }: AppShellProps) {
 
           <nav className="hidden flex-1 items-center justify-center gap-1 xl:flex">
             {mainNavigation.map((item) => {
-              const active = isActivePath(pathname, item.href);
+              const active = isActivePath(pathname, item.activePrefix ?? item.href);
 
               return (
                 <Link
@@ -101,7 +101,7 @@ export function AppShell({ children, userName }: AppShellProps) {
 
         <nav className="mx-auto flex w-full max-w-[1600px] gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] sm:px-6 lg:px-10 xl:hidden [&::-webkit-scrollbar]:hidden">
           {mainNavigation.map((item) => {
-            const active = isActivePath(pathname, item.href);
+            const active = isActivePath(pathname, item.activePrefix ?? item.href);
 
             return (
               <Link

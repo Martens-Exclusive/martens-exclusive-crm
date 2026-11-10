@@ -1,5 +1,7 @@
 import Link from "next/link";
+import type { Route } from "next";
 
+import { LeadViewToggle } from "@/components/lead-view-toggle";
 import {
   leadStatuses,
   leadStatusLabels,
@@ -8,13 +10,27 @@ import {
   type LeadStatus
 } from "@/lib/lead-status";
 import { prisma } from "@/lib/prisma";
+import { PipelineBoard, type BoardLead } from "./pipeline-board";
 
-const dateFormatter = new Intl.DateTimeFormat("nl-BE", {
-  dateStyle: "medium",
-  timeStyle: "short"
+const followUpFormatter = new Intl.DateTimeFormat("nl-BE", {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit"
 });
 
-export default async function LeadPipelinePage() {
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type PipelineFilter = "all" | "overdue" | "none" | "hot";
+
+export default async function LeadPipelinePage({
+  searchParams
+}: {
+  searchParams?: Promise<{ filter?: string }>;
+}) {
+  const params = await searchParams;
+  const activeFilter = getFilter(params?.filter);
+
   const leads = await prisma.lead.findMany({
     where: {
       status: {
@@ -29,40 +45,60 @@ export default async function LeadPipelinePage() {
     orderBy: [{ nextFollowUpAt: "asc" }, { createdAt: "desc" }]
   });
 
-  const leadsByStatus = new Map<string, typeof leads>();
+  const now = new Date();
 
-  for (const status of leadStatuses) {
-    leadsByStatus.set(
+  const isOverdue = (lead: (typeof leads)[number]) =>
+    lead.nextFollowUpAt !== null && lead.nextFollowUpAt < now;
+  const isHot = (lead: (typeof leads)[number]) =>
+    lead.priority === "HOT" || lead.priority === "HIGH";
+
+  const overdueCount = leads.filter(isOverdue).length;
+  const noFollowUpCount = leads.filter((lead) => lead.nextFollowUpAt === null).length;
+  const hotCount = leads.filter(isHot).length;
+
+  const visibleLeads = leads.filter((lead) => {
+    if (activeFilter === "overdue") return isOverdue(lead);
+    if (activeFilter === "none") return lead.nextFollowUpAt === null;
+    if (activeFilter === "hot") return isHot(lead);
+    return true;
+  });
+
+  const boardLeads: BoardLead[] = visibleLeads.map((lead) => ({
+    id: lead.id,
+    name: `${lead.firstName} ${lead.lastName}`.trim(),
+    status: lead.status,
+    vehicle: getVehicleLabel(lead),
+    priority: lead.priority,
+    priorityLabel: leadPriorityLabels[lead.priority as LeadPriority] ?? lead.priority,
+    source: lead.source.name,
+    seller: lead.assignedUser ? lead.assignedUser.firstName : null,
+    followUpLabel: lead.nextFollowUpAt ? followUpFormatter.format(lead.nextFollowUpAt) : null,
+    overdueDays: lead.nextFollowUpAt && lead.nextFollowUpAt < now
+      ? Math.floor((now.getTime() - lead.nextFollowUpAt.getTime()) / DAY_MS)
+      : null
+  }));
+
+  const columns = leadStatuses
+    .filter((status) => status !== "WON" && status !== "LOST")
+    .map((status) => ({
       status,
-      leads.filter((lead) => lead.status === status)
-    );
-  }
+      label: leadStatusLabels[status as LeadStatus] ?? status,
+      badgeClassName: getStatusClassName(status)
+    }));
 
   return (
-    <main className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-card p-5 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.08)] md:flex-row md:items-end md:justify-between">
+    <main className="flex flex-col gap-5">
+      <section className="flex flex-col gap-4 rounded-[28px] border border-black/10 bg-card p-5 shadow-[0_20px_60px_rgba(0,0,0,0.08)] sm:p-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-black/55">
-            Kanban pipeline
-          </p>
-
-          <h1 className="mt-4 text-3xl font-bold text-black">
-            Leads per verkoopfase
-          </h1>
-
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-black/70">
-            Visueel overzicht van alle open leads per fase. Gewonnen en verloren
-            leads blijven uit deze pipeline.
+          <h1 className="text-2xl font-bold text-black">Pipeline</h1>
+          <p className="mt-1 text-sm text-black/60">
+            {leads.length} open {leads.length === 1 ? "lead" : "leads"}. Sleep een kaart naar een andere
+            fase, of gebruik het menu op de kaart.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/leads"
-            className="inline-flex items-center justify-center rounded-2xl border border-black/15 bg-raised px-5 py-3 text-sm font-semibold text-black transition hover:bg-hover"
-          >
-            Lijstweergave
-          </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <LeadViewToggle active="pipeline" />
 
           <Link
             href="/leads/new"
@@ -73,118 +109,89 @@ export default async function LeadPipelinePage() {
         </div>
       </section>
 
-      <section className="overflow-x-auto pb-4">
-        <div className="grid min-w-[1400px] grid-cols-6 gap-4">
-          {leadStatuses
-            .filter((status) => status !== "WON" && status !== "LOST")
-            .map((status) => {
-              const columnLeads = leadsByStatus.get(status) || [];
+      <div className="flex flex-wrap gap-2">
+        <FilterChip href="/leads/pipeline" label="Alle open leads" count={leads.length} active={activeFilter === "all"} />
+        <FilterChip
+          href={"/leads/pipeline?filter=overdue" as Route}
+          label="Te late opvolging"
+          count={overdueCount}
+          active={activeFilter === "overdue"}
+          alert={overdueCount > 0}
+        />
+        <FilterChip
+          href={"/leads/pipeline?filter=none" as Route}
+          label="Zonder opvolging"
+          count={noFollowUpCount}
+          active={activeFilter === "none"}
+        />
+        <FilterChip
+          href={"/leads/pipeline?filter=hot" as Route}
+          label="Warm / hoog"
+          count={hotCount}
+          active={activeFilter === "hot"}
+        />
+      </div>
 
-              return (
-                <div
-                  key={status}
-                  className="rounded-[24px] border border-black/10 bg-card p-4 shadow-[0_16px_40px_rgba(0,0,0,0.06)]"
-                >
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <StatusBadge status={status} />
-
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-black/60">
-                      {columnLeads.length}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-3">
-                    {columnLeads.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-black/12 bg-hover p-4 text-sm text-black/50">
-                        Geen leads in deze fase.
-                      </div>
-                    ) : (
-                      columnLeads.map((lead) => {
-                        const isOverdue =
-                          lead.nextFollowUpAt &&
-                          lead.nextFollowUpAt < new Date();
-
-                        return (
-                          <Link
-                            key={lead.id}
-                            href={`/leads/${lead.id}`}
-                            className="rounded-2xl border border-black/10 bg-white p-4 transition hover:bg-hover"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="font-bold text-black">
-                                  {lead.firstName} {lead.lastName}
-                                </p>
-
-                                <p className="mt-1 text-xs text-black/50">
-                                  {lead.phone ||
-                                    lead.email ||
-                                    "Geen contactgegevens"}
-                                </p>
-                              </div>
-
-                              <PriorityBadge priority={lead.priority} />
-                            </div>
-
-                            <div className="mt-4 flex flex-col gap-2 text-xs text-black/60">
-                              <p>
-                                Verkoper:{" "}
-                                <span className="font-semibold text-black">
-                                  {lead.assignedUser
-                                    ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}`
-                                    : "Niet toegewezen"}
-                                </span>
-                              </p>
-
-                              <p>
-                                Bron:{" "}
-                                <span className="font-semibold text-black">
-                                  {lead.source.name}
-                                </span>
-                              </p>
-
-                              <p>
-                                Wagen:{" "}
-                                <span className="font-semibold text-black">
-                                  {lead.primaryVehicle
-                                    ? `${lead.primaryVehicle.brand} ${lead.primaryVehicle.model}`
-                                    : "Niet gekoppeld"}
-                                </span>
-                              </p>
-
-                              <p
-                                className={
-                                  isOverdue
-                                    ? "font-semibold text-red-700"
-                                    : "text-black/60"
-                                }
-                              >
-                                Opvolging:{" "}
-                                {lead.nextFollowUpAt
-                                  ? dateFormatter.format(lead.nextFollowUpAt)
-                                  : "Niet ingepland"}
-                              </p>
-                            </div>
-                          </Link>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-      </section>
+      <PipelineBoard columns={columns} leads={boardLeads} />
     </main>
   );
 }
 
-function getLeadStatusLabel(status: string) {
-  return leadStatusLabels[status as LeadStatus] ?? status;
+function getFilter(value?: string): PipelineFilter {
+  if (value === "overdue" || value === "none" || value === "hot") return value;
+  return "all";
 }
 
-function getLeadPriorityLabel(priority: string) {
-  return leadPriorityLabels[priority as LeadPriority] ?? priority;
+function getVehicleLabel(lead: {
+  primaryVehicle: { brand: string; model: string } | null;
+  interestedBrand: string | null;
+  interestedModel: string | null;
+}) {
+  if (lead.primaryVehicle) {
+    return `${lead.primaryVehicle.brand} ${lead.primaryVehicle.model}`;
+  }
+
+  const interest = [lead.interestedBrand, lead.interestedModel].filter(Boolean).join(" ");
+
+  return interest || null;
+}
+
+function FilterChip({
+  href,
+  label,
+  count,
+  active,
+  alert
+}: {
+  href: Route;
+  label: string;
+  count: number;
+  active: boolean;
+  alert?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+        active
+          ? "border-black bg-black text-white"
+          : "border-black/15 bg-raised text-black hover:bg-hover2"
+      }`}
+    >
+      {label}
+      <span
+        className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+          active
+            ? "bg-white/20 text-white"
+            : alert
+              ? "bg-red-100 text-red-700"
+              : "bg-white text-black/55"
+        }`}
+      >
+        {count}
+      </span>
+    </Link>
+  );
 }
 
 function getStatusClassName(status: string) {
@@ -200,36 +207,4 @@ function getStatusClassName(status: string) {
   if (status === "NURTURE") return "border-zinc-200 bg-zinc-50 text-zinc-700";
 
   return "border-black/10 bg-white text-black/70";
-}
-
-function getPriorityClassName(priority: string) {
-  if (priority === "HOT") return "border-red-200 bg-red-50 text-red-700";
-  if (priority === "HIGH") return "border-orange-200 bg-orange-50 text-orange-700";
-  if (priority === "LOW") return "border-black/10 bg-white text-black/50";
-
-  return "border-black/10 bg-white text-black/70";
-}
-
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <span
-      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClassName(
-        status
-      )}`}
-    >
-      {getLeadStatusLabel(status)}
-    </span>
-  );
-}
-
-function PriorityBadge({ priority }: { priority: string }) {
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold ${getPriorityClassName(
-        priority
-      )}`}
-    >
-      {getLeadPriorityLabel(priority)}
-    </span>
-  );
 }
