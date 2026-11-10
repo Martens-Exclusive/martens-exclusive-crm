@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { createTask, type CreateTaskState } from "../actions";
+import { dateSuggestions, inDays, suggestionChipClass as chipClass, titleSuggestions } from "@/lib/task-suggestions";
 import { useFormShell } from "./fiche-actions";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -17,44 +18,6 @@ type CreateTaskFormProps = {
 };
 
 const initialState: CreateTaskState = {};
-
-// Snelkeuzes. De titel blijft vrij in te vullen, dit zijn enkel veelgebruikte voorbeelden.
-const titleSuggestions = [
-  "Terugbellen",
-  "Offerte opvolgen",
-  "Offerte opmaken",
-  "Testrit inplannen",
-  "Documenten opvragen",
-  "Prijs bespreken",
-  "Foto's of info doorsturen"
-];
-
-const dateSuggestions = [
-  { label: "Morgen", days: 1 },
-  { label: "Over 3 dagen", days: 3 },
-  { label: "Over 1 week", days: 7 },
-  { label: "Over 2 weken", days: 14 }
-];
-
-function toLocalInputValue(date: Date) {
-  const pad = (value: number) => String(value).padStart(2, "0");
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-// Een dag in de toekomst, om 9 uur 's ochtends.
-function inDays(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  date.setHours(9, 0, 0, 0);
-
-  return toLocalInputValue(date);
-}
-
-const chipClass = (active: boolean) =>
-  `rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-    active ? "border-black bg-black text-white" : "border-black/15 bg-raised text-black hover:bg-hover2"
-  }`;
 
 export function CreateTaskForm({
   leadId,

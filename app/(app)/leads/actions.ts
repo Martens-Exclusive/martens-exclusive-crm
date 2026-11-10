@@ -36,6 +36,7 @@ const createLeadSchema = z.object({
   interestedModel: optionalText,
   status: z.enum(leadStatuses).default("NEW"),
   priority: z.enum(leadPriorities).default("NORMAL"),
+  taskTitle: z.string().trim().min(1, "Geef aan wat de eerste stap is.").max(200),
   nextFollowUpAt: z.string().trim().min(1, "Volgende opvolging is verplicht."),
   financeInterest: z
     .union([z.literal("on"), z.null(), z.undefined()])
@@ -220,6 +221,7 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
     interestedModel: formData.get("interestedModel"),
     status: formData.get("status"),
     priority: formData.get("priority"),
+    taskTitle: formData.get("taskTitle"),
     nextFollowUpAt: formData.get("nextFollowUpAt"),
     financeInterest: formData.get("financeInterest"),
     tradeInInterest: formData.get("tradeInInterest"),
@@ -289,6 +291,17 @@ export async function createLead(_: CreateLeadState, formData: FormData) {
         ...(hasNeedsAnalysisContent(needsAnalysis)
           ? { needsAnalysis: { create: needsAnalysisToData(needsAnalysis) } }
           : {}),
+        // De eerste stap wordt meteen een taak; de opvolgdatum van de lead volgt die taak.
+        tasks: {
+          create: {
+            assignedUserId: parsedLead.data.assignedUserId,
+            createdByUserId: currentUser.id,
+            taskType: "FOLLOW_UP",
+            title: parsedLead.data.taskTitle,
+            dueAt: nextFollowUpAt,
+            status: "OPEN"
+          }
+        },
         activities: {
           create: {
             userId: currentUser.id,

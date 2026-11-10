@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { LeadPriority, LeadStatus } from "@/lib/lead-status";
+import { dateSuggestions, inDays, suggestionChipClass, titleSuggestions } from "@/lib/task-suggestions";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -41,6 +42,8 @@ export function CreateLeadForm({
 }: CreateLeadFormProps) {
   const [state, formAction, isPending] = useActionState(createLead, initialState);
   const [showNeeds, setShowNeeds] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [followUpAt, setFollowUpAt] = useState("");
 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
@@ -208,9 +211,63 @@ export function CreateLeadForm({
             </Select>
           </Field>
 
-          <Field label="Volgende opvolging">
-            <Input name="nextFollowUpAt" type="datetime-local" required />
-          </Field>
+          <div className="flex flex-col gap-5 rounded-2xl border border-black/10 bg-panel p-4 md:col-span-2">
+            <p className="text-sm font-semibold text-black">Eerste stap</p>
+
+            <Field
+              label="Wat moet er gebeuren?"
+              hint="Dit wordt de eerste taak van de lead. Vrij in te vullen, de knoppen zijn enkel voorbeelden."
+            >
+              <Input
+                name="taskTitle"
+                required
+                value={taskTitle}
+                onChange={(event) => setTaskTitle(event.target.value)}
+                placeholder="Bv. Terugbellen, offerte opvolgen, ..."
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {titleSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => setTaskTitle(suggestion)}
+                    className={suggestionChipClass(taskTitle === suggestion)}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+              {state.errors?.taskTitle ? (
+                <span className="text-xs text-red-700">{state.errors.taskTitle[0]}</span>
+              ) : null}
+            </Field>
+
+            <Field label="Wanneer?">
+              <Input
+                name="nextFollowUpAt"
+                type="datetime-local"
+                required
+                value={followUpAt}
+                onChange={(event) => setFollowUpAt(event.target.value)}
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {dateSuggestions.map((suggestion) => {
+                  const value = inDays(suggestion.days);
+
+                  return (
+                    <button
+                      key={suggestion.label}
+                      type="button"
+                      onClick={() => setFollowUpAt(value)}
+                      className={suggestionChipClass(followUpAt === value)}
+                    >
+                      {suggestion.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+          </div>
 
           <label className="flex items-center gap-3 rounded-2xl border border-black/10 bg-hover px-4 py-3 text-sm text-black">
             <input name="financeInterest" type="checkbox" className="h-4 w-4" />
