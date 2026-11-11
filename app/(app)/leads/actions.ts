@@ -104,6 +104,14 @@ const createTaskSchema = z.object({
   assignedUserId: z.string().trim().min(1, "Verkoper is verplicht.")
 });
 
+const updateTaskSchema = z.object({
+  taskId: z.string().trim().min(1),
+  title: z.string().trim().min(1, "Titel is verplicht.").max(200, "De titel is te lang."),
+  dueAt: z.string().trim().min(1, "Vervaldatum is verplicht."),
+  notes: optionalText,
+  assignedUserId: z.string().trim().min(1, "Verkoper is verplicht.")
+});
+
 const createActivitySchema = z.object({
   leadId: z.string().trim().min(1),
   occurredAt: z.string().trim().min(1, "Datum en uur zijn verplicht."),
@@ -168,6 +176,12 @@ export type UpdateNeedsAnalysisState = {
 };
 
 export type UpdateAppointmentState = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+  success?: boolean;
+};
+
+export type UpdateTaskState = {
   errors?: Record<string, string[] | undefined>;
   message?: string;
   success?: boolean;
@@ -1711,6 +1725,89 @@ export async function completeTask(formData: FormData) {
 
   revalidatePath("/tasks");
   revalidatePath(`/leads/${existingTask.leadId}`);
+}
+
+// Titel, datum/uur, notities en verkoper van een bestaande taak aanpassen (bv. bij een tikfout of verkeerde datum).
+export async function updateTask(_: UpdateTaskState, formData: FormData): Promise<UpdateTaskState> {
+  const currentUser = await requireUser();
+
+  const parsed = updateTaskSchema.safeParse({
+    taskId: formData.get("taskId"),
+    title: formData.get("title"),
+    dueAt: formData.get("dueAt"),
+    notes: formData.get("notes"),
+    assignedUserId: formData.get("assignedUserId")
+  });
+
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors,
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  const dueAt = new Date(parsed.data.dueAt);
+
+  if (Number.isNaN(dueAt.getTime())) {
+    return {
+      errors: { dueAt: ["Vervaldatum is verplicht."] },
+      message: "Controleer de ingevulde gegevens.",
+      success: false
+    };
+  }
+
+  const existing = await prisma.task.findUnique({
+    where: { id: parsed.data.taskId },
+    select: { id: true, leadId: true, title: true, dueAt: true, notes: true, assignedUserId: true, status: true }
+  });
+
+  if (!existing) {
+    return { message: "Taak niet gevonden.", success: false };
+  }
+
+  const notes = parsed.data.notes || null;
+  const changes: string[] = [];
+
+  if (existing.title !== parsed.data.title) changes.push("titel");
+  if (existing.dueAt.getTime() !== dueAt.getTime()) changes.push("datum/uur");
+  if ((existing.notes ?? null) !== notes) changes.push("notities");
+  if (existing.assignedUserId !== parsed.data.assignedUserId) changes.push("verkoper");
+
+  if (changes.length === 0) {
+    return { message: "Geen wijzigingen.", success: true };
+  }
+
+  await prisma.task.update({
+    where: { id: existing.id },
+    data: {
+      title: parsed.data.title,
+      dueAt,
+      notes,
+      assignedUserId: parsed.data.assignedUserId
+    }
+  });
+
+  if (existing.status === "OPEN") {
+    await syncLeadFollowUp(existing.leadId);
+  }
+
+  await prisma.activity.create({
+    data: {
+      leadId: existing.leadId,
+      userId: currentUser.id,
+      type: "NOTE",
+      summary: "Taak aangepast",
+      details: `Taak aangepast (${changes.join(", ")}): ${parsed.data.title}.`,
+      occurredAt: new Date()
+    }
+  });
+
+  revalidatePath(`/leads/${existing.leadId}`);
+  revalidatePath("/tasks");
+  revalidatePath("/dashboard");
+
+  return { message: "Taak aangepast.", success: true };
 }
 
 export async function deleteTask(formData: FormData) {

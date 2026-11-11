@@ -51,3 +51,13 @@ export function getNextTask(
     more: sorted.length - 1
   };
 }
+
+// Waarde voor een datetime-local veld, zoals de datum is opgeslagen (muurklok).
+export function toDateTimeInput(value: Date | null): string {
+  if (!value) return "";
+
+  const offset = value.getTimezoneOffset();
+  const localDate = new Date(value.getTime() - offset * 60_000);
+
+  return localDate.toISOString().slice(0, 16);
+}

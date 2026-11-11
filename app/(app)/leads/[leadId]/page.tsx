@@ -20,7 +20,7 @@ import { toNeedsAnalysisValues } from "@/lib/needs-analysis";
 import { ensureLeadSources } from "@/lib/lead-sources";
 import { prisma } from "@/lib/prisma";
 import { buildTimeline } from "@/lib/activity-timeline";
-import { getNextTask, wallClockNow } from "@/lib/lead-tasks";
+import { getNextTask, toDateTimeInput, wallClockNow } from "@/lib/lead-tasks";
 import { getAppointmentVehicleLabel, getLeadVehicleLabel } from "@/lib/appointment-calendar";
 import { getRequestOrigin } from "@/lib/request-origin";
 
@@ -36,6 +36,7 @@ import { ActivityTimeline } from "./activity-timeline";
 import { FicheActions, type FichePanel } from "./fiche-actions";
 import { EditAppointmentForm } from "./edit-appointment-form";
 import { CreateTaskForm } from "./create-task-form";
+import { EditTaskForm } from "./edit-task-form";
 import { DeleteLeadButton } from "./delete-lead-button";
 import { EditLeadForm } from "./editLeadForm";
 import { NeedsAnalysisCard } from "./needs-analysis-card";
@@ -323,9 +324,9 @@ export default async function LeadDetailPage({
             <EmptyState text="Nog geen taken voor deze lead." />
           ) : (
             <>
-              <TaskGroup title="Te laat" tasks={overdueTasks} highlight="overdue" />
-              <TaskGroup title="Open" tasks={openTasks} />
-              <TaskGroup title="Voltooid" tasks={completedTasks} />
+              <TaskGroup title="Te laat" tasks={overdueTasks} users={users} highlight="overdue" />
+              <TaskGroup title="Open" tasks={openTasks} users={users} />
+              <TaskGroup title="Voltooid" tasks={completedTasks} users={users} />
             </>
           )}
         </OverviewBlock>
@@ -600,15 +601,18 @@ export default async function LeadDetailPage({
 function TaskGroup({
   title,
   tasks,
+  users,
   highlight
 }: {
   title: string;
+  users: Array<{ id: string; firstName: string; lastName: string }>;
   tasks: Array<{
     id: string;
     title: string;
     dueAt: Date;
     notes: string | null;
     status: string;
+    assignedUserId: string;
     assignedUser: { firstName: string; lastName: string };
   }>;
   highlight?: "overdue";
@@ -666,6 +670,20 @@ function TaskGroup({
                 </form>
               ) : null}
             </div>
+
+            {task.status === "OPEN" ? (
+              <div className="mt-4">
+                <EditTaskForm
+                  taskId={task.id}
+                  title={task.title}
+                  dueAt={toDateTimeInput(task.dueAt)}
+                  notes={task.notes ?? ""}
+                  assignedUserId={task.assignedUserId}
+                  users={users}
+                  formClassName="w-full rounded-2xl border border-black/10 bg-white p-4"
+                />
+              </div>
+            ) : null}
           </div>
         ))}
       </div>

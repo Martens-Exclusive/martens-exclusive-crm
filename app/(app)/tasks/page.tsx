@@ -3,9 +3,10 @@ import type { Route } from "next";
 
 import { ConfirmActionForm } from "@/components/confirm-action-form";
 import { requireUser } from "@/lib/auth";
-import { wallClockNow } from "@/lib/lead-tasks";
+import { toDateTimeInput, wallClockNow } from "@/lib/lead-tasks";
 import { prisma } from "@/lib/prisma";
 import { completeTask, deleteCompletedTasks, deleteTask } from "../leads/actions";
+import { EditTaskForm } from "../leads/[leadId]/edit-task-form";
 
 type View = "open" | "completed";
 type GroupKey = "overdue" | "today" | "tomorrow" | "week" | "nextWeek" | "later";
@@ -17,6 +18,7 @@ type TaskRow = {
   notes: string | null;
   status: string;
   leadId: string;
+  assignedUserId: string;
   lead: {
     firstName: string;
     lastName: string;
@@ -70,7 +72,7 @@ export default async function TasksPage({
     assignedUser: { select: { firstName: true } }
   } as const;
 
-  const [openTasks, completedTasks, openMine, openAll, completedCount] = await Promise.all([
+  const [openTasks, completedTasks, openMine, openAll, completedCount, users] = await Promise.all([
     view === "open"
       ? prisma.task.findMany({
           where: { status: "OPEN", ...ownerWhere },
@@ -89,7 +91,12 @@ export default async function TasksPage({
       : Promise.resolve([] as TaskRow[]),
     prisma.task.count({ where: { status: "OPEN", assignedUserId: user.id } }),
     prisma.task.count({ where: { status: "OPEN" } }),
-    prisma.task.count({ where: { status: "COMPLETED", ...ownerWhere } })
+    prisma.task.count({ where: { status: "COMPLETED", ...ownerWhere } }),
+    prisma.user.findMany({
+      where: { isActive: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      select: { id: true, firstName: true, lastName: true }
+    })
   ]);
 
   const now = wallClockNow();
@@ -192,7 +199,7 @@ export default async function TasksPage({
 
               <ul className="flex flex-col gap-2">
                 {groups.get(key)!.map((task) => (
-                  <OpenTaskRow key={task.id} task={task} group={key} now={now} showSeller={showAll} />
+                  <OpenTaskRow key={task.id} task={task} group={key} now={now} showSeller={showAll} users={users} />
                 ))}
               </ul>
             </section>
@@ -250,12 +257,14 @@ function OpenTaskRow({
   task,
   group,
   now,
-  showSeller
+  showSeller,
+  users
 }: {
   task: TaskRow;
   group: GroupKey;
   now: Date;
   showSeller: boolean;
+  users: Array<{ id: string; firstName: string; lastName: string }>;
 }) {
   const overdue = group === "overdue";
   const days = Math.floor((now.getTime() - task.dueAt.getTime()) / DAY_MS);
@@ -273,11 +282,11 @@ function OpenTaskRow({
 
   return (
     <li
-      className={`flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border px-4 py-3 sm:flex-nowrap ${
+      className={`flex flex-wrap items-center gap-x-3 gap-y-3 rounded-2xl border px-4 py-3 ${
         overdue ? "border-red-200 bg-red-50" : "border-black/10 bg-panel"
       }`}
     >
-      <div className="w-24 shrink-0">
+      <div className="w-16 shrink-0 sm:w-24">
         <p className={`text-sm font-bold ${overdue ? "text-red-700" : "text-black"}`}>{primary}</p>
         {secondary ? (
           <p className={`text-xs ${overdue ? "font-semibold text-red-700" : "text-black/50"}`}>
@@ -294,6 +303,17 @@ function OpenTaskRow({
         </p>
         {task.notes ? <p className="mt-1 line-clamp-1 text-xs text-black/50">{task.notes}</p> : null}
       </div>
+
+      <EditTaskForm
+        taskId={task.id}
+        title={task.title}
+        dueAt={toDateTimeInput(task.dueAt)}
+        notes={task.notes ?? ""}
+        assignedUserId={task.assignedUserId}
+        users={users}
+        buttonClassName="shrink-0 rounded-xl border border-black/10 bg-transparent px-3.5 py-2 text-xs font-semibold text-black/70 transition hover:bg-hover"
+        formClassName="order-last w-full basis-full rounded-2xl border border-black/10 bg-white p-4"
+      />
 
       <form action={completeTask} className="shrink-0">
         <input type="hidden" name="taskId" value={task.id} />
