@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Josefin_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import type {
   ChangeEvent,
   InputHTMLAttributes,
@@ -25,9 +25,14 @@ import { TERMS } from "@/lib/quote-terms";
 
 import styles from "./quote-document.module.css";
 
-const josefin = Josefin_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "600"],
+// Lokaal ingeladen (map /fonts) in plaats van via Google Fonts: zo hangt de build niet af van
+// een netwerkverbinding naar Google en kan ze daar niet op mislukken.
+const josefin = localFont({
+  src: [
+    { path: "../../../../../../fonts/JosefinSans-Light.ttf", weight: "300", style: "normal" },
+    { path: "../../../../../../fonts/JosefinSans-Regular.ttf", weight: "400", style: "normal" },
+    { path: "../../../../../../fonts/JosefinSans-SemiBold.ttf", weight: "600", style: "normal" }
+  ],
   display: "swap",
   variable: "--quote-font"
 });
