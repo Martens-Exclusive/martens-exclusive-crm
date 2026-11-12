@@ -40,6 +40,8 @@ import { EditTaskForm } from "./edit-task-form";
 import { DeleteLeadButton } from "./delete-lead-button";
 import { EditLeadForm } from "./editLeadForm";
 import { NeedsAnalysisCard } from "./needs-analysis-card";
+import { NeedsAnalysisForm } from "./needs-analysis-form";
+import { sanitizeProfile } from "@/lib/needs-profile";
 
 const needsDateFormatter = new Intl.DateTimeFormat("nl-BE", { dateStyle: "long" });
 
@@ -167,6 +169,18 @@ export default async function LeadDetailPage({
       label: "+ Contactmoment",
       primary: true,
       node: <CreateActivityForm leadId={lead.id} />
+    },
+    {
+      key: "needs",
+      label: "Behoefteanalyse",
+      wide: true,
+      node: (
+        <NeedsAnalysisForm
+          leadId={lead.id}
+          values={toNeedsAnalysisValues(lead.needsAnalysis)}
+          profile={sanitizeProfile(lead.needsAnalysis?.profile)}
+        />
+      )
     },
     {
       key: "task",
@@ -581,8 +595,8 @@ export default async function LeadDetailPage({
 
 
         <NeedsAnalysisCard
-          leadId={lead.id}
           values={toNeedsAnalysisValues(lead.needsAnalysis)}
+          profile={sanitizeProfile(lead.needsAnalysis?.profile)}
           savedLabel={
             lead.needsAnalysis
               ? `Ingevuld op ${needsDateFormatter.format(lead.needsAnalysis.createdAt)} · laatst gewijzigd ${needsDateFormatter.format(lead.needsAnalysis.updatedAt)}`

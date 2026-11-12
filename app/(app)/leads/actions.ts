@@ -13,6 +13,7 @@ import {
   needsAnalysisToData,
   readNeedsAnalysisFromForm
 } from "@/lib/needs-analysis";
+import { readProfileFromForm } from "@/lib/needs-profile";
 import { prisma } from "@/lib/prisma";
 
 const optionalText = z
@@ -972,7 +973,7 @@ export async function updateNeedsAnalysis(
 
   const existingLead = await prisma.lead.findUnique({
     where: { id: parsed.data.leadId },
-    select: { id: true }
+    select: { id: true, interestedBrand: true, interestedModel: true }
   });
 
   if (!existingLead) {
@@ -982,30 +983,54 @@ export async function updateNeedsAnalysis(
     };
   }
 
-  const data = needsAnalysisToData(readNeedsAnalysisFromForm(formData));
+  const profile = readProfileFromForm(formData);
+
+  const data = {
+    ...needsAnalysisToData(readNeedsAnalysisFromForm(formData)),
+    profile: profile as unknown as Prisma.InputJsonValue
+  };
+
+  // Heeft de lead nog geen merk of model, dan wordt de eerste keuze uit de analyse de interesse van de lead.
+  // Zo zie je in de pipeline en de leadlijst meteen waar de klant naar zoekt.
+  const firstCandidate = profile.candidates.find((candidate) => candidate.brand || candidate.model);
+  const interestUpdate =
+    firstCandidate && !existingLead.interestedBrand && !existingLead.interestedModel
+      ? {
+          interestedBrand: firstCandidate.brand || null,
+          interestedModel: [firstCandidate.model, firstCandidate.variant].filter(Boolean).join(" ") || null
+        }
+      : {};
 
   await prisma.lead.update({
     where: { id: existingLead.id },
     data: {
+      ...interestUpdate,
       needsAnalysis: {
         upsert: {
           create: data,
           update: data
         }
       },
-      activities: {
-        create: {
-          userId: currentUser.id,
-          type: "NOTE",
-          summary: "Behoefteanalyse bijgewerkt",
-          details: "De behoefteanalyse van de klant werd ingevuld of aangepast.",
-          occurredAt: new Date()
-        }
-      }
+      // Bij automatisch bewaren (tijdens het gesprek) komt er geen regel in de activiteiten.
+      ...(formData.get("autosave") === "1"
+        ? {}
+        : {
+            activities: {
+              create: {
+                userId: currentUser.id,
+                type: "NOTE",
+                summary: "Behoefteanalyse bijgewerkt",
+                details: "De behoefteanalyse van de klant werd ingevuld of aangepast.",
+                occurredAt: new Date()
+              }
+            }
+          })
     }
   });
 
   revalidatePath(`/leads/${existingLead.id}`);
+  revalidatePath("/leads");
+  revalidatePath("/leads/pipeline");
 
   return {
     message: "Behoefteanalyse opgeslagen.",

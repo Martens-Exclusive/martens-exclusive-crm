@@ -360,6 +360,7 @@ model LeadNeedsAnalysis {
   timeline            String? // ASAP | WITHIN_MONTH | ONE_TO_THREE_MONTHS | LATER | UNKNOWN
   decision            String?
   notes               String?
+  profile             Json? // gestructureerd zoekprofiel (carrosserie, kleur, opties, modellen, ...), zie lib/needs-profile.ts
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

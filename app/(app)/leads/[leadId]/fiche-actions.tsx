@@ -38,7 +38,14 @@ export type FichePanel = {
   label: string;
   node: ReactNode;
   primary?: boolean;
+  // Breder zijpaneel voor grote formulieren (bv. de behoefteanalyse).
+  wide?: boolean;
 };
+
+// Laat andere delen van de pagina een paneel openen: openFichePanel("needs").
+export function openFichePanel(key: string) {
+  window.dispatchEvent(new CustomEvent("fiche-open", { detail: key }));
+}
 
 // Knoppenrij bovenaan de leadfiche. Elke knop opent het bijhorende formulier in een zijpaneel,
 // zodat je niet naar onder moet scrollen om iets in te vullen.
@@ -61,6 +68,20 @@ export function FicheActions({ panels, extra }: { panels: FichePanel[]; extra?: 
       toastTimer.current = setTimeout(() => setToast(null), 3500);
     }
   }, []);
+
+  useEffect(() => {
+    function onOpen(event: Event) {
+      const key = (event as CustomEvent<string>).detail;
+
+      if (typeof key === "string" && panels.some((panel) => panel.key === key)) {
+        setOpenKey(key);
+      }
+    }
+
+    window.addEventListener("fiche-open", onOpen);
+
+    return () => window.removeEventListener("fiche-open", onOpen);
+  }, [panels]);
 
   useEffect(() => {
     if (!openKey) {
@@ -136,7 +157,9 @@ export function FicheActions({ panels, extra }: { panels: FichePanel[]; extra?: 
             role="dialog"
             aria-modal="true"
             aria-label={active.label}
-            className="absolute right-0 top-0 flex h-full w-full flex-col bg-card shadow-[-20px_0_60px_rgba(0,0,0,0.25)] sm:max-w-lg"
+            className={`absolute right-0 top-0 flex h-full w-full flex-col bg-card shadow-[-20px_0_60px_rgba(0,0,0,0.25)] ${
+              active.wide ? "sm:max-w-2xl" : "sm:max-w-lg"
+            }`}
           >
             <div className="flex items-center justify-between border-b border-black/10 px-5 py-3">
               <p className="text-xs font-bold uppercase tracking-[0.25em] text-black/45">
